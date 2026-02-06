@@ -32,3 +32,13 @@ export interface TokenBudgetConfig {
   knowledgeHardLimit: number;
   conversationBudget: number;
 }
+
+export interface ChangelogEntry {
+  id: number;
+  knowledgeItemId: number;
+  chatId: string;
+  action: "create" | "update" | "delete";
+  changeDescription: string | null;
+  previousContent: string | null;
+  createdAt: Date;
+}

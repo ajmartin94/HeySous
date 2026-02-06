@@ -25,3 +25,20 @@ export const knowledgeTags = sqliteTable("knowledge_tags", {
     .references(() => knowledgeItems.id, { onDelete: "cascade" }),
   tag: text("tag").notNull(),
 });
+
+/**
+ * Changelog for knowledge item mutations.
+ * No foreign key on knowledgeItemId -- logs persist even after item deletion.
+ * Captures previous content snapshots for audit and data mining.
+ */
+export const knowledgeChangelog = sqliteTable("knowledge_changelog", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  knowledgeItemId: integer("knowledge_item_id").notNull(),
+  chatId: text("chat_id").notNull(),
+  action: text("action", { enum: ["create", "update", "delete"] }).notNull(),
+  changeDescription: text("change_description"),
+  previousContent: text("previous_content"),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});

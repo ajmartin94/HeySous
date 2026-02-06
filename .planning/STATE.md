@@ -12,26 +12,26 @@ See: .planning/PROJECT.md (updated 2026-02-05)
 Phase: 2 of 9 (Async Pipeline & Claude Integration)
 Plan: 2 of 3 in current phase
 Status: In progress
-Last activity: 2026-02-06 -- Completed 02-02-PLAN.md (Message debounce queue)
+Last activity: 2026-02-06 -- Completed 02-01-PLAN.md (Config, Claude client, system prompt, token usage schema)
 
-Progress: [█████░░░░░░░░░░░░░░░░░░░░░] 4/26 (15%)
+Progress: [█████░░░░░░░░░░░░░░░░░░░░░] 5/26 (19%)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 4
+- Total plans completed: 5
 - Average duration: 3 min
-- Total execution time: 12 min
+- Total execution time: 15 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 1. Bot Foundation | 3/3 | 10 min | 3.3 min |
-| 2. Async Pipeline | 1/3 | 2 min | 2.0 min |
+| 2. Async Pipeline | 2/3 | 5 min | 2.5 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (3 min), 01-02 (3 min), 01-03 (3 min), 02-02 (2 min)
+- Last 5 plans: 01-02 (3 min), 01-03 (3 min), 02-02 (2 min), 02-01 (3 min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -57,6 +57,10 @@ Recent decisions affecting current work:
 - [01-03]: Ampersand escaped first in escapeHtml to prevent double-encoding
 - [01-03]: 30% minimum split position to prevent degenerate tiny first chunks
 - [01-03]: 300ms chunk delay between split messages for Telegram rate limits
+- [02-01]: maxRetries: 0 on Anthropic client -- we handle retries ourselves for user-facing messaging
+- [02-01]: cache_control ephemeral on system prompt -- costs nothing below 4096 token minimum, ready for Phase 3+
+- [02-01]: Factory pattern createClaudeClient() matches existing codebase conventions
+- [02-01]: System prompt as function buildSystemPrompt() for future context injection
 - [02-02]: 1500ms default debounce window for message batching
 - [02-02]: Delete-before-process pattern prevents double-processing race condition
 - [02-02]: processFn errors caught silently -- queue never crashes on processor errors
@@ -72,5 +76,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-06
-Stopped at: Completed 02-02-PLAN.md (Message debounce queue)
+Stopped at: Completed 02-01-PLAN.md (Config, Claude client, system prompt, token usage schema)
 Resume file: None

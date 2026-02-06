@@ -180,7 +180,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Bot Foundation | 3/3 | Complete | 2026-02-06 |
-| 2. Async Pipeline & Claude Integration | 1/3 | In progress | - |
+| 2. Async Pipeline & Claude Integration | 2/3 | In progress | - |
 | 3. Knowledge System & Retrieval | 0/3 | Not started | - |
 | 4. Recipe Knowledge | 0/3 | Not started | - |
 | 5. Preference Learning | 0/2 | Not started | - |

@@ -1,7 +1,7 @@
 # Requirements: HeySous (Meal Planning Assistant)
 
 **Defined:** 2026-02-05
-**Core Value:** The recipe brain — an AI agent that remembers everything about your meals and reasons over that knowledge to help you plan.
+**Core Value:** The recipe brain -- an AI agent that remembers everything about your meals and reasons over that knowledge to help you plan.
 
 **Architectural Principle:** Agent-first, not database-first. The LLM reasons over a knowledge store. Capabilities emerge from good context + good reasoning, not from individually coded database features.
 
@@ -22,7 +22,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 - [ ] **AGENT-01**: Claude receives a system prompt defining its role as a cooking partner with the user's context
 - [ ] **AGENT-02**: Agent retrieves relevant knowledge (recipes, preferences, history) per conversation within a token budget (~4K tokens)
-- [ ] **AGENT-03**: Agent decides what to look up based on conversation context — no hardcoded query paths
+- [ ] **AGENT-03**: Agent decides what to look up based on conversation context -- no hardcoded query paths
 - [ ] **AGENT-04**: Prompt caching applied to stable system prompt content (90% cost reduction on cached portion)
 - [ ] **AGENT-05**: Token usage logged per request, tagged by conversation type, for cost monitoring
 - [ ] **AGENT-06**: Conversation context maintained within a session; older turns summarized to stay within budget
@@ -42,7 +42,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **PLAN-02**: Plan generated from user's stored recipes, respecting preferences, constraints, and recent history
 - [ ] **PLAN-03**: User can adjust the plan conversationally ("swap Thursday and Friday", "something easier on Tuesday")
 - [ ] **PLAN-04**: Plan considers what hasn't been made recently to surface forgotten favorites
-- [ ] **PLAN-05**: Cooking history tracked — what was planned/cooked and when
+- [ ] **PLAN-05**: Cooking history tracked -- what was planned/cooked and when
 
 ### Grocery List (GROCERY)
 
@@ -54,7 +54,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Reminders (REMIND)
 
-- [ ] **REMIND-01**: Daily prep summary sent each morning — what's for dinner, what needs doing
+- [ ] **REMIND-01**: Daily prep summary sent each morning -- what's for dinner, what needs doing
 - [ ] **REMIND-02**: Time-aware prep reminders based on recipe analysis ("defrost chicken by 8am")
 - [ ] **REMIND-03**: Reminders persist across process restarts (database-backed, not in-memory)
 - [ ] **REMIND-04**: Reminders respect user's timezone
@@ -63,7 +63,7 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Preference Learning (PREF)
 
 - [ ] **PREF-01**: System remembers stated preferences across conversations (dinner time, allergies, cooking goals, stores)
-- [ ] **PREF-02**: Preferences actively influence planning — allergies excluded from suggestions, not just stored
+- [ ] **PREF-02**: Preferences actively influence planning -- allergies excluded from suggestions, not just stored
 - [ ] **PREF-03**: User can update preferences conversationally ("actually, dinner is at 6:30 now")
 - [ ] **PREF-04**: Dietary restrictions treated as hard constraints (never violated in suggestions)
 
@@ -71,7 +71,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 - [ ] **FEED-01**: Bot offers optional post-meal check-in ("How was dinner?")
 - [ ] **FEED-02**: Feedback stored as recipe annotations (actual time, what worked, what to change)
-- [ ] **FEED-03**: Check-ins are low-friction and infrequent — not every meal, not homework
+- [ ] **FEED-03**: Check-ins are low-friction and infrequent -- not every meal, not homework
 - [ ] **FEED-04**: Accumulated feedback influences future planning and recipe suggestions
 
 ## v2 Requirements
@@ -112,7 +112,7 @@ Explicitly excluded. Documented to prevent scope creep.
 | Social features / recipe sharing | Different product. Adds moderation, privacy, viral mechanics for no value. |
 | Budget tracking / price optimization | Requires real-time price data per store. User's constraint is time, not money. |
 | Voice interaction / cooking mode | Different interaction paradigm. Telegram latency too high for real-time cooking guidance. |
-| Feature-specific database queries | Agent reasons over knowledge. "Search by ingredient" is not a feature — it's the agent understanding your request. |
+| Feature-specific database queries | Agent reasons over knowledge. "Search by ingredient" is not a feature -- it's the agent understanding your request. |
 
 ## Traceability
 
@@ -120,20 +120,53 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INFRA-01 through INFRA-06 | TBD | Pending |
-| AGENT-01 through AGENT-06 | TBD | Pending |
-| RECIPE-01 through RECIPE-06 | TBD | Pending |
-| PLAN-01 through PLAN-05 | TBD | Pending |
-| GROCERY-01 through GROCERY-05 | TBD | Pending |
-| REMIND-01 through REMIND-05 | TBD | Pending |
-| PREF-01 through PREF-04 | TBD | Pending |
-| FEED-01 through FEED-04 | TBD | Pending |
+| INFRA-01 | Phase 1: Bot Foundation | Pending |
+| INFRA-02 | Phase 2: Async Pipeline & Claude Integration | Pending |
+| INFRA-03 | Phase 1: Bot Foundation | Pending |
+| INFRA-04 | Phase 1: Bot Foundation | Pending |
+| INFRA-05 | Phase 1: Bot Foundation | Pending |
+| INFRA-06 | Phase 2: Async Pipeline & Claude Integration | Pending |
+| AGENT-01 | Phase 2: Async Pipeline & Claude Integration | Pending |
+| AGENT-02 | Phase 3: Knowledge System & Retrieval | Pending |
+| AGENT-03 | Phase 3: Knowledge System & Retrieval | Pending |
+| AGENT-04 | Phase 2: Async Pipeline & Claude Integration | Pending |
+| AGENT-05 | Phase 2: Async Pipeline & Claude Integration | Pending |
+| AGENT-06 | Phase 3: Knowledge System & Retrieval | Pending |
+| RECIPE-01 | Phase 4: Recipe Knowledge | Pending |
+| RECIPE-02 | Phase 4: Recipe Knowledge | Pending |
+| RECIPE-03 | Phase 4: Recipe Knowledge | Pending |
+| RECIPE-04 | Phase 4: Recipe Knowledge | Pending |
+| RECIPE-05 | Phase 4: Recipe Knowledge | Pending |
+| RECIPE-06 | Phase 4: Recipe Knowledge | Pending |
+| PLAN-01 | Phase 6: Meal Planning | Pending |
+| PLAN-02 | Phase 6: Meal Planning | Pending |
+| PLAN-03 | Phase 6: Meal Planning | Pending |
+| PLAN-04 | Phase 6: Meal Planning | Pending |
+| PLAN-05 | Phase 6: Meal Planning | Pending |
+| GROCERY-01 | Phase 7: Grocery Lists | Pending |
+| GROCERY-02 | Phase 7: Grocery Lists | Pending |
+| GROCERY-03 | Phase 7: Grocery Lists | Pending |
+| GROCERY-04 | Phase 7: Grocery Lists | Pending |
+| GROCERY-05 | Phase 7: Grocery Lists | Pending |
+| REMIND-01 | Phase 8: Reminders | Pending |
+| REMIND-02 | Phase 8: Reminders | Pending |
+| REMIND-03 | Phase 8: Reminders | Pending |
+| REMIND-04 | Phase 8: Reminders | Pending |
+| REMIND-05 | Phase 8: Reminders | Pending |
+| PREF-01 | Phase 5: Preference Learning | Pending |
+| PREF-02 | Phase 5: Preference Learning | Pending |
+| PREF-03 | Phase 5: Preference Learning | Pending |
+| PREF-04 | Phase 5: Preference Learning | Pending |
+| FEED-01 | Phase 9: Feedback Loop | Pending |
+| FEED-02 | Phase 9: Feedback Loop | Pending |
+| FEED-03 | Phase 9: Feedback Loop | Pending |
+| FEED-04 | Phase 9: Feedback Loop | Pending |
 
 **Coverage:**
-- v1 requirements: 35 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 35
+- v1 requirements: 41 total
+- Mapped to phases: 41
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-05*
-*Last updated: 2026-02-05 after scoping with agent-first architecture decision*
+*Last updated: 2026-02-05 -- traceability updated with phase mappings from roadmap*

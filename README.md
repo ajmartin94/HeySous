@@ -1,2 +1,2 @@
 # HeySous
-HeySous is a conversational AI meal planning assistant for Telegram. It remembers your recipes, learns your preferences, and sends timely reminders so you never forget to defrost the chicken again.
+AI assistant that plans meals, tracks recipes, learns your preferences, and reminds you to defrost the chicken.

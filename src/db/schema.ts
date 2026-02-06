@@ -27,3 +27,5 @@ export const tokenUsage = sqliteTable("token_usage", {
     .notNull()
     .$defaultFn(() => new Date()),
 });
+
+export { knowledgeItems, knowledgeTags } from "../knowledge/schema.js";

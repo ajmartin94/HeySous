@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Core value:** The recipe brain -- an AI agent that remembers everything about your meals and reasons over that knowledge to help you plan.
-**Current focus:** Phase 3 complete (verified). Ready for Phase 4.
+**Current focus:** Phase 4 in progress -- Recipe Knowledge.
 
 ## Current Position
 
-Phase: 3 of 9 (Knowledge System) -- COMPLETE
-Plan: 3 of 3 in current phase
-Status: Phase complete, verified
-Last activity: 2026-02-06 -- Phase 3 executed and verified
+Phase: 4 of 9 (Recipe Knowledge)
+Plan: 2 of 3 in current phase
+Status: In progress
+Last activity: 2026-02-06 -- Completed 04-02-PLAN.md
 
-Progress: [█████████░░░░░░░░░░░░░░░░░] 9/26 (35%)
+Progress: [██████████░░░░░░░░░░░░░░░░] 10/26 (38%)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 9
-- Average duration: 3.3 min
-- Total execution time: 30 min
+- Total plans completed: 10
+- Average duration: 3.1 min
+- Total execution time: 31 min
 
 **By Phase:**
 
@@ -30,10 +30,11 @@ Progress: [█████████░░░░░░░░░░░░░░
 | 1. Bot Foundation | 3/3 | 10 min | 3.3 min |
 | 2. Async Pipeline | 3/3 | 8 min | 2.7 min |
 | 3. Knowledge System | 3/3 | 12 min | 4.0 min |
+| 4. Recipe Knowledge | 1/3 | 1 min | 1.0 min |
 
 **Recent Trend:**
-- Last 5 plans: 02-03 (3 min), 03-01 (6 min), 03-02 (2 min), 03-03 (4 min)
-- Trend: Stable ~4 min for knowledge system plans
+- Last 5 plans: 03-01 (6 min), 03-02 (2 min), 03-03 (4 min), 04-02 (1 min)
+- Trend: Prompt-only plans are fast (~1 min)
 
 *Updated after each plan completion*
 
@@ -86,6 +87,10 @@ Recent decisions affecting current work:
 - [03-03]: Messages saved synchronously with .run() before/after Claude call
 - [03-03]: Aggregate token usage across all tool use iterations for cost tracking
 - [03-03]: /debug command has no admin restriction (power user feature)
+- [04-02]: Recipe intelligence lives entirely in system prompt -- no code-level recipe parsing or templates
+- [04-02]: Namespaced tag taxonomy (cuisine:italian, protein:chicken, etc.) auto-assigned by Claude
+- [04-02]: Recipe content stored as structured plain text, not JSON or HTML
+- [04-02]: Confirmation required before save; partial updates skip re-confirmation
 
 ### Pending Todos
 
@@ -98,5 +103,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-06
-Stopped at: Phase 3 executed and verified -- ready for Phase 4
+Stopped at: Completed 04-02-PLAN.md
 Resume file: None

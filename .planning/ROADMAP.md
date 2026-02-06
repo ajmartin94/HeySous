@@ -54,7 +54,7 @@ Plans:
 
 Plans:
 - [ ] 02-01-PLAN.md -- Config, Claude client, system prompt, and token usage schema (Anthropic SDK, Sous persona, cost tracking DB)
-- [ ] 02-02-PLAN.md -- Message debounce queue (TDD: sliding window batching for rapid consecutive messages)
+- [x] 02-02-PLAN.md -- Message debounce queue (TDD: sliding window batching for rapid consecutive messages)
 - [ ] 02-03-PLAN.md -- Pipeline processor and end-to-end wiring (retry/timeout logic, /costs command, async flow integration)
 
 ### Phase 3: Knowledge System & Retrieval
@@ -180,7 +180,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Bot Foundation | 3/3 | Complete | 2026-02-06 |
-| 2. Async Pipeline & Claude Integration | 0/3 | Not started | - |
+| 2. Async Pipeline & Claude Integration | 1/3 | In progress | - |
 | 3. Knowledge System & Retrieval | 0/3 | Not started | - |
 | 4. Recipe Knowledge | 0/3 | Not started | - |
 | 5. Preference Learning | 0/2 | Not started | - |

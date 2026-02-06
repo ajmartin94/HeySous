@@ -9,28 +9,29 @@ See: .planning/PROJECT.md (updated 2026-02-05)
 
 ## Current Position
 
-Phase: 1 of 9 (Bot Foundation) -- COMPLETE
-Plan: 3 of 3 in current phase
-Status: Phase complete
-Last activity: 2026-02-06 -- Completed 01-03-PLAN.md (Message formatting and delivery)
+Phase: 2 of 9 (Async Pipeline & Claude Integration)
+Plan: 2 of 3 in current phase
+Status: In progress
+Last activity: 2026-02-06 -- Completed 02-02-PLAN.md (Message debounce queue)
 
-Progress: [███░░░░░░░░░░░░░░░░░░░░░░░] 3/26 (12%)
+Progress: [█████░░░░░░░░░░░░░░░░░░░░░] 4/26 (15%)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 3
+- Total plans completed: 4
 - Average duration: 3 min
-- Total execution time: 10 min
+- Total execution time: 12 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 1. Bot Foundation | 3/3 | 10 min | 3.3 min |
+| 2. Async Pipeline | 1/3 | 2 min | 2.0 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (3 min), 01-02 (3 min), 01-03 (3 min)
+- Last 5 plans: 01-01 (3 min), 01-02 (3 min), 01-03 (3 min), 02-02 (2 min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -56,6 +57,9 @@ Recent decisions affecting current work:
 - [01-03]: Ampersand escaped first in escapeHtml to prevent double-encoding
 - [01-03]: 30% minimum split position to prevent degenerate tiny first chunks
 - [01-03]: 300ms chunk delay between split messages for Telegram rate limits
+- [02-02]: 1500ms default debounce window for message batching
+- [02-02]: Delete-before-process pattern prevents double-processing race condition
+- [02-02]: processFn errors caught silently -- queue never crashes on processor errors
 
 ### Pending Todos
 
@@ -68,5 +72,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-06
-Stopped at: Completed 01-03-PLAN.md (Message formatting and delivery) -- Phase 1 complete
+Stopped at: Completed 02-02-PLAN.md (Message debounce queue)
 Resume file: None

@@ -10,28 +10,28 @@ See: .planning/PROJECT.md (updated 2026-02-05)
 ## Current Position
 
 Phase: 1 of 9 (Bot Foundation)
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase
 Status: In progress
-Last activity: 2026-02-06 -- Completed 01-01-PLAN.md (project scaffolding)
+Last activity: 2026-02-06 -- Completed 01-02-PLAN.md (Telegram bot connection)
 
-Progress: [█░░░░░░░░░░░░░░░░░░░░░░░░░] 1/26 (4%)
+Progress: [██░░░░░░░░░░░░░░░░░░░░░░░░] 2/26 (8%)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 1
+- Total plans completed: 2
 - Average duration: 3 min
-- Total execution time: 3 min
+- Total execution time: 7 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 1. Bot Foundation | 1/3 | 3 min | 3 min |
+| 1. Bot Foundation | 2/3 | 7 min | 3.5 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (3 min)
-- Trend: Starting
+- Last 5 plans: 01-01 (3 min), 01-02 (3 min)
+- Trend: Stable
 
 *Updated after each plan completion*
 
@@ -50,6 +50,9 @@ Recent decisions affecting current work:
 - [01-01]: Chat/user IDs stored as text (string) for BigInt safety
 - [01-01]: WAL mode enabled on SQLite for concurrent read/write performance
 - [01-01]: ESM with NodeNext module resolution -- .js extensions on all local imports
+- [01-02]: Downgraded @grammyjs/parse-mode from v2.2.0 to v1.11.1 -- v2.x is a different library
+- [01-02]: AutoChatActionFlavor used as plain type intersection, not generic wrapper
+- [01-02]: Bot token in webhook URL path as shared secret for security
 
 ### Pending Todos
 
@@ -62,5 +65,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-06
-Stopped at: Completed 01-01-PLAN.md (project scaffolding)
+Stopped at: Completed 01-02-PLAN.md (Telegram bot connection)
 Resume file: None

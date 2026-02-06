@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Core value:** The recipe brain -- an AI agent that remembers everything about your meals and reasons over that knowledge to help you plan.
-**Current focus:** Phase 2 complete. Ready for Phase 3: Knowledge System.
+**Current focus:** Phase 3 in progress: Knowledge System.
 
 ## Current Position
 
-Phase: 2 of 9 (Async Pipeline & Claude Integration)
-Plan: 3 of 3 in current phase
-Status: Phase complete
-Last activity: 2026-02-06 -- Completed 02-03-PLAN.md (Async pipeline integration)
+Phase: 3 of 9 (Knowledge System)
+Plan: 1 of 3 in current phase
+Status: In progress
+Last activity: 2026-02-06 -- Completed 03-01-PLAN.md (Knowledge storage layer)
 
-Progress: [██████░░░░░░░░░░░░░░░░░░░░] 6/26 (23%)
+Progress: [███████░░░░░░░░░░░░░░░░░░░] 7/26 (27%)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 6
-- Average duration: 3 min
-- Total execution time: 18 min
+- Total plans completed: 7
+- Average duration: 3.4 min
+- Total execution time: 24 min
 
 **By Phase:**
 
@@ -29,10 +29,11 @@ Progress: [██████░░░░░░░░░░░░░░░░░
 |-------|-------|-------|----------|
 | 1. Bot Foundation | 3/3 | 10 min | 3.3 min |
 | 2. Async Pipeline | 3/3 | 8 min | 2.7 min |
+| 3. Knowledge System | 1/3 | 6 min | 6.0 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-03 (3 min), 02-02 (2 min), 02-01 (3 min), 02-03 (3 min)
-- Trend: Stable
+- Last 5 plans: 02-02 (2 min), 02-01 (3 min), 02-03 (3 min), 03-01 (6 min)
+- Trend: Slight increase (knowledge layer more complex)
 
 *Updated after each plan completion*
 
@@ -70,6 +71,11 @@ Recent decisions affecting current work:
 - [02-03]: Processor never throws -- outer try/catch with in-character error for fire-and-forget safety
 - [02-03]: One silent retry before user-facing error (two attempts total)
 - [02-03]: Admin-only /costs: non-admin users see nothing (silent return)
+- [03-01]: initializeFts creates base tables via raw SQL since FTS5 external content requires content table to exist
+- [03-01]: Foreign keys pragma enabled in createDatabase for CASCADE delete support
+- [03-01]: BM25 weights title 10x, summary 5x, content 1x for search relevance
+- [03-01]: FTS5 query escaping wraps terms in double quotes, LIKE fallback on parse error
+- [03-01]: Repository uses Drizzle .returning().get() for synchronous insert-and-return
 
 ### Pending Todos
 
@@ -82,5 +88,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-06
-Stopped at: Completed 02-03-PLAN.md (Async pipeline integration -- Phase 2 complete)
+Stopped at: Completed 03-01-PLAN.md (Knowledge storage layer)
 Resume file: None

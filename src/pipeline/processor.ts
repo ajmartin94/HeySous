@@ -26,6 +26,7 @@ import { KNOWLEDGE_TOOLS } from "../ai/tools.js";
 import { buildConversationContext } from "../conversation/context-builder.js";
 import type { ConversationTurn } from "../conversation/types.js";
 import type { createRetrievalService } from "../knowledge/retrieval.js";
+import { createKnowledgeRepository } from "../knowledge/repository.js";
 import type { DrizzleDatabase } from "../db/index.js";
 import type { Logger } from "pino";
 
@@ -117,9 +118,12 @@ export function createProcessor(deps: ProcessorDeps) {
         { role: "user" as const, content: userText },
       ];
 
-      // g. Create tool handler for knowledge retrieval
+      // g. Create tool handler for knowledge retrieval and write operations
+      const knowledgeRepository = createKnowledgeRepository(db);
       const toolHandler = createToolHandler({
         retrievalService,
+        knowledgeRepository,
+        db,
         chatId,
       });
 

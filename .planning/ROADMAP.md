@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Bot Foundation** - Working Telegram bot with proper message formatting and delivery
 - [x] **Phase 2: Async Pipeline & Claude Integration** - Bot processes messages asynchronously through Claude and responds intelligently
 - [x] **Phase 3: Knowledge System & Retrieval** - Agent retrieves relevant context per conversation within a token budget
-- [ ] **Phase 4: Recipe Knowledge** - Users can teach the bot recipes and retrieve them conversationally
+- [x] **Phase 4: Recipe Knowledge** - Users can teach the bot recipes and retrieve them conversationally
 - [ ] **Phase 5: Preference Learning** - System remembers user preferences and applies them as active constraints
 - [ ] **Phase 6: Meal Planning** - Users can generate and adjust weekly dinner plans through conversation
 - [ ] **Phase 7: Grocery Lists** - Grocery lists generated from meal plans with aggregation and store splitting
@@ -85,9 +85,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 04-01-PLAN.md -- Write tool infrastructure (changelog schema, save/update/delete tools, tool handler dispatch, formatter blockquote)
-- [ ] 04-02-PLAN.md -- Recipe system prompt (creation flow, content format, display format, tag taxonomy, updates, deletion, reasoning)
-- [ ] 04-03-PLAN.md -- Pipeline wiring (max iterations bump, processor + main.ts dependency injection, end-to-end integration)
+- [x] 04-01-PLAN.md -- Write tool infrastructure (changelog schema, save/update/delete tools, tool handler dispatch, formatter blockquote)
+- [x] 04-02-PLAN.md -- Recipe system prompt (creation flow, content format, display format, tag taxonomy, updates, deletion, reasoning)
+- [x] 04-03-PLAN.md -- Pipeline wiring (max iterations bump, processor + main.ts dependency injection, end-to-end integration)
 
 ### Phase 5: Preference Learning
 **Goal**: System remembers user preferences across conversations and actively applies them as constraints
@@ -182,7 +182,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | 1. Bot Foundation | 3/3 | Complete | 2026-02-06 |
 | 2. Async Pipeline & Claude Integration | 3/3 | Complete | 2026-02-06 |
 | 3. Knowledge System & Retrieval | 3/3 | Complete | 2026-02-06 |
-| 4. Recipe Knowledge | 0/3 | Not started | - |
+| 4. Recipe Knowledge | 3/3 | Complete | 2026-02-06 |
 | 5. Preference Learning | 0/2 | Not started | - |
 | 6. Meal Planning | 0/3 | Not started | - |
 | 7. Grocery Lists | 0/3 | Not started | - |

@@ -29,12 +29,12 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Recipe Knowledge (RECIPE)
 
-- [ ] **RECIPE-01**: User can tell the bot about a recipe conversationally and the bot captures and stores it
-- [ ] **RECIPE-02**: Bot confirms captured recipe back to user for verification before persisting
-- [ ] **RECIPE-03**: User can ask for any stored recipe and see it formatted in chat
-- [ ] **RECIPE-04**: User can update a recipe through conversation ("the stromboli actually takes 70 minutes, not 45")
-- [ ] **RECIPE-05**: System stores user's notes, actual prep times, and feedback alongside each recipe
-- [ ] **RECIPE-06**: Recipes stored as rich text context the agent can retrieve and reason over
+- [x] **RECIPE-01**: User can tell the bot about a recipe conversationally and the bot captures and stores it
+- [x] **RECIPE-02**: Bot confirms captured recipe back to user for verification before persisting
+- [x] **RECIPE-03**: User can ask for any stored recipe and see it formatted in chat
+- [x] **RECIPE-04**: User can update a recipe through conversation ("the stromboli actually takes 70 minutes, not 45")
+- [x] **RECIPE-05**: System stores user's notes, actual prep times, and feedback alongside each recipe
+- [x] **RECIPE-06**: Recipes stored as rich text context the agent can retrieve and reason over
 
 ### Meal Planning (PLAN)
 
@@ -132,12 +132,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AGENT-04 | Phase 2: Async Pipeline & Claude Integration | Complete |
 | AGENT-05 | Phase 2: Async Pipeline & Claude Integration | Complete |
 | AGENT-06 | Phase 3: Knowledge System & Retrieval | Complete |
-| RECIPE-01 | Phase 4: Recipe Knowledge | Pending |
-| RECIPE-02 | Phase 4: Recipe Knowledge | Pending |
-| RECIPE-03 | Phase 4: Recipe Knowledge | Pending |
-| RECIPE-04 | Phase 4: Recipe Knowledge | Pending |
-| RECIPE-05 | Phase 4: Recipe Knowledge | Pending |
-| RECIPE-06 | Phase 4: Recipe Knowledge | Pending |
+| RECIPE-01 | Phase 4: Recipe Knowledge | Complete |
+| RECIPE-02 | Phase 4: Recipe Knowledge | Complete |
+| RECIPE-03 | Phase 4: Recipe Knowledge | Complete |
+| RECIPE-04 | Phase 4: Recipe Knowledge | Complete |
+| RECIPE-05 | Phase 4: Recipe Knowledge | Complete |
+| RECIPE-06 | Phase 4: Recipe Knowledge | Complete |
 | PLAN-01 | Phase 6: Meal Planning | Pending |
 | PLAN-02 | Phase 6: Meal Planning | Pending |
 | PLAN-03 | Phase 6: Meal Planning | Pending |
@@ -169,4 +169,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-02-05*
-*Last updated: 2026-02-06 -- Phase 3 requirements marked Complete*
+*Last updated: 2026-02-06 -- Phase 4 requirements marked Complete*

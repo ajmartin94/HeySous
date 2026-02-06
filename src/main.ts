@@ -3,13 +3,15 @@
  *
  * Wires all components together:
  * - Database (SQLite + Drizzle)
- * - Claude client (Anthropic SDK)
+ * - Knowledge retrieval service (FTS5 search + token budgeting)
+ * - Claude client (Anthropic SDK with tool support)
  * - Message queue (debounce batching)
- * - Pipeline processor (Claude call + response + logging)
+ * - Pipeline processor (Claude call with tools + response + logging)
  * - Bot (grammY with handlers)
  * - Server (Express webhook) or polling mode
  */
 
+import type BetterSqlite3 from "better-sqlite3";
 import { config } from "./config.js";
 import { createBot } from "./bot/index.js";
 import { createServer } from "./server.js";
@@ -19,12 +21,18 @@ import { createMessageQueue } from "./pipeline/message-queue.js";
 import { createProcessor } from "./pipeline/processor.js";
 import { createMessageHandler } from "./bot/handlers/message.js";
 import { createCostsHandler } from "./bot/handlers/costs.js";
+import { createDebugHandler } from "./bot/handlers/debug.js";
+import { createRetrievalService } from "./knowledge/retrieval.js";
 import { logger } from "./logger.js";
 
 async function main(): Promise<void> {
   // Initialize database
   const db = createDatabase(config.dbFileName);
   logger.info({ dbFile: config.dbFileName }, "Database initialized");
+
+  // Get raw better-sqlite3 instance for direct FTS5 access
+  // Drizzle exposes the underlying driver via $client (not in public type defs)
+  const sqlite = (db as unknown as { $client: BetterSqlite3.Database }).$client;
 
   // Initialize Claude client
   const claudeClient = createClaudeClient(
@@ -36,16 +44,28 @@ async function main(): Promise<void> {
   // Initialize message queue with default 1500ms debounce
   const queue = createMessageQueue();
 
-  // Create pipeline processor
-  const processBatch = createProcessor({ claudeClient, db, logger });
+  // Initialize knowledge retrieval service
+  const retrievalService = createRetrievalService({ sqlite, db, logger });
+  logger.info("Knowledge retrieval service initialized");
+
+  // Create pipeline processor with knowledge augmentation
+  const processBatch = createProcessor({
+    claudeClient,
+    db,
+    logger,
+    retrievalService,
+    sqlite,
+  });
 
   // Create handlers
   const costsHandler = createCostsHandler(db);
+  const debugHandler = createDebugHandler(retrievalService);
   const messageHandler = createMessageHandler(queue, processBatch);
 
   // Create bot instance with all dependencies
   const bot = createBot(config.botToken, {
     costsHandler,
+    debugHandler,
     messageHandler,
     db,
   });

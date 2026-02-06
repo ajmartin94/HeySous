@@ -1,21 +1,31 @@
 /**
  * Pipeline Processor
  *
- * Orchestrates the full message processing pipeline:
- * typing indicator -> Claude call with retry -> 30s timeout messaging ->
- * formatted response delivery -> token usage logged to database and pino.
+ * Orchestrates the full knowledge-augmented message processing pipeline:
+ * save incoming message -> load conversation history -> build context ->
+ * typing indicator -> Claude call with tools + retry -> 30s timeout messaging ->
+ * formatted response delivery -> save outgoing message ->
+ * token usage logged to database and pino.
  *
  * The processor NEVER throws -- it's called from the debounce queue's
  * fire-and-forget pattern. All errors are caught and handled with
  * in-character error messages to the user.
  */
 
+import Anthropic from "@anthropic-ai/sdk";
+import { eq, asc } from "drizzle-orm";
+import type BetterSqlite3 from "better-sqlite3";
 import type { PendingBatch } from "./message-queue.js";
 import type { BotContext } from "../bot/context.js";
 import type { ClaudeResponse } from "../ai/types.js";
 import { calculateCost } from "../ai/claude-client.js";
 import { sendFormattedMessage } from "../telegram/sender.js";
-import { tokenUsage } from "../db/schema.js";
+import { messages, tokenUsage } from "../db/schema.js";
+import { createToolHandler } from "../ai/tool-handler.js";
+import { KNOWLEDGE_TOOLS } from "../ai/tools.js";
+import { buildConversationContext } from "../conversation/context-builder.js";
+import type { ConversationTurn } from "../conversation/types.js";
+import type { createRetrievalService } from "../knowledge/retrieval.js";
 import type { DrizzleDatabase } from "../db/index.js";
 import type { Logger } from "pino";
 
@@ -23,14 +33,25 @@ const TIMEOUT_WARNING_MS = 30_000;
 const IN_CHARACTER_ERROR =
   "Sorry, I'm having trouble thinking right now. Try again in a moment!";
 
+/** Default conversation history token budget. */
+const CONVERSATION_TOKEN_BUDGET = 2000;
+
 interface ClaudeClient {
   sendMessage(userMessages: string[]): Promise<ClaudeResponse>;
+  sendMessageWithTools(
+    messages: Anthropic.MessageParam[],
+    tools: Anthropic.Tool[],
+    onToolCall: (name: string, input: Record<string, unknown>) => string,
+    maxIterations?: number,
+  ): Promise<ClaudeResponse>;
 }
 
 interface ProcessorDeps {
   claudeClient: ClaudeClient;
   db: DrizzleDatabase;
   logger: Logger;
+  retrievalService: ReturnType<typeof createRetrievalService>;
+  sqlite: BetterSqlite3.Database;
 }
 
 /**
@@ -40,7 +61,7 @@ interface ProcessorDeps {
  * from the MessageQueue.
  */
 export function createProcessor(deps: ProcessorDeps) {
-  const { claudeClient, db, logger: log } = deps;
+  const { claudeClient, db, logger: log, retrievalService } = deps;
 
   return async function processBatch(batch: PendingBatch): Promise<void> {
     const ctx = batch.ctx as BotContext;
@@ -56,9 +77,53 @@ export function createProcessor(deps: ProcessorDeps) {
 
       // b. Build user message from batch
       const userText = batch.messages.map((m) => m.text).join("\n\n");
-      const userMessages = [userText];
 
-      // c. 30-second timeout warning timer
+      // c. Save incoming user message to messages table BEFORE Claude call
+      db.insert(messages)
+        .values({
+          chatId,
+          userId,
+          text: userText,
+          direction: "in" as const,
+        })
+        .run();
+
+      // d. Load conversation history from messages table
+      const rows = db
+        .select()
+        .from(messages)
+        .where(eq(messages.chatId, chatId))
+        .orderBy(asc(messages.createdAt))
+        .all();
+
+      const turns: ConversationTurn[] = rows.map((row) => ({
+        id: row.id,
+        chatId: row.chatId,
+        userId: row.userId,
+        text: row.text,
+        direction: row.direction as "in" | "out",
+        createdAt: row.createdAt,
+      }));
+
+      // e. Build conversation context (sliding window within token budget)
+      const priorMessages = buildConversationContext(
+        turns,
+        CONVERSATION_TOKEN_BUDGET,
+      );
+
+      // f. Construct full messages array: prior history + current user message
+      const fullMessages: Anthropic.MessageParam[] = [
+        ...priorMessages,
+        { role: "user" as const, content: userText },
+      ];
+
+      // g. Create tool handler for knowledge retrieval
+      const toolHandler = createToolHandler({
+        retrievalService,
+        chatId,
+      });
+
+      // h. 30-second timeout warning timer
       let timeoutFired = false;
       const timeoutTimer = setTimeout(async () => {
         timeoutFired = true;
@@ -71,12 +136,16 @@ export function createProcessor(deps: ProcessorDeps) {
         }
       }, TIMEOUT_WARNING_MS);
 
-      // d + e. Call Claude with one silent retry
+      // i. Call Claude with tools and one silent retry
       let response: ClaudeResponse;
       const startTime = Date.now();
 
       try {
-        response = await claudeClient.sendMessage(userMessages);
+        response = await claudeClient.sendMessageWithTools(
+          fullMessages,
+          KNOWLEDGE_TOOLS,
+          toolHandler.handleToolCall,
+        );
       } catch (firstError) {
         log.warn(
           {
@@ -90,7 +159,11 @@ export function createProcessor(deps: ProcessorDeps) {
         );
 
         try {
-          response = await claudeClient.sendMessage(userMessages);
+          response = await claudeClient.sendMessageWithTools(
+            fullMessages,
+            KNOWLEDGE_TOOLS,
+            toolHandler.handleToolCall,
+          );
         } catch (secondError) {
           clearTimeout(timeoutTimer);
           log.error(
@@ -115,10 +188,20 @@ export function createProcessor(deps: ProcessorDeps) {
       const requestDurationMs = Date.now() - startTime;
       clearTimeout(timeoutTimer);
 
-      // f. Send response via formatted sender
+      // j. Send response via formatted sender
       await sendFormattedMessage(ctx, response.text);
 
-      // g. Log token usage to database
+      // k. Save outgoing response to messages table for conversation continuity
+      db.insert(messages)
+        .values({
+          chatId,
+          userId,
+          text: response.text,
+          direction: "out" as const,
+        })
+        .run();
+
+      // l. Log token usage to database
       const estimatedCost = calculateCost(response.model, response.usage);
 
       await db.insert(tokenUsage).values({
@@ -134,7 +217,7 @@ export function createProcessor(deps: ProcessorDeps) {
         requestDurationMs,
       });
 
-      // h. Log token usage to pino
+      // m. Log token usage to pino
       log.info(
         {
           chatId,
@@ -151,7 +234,7 @@ export function createProcessor(deps: ProcessorDeps) {
         "Claude API call completed",
       );
     } catch (outerError) {
-      // i. Outer try/catch -- processor must NEVER throw
+      // Outer try/catch -- processor must NEVER throw
       log.error(
         {
           error: outerError instanceof Error ? outerError.message : String(outerError),

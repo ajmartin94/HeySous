@@ -65,12 +65,12 @@ Plans:
   1. Agent retrieves relevant stored knowledge (not full dump) before each Claude call, staying within ~4K token budget
   2. Agent decides what to look up based on conversation context -- no hardcoded query paths per feature
   3. Conversation context is maintained within a session; older turns are summarized to stay within budget
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 03-01: Knowledge storage layer (schema for knowledge items, general-purpose storage)
-- [ ] 03-02: Knowledge retriever (query interface, relevance scoring, token budget enforcement)
-- [ ] 03-03: Conversation context manager (session tracking, turn storage, summarization of older turns)
+- [ ] 03-01-PLAN.md -- Knowledge storage layer (schema, FTS5 index, repository CRUD, token budget utilities)
+- [ ] 03-02-PLAN.md -- Retrieval service and tool interface (two-pass search, tool definitions, tool dispatcher)
+- [ ] 03-03-PLAN.md -- Pipeline integration (conversation context, tool use loop, /debug command, end-to-end wiring)
 
 ### Phase 4: Recipe Knowledge
 **Goal**: Users can teach the bot their recipes through conversation and retrieve them anytime

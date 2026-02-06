@@ -10,28 +10,28 @@ See: .planning/PROJECT.md (updated 2026-02-05)
 ## Current Position
 
 Phase: 1 of 9 (Bot Foundation)
-Plan: 0 of 3 in current phase
-Status: Ready to plan
-Last activity: 2026-02-05 -- Roadmap created with 9 phases covering 41 requirements
+Plan: 1 of 3 in current phase
+Status: In progress
+Last activity: 2026-02-06 -- Completed 01-01-PLAN.md (project scaffolding)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [█░░░░░░░░░░░░░░░░░░░░░░░░░] 1/26 (4%)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 0
-- Average duration: -
-- Total execution time: 0 hours
+- Total plans completed: 1
+- Average duration: 3 min
+- Total execution time: 3 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| - | - | - | - |
+| 1. Bot Foundation | 1/3 | 3 min | 3 min |
 
 **Recent Trend:**
-- Last 5 plans: -
-- Trend: -
+- Last 5 plans: 01-01 (3 min)
+- Trend: Starting
 
 *Updated after each plan completion*
 
@@ -46,6 +46,10 @@ Recent decisions affecting current work:
 - [Roadmap]: HTML parse mode over MarkdownV2 for Telegram formatting
 - [Roadmap]: Async webhook processing from day one to prevent Telegram timeouts
 - [Roadmap]: Database-backed reminders (not in-memory) to survive restarts
+- [01-01]: Factory function createDatabase() instead of singleton -- callers control lifecycle
+- [01-01]: Chat/user IDs stored as text (string) for BigInt safety
+- [01-01]: WAL mode enabled on SQLite for concurrent read/write performance
+- [01-01]: ESM with NodeNext module resolution -- .js extensions on all local imports
 
 ### Pending Todos
 
@@ -57,6 +61,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-05
-Stopped at: Roadmap created, ready to plan Phase 1
+Last session: 2026-02-06
+Stopped at: Completed 01-01-PLAN.md (project scaffolding)
 Resume file: None

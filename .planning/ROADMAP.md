@@ -36,7 +36,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 3 plans
 
 Plans:
-- [ ] 01-01-PLAN.md -- Project scaffolding (Node.js, TypeScript, grammY, SQLite/Drizzle, database setup)
+- [x] 01-01-PLAN.md -- Project scaffolding (Node.js, TypeScript, grammY, SQLite/Drizzle, database setup)
 - [ ] 01-02-PLAN.md -- Telegram bot connection (bot instance, webhook/polling server, handlers, typing indicator)
 - [ ] 01-03-PLAN.md -- Message formatting and delivery (TDD: HTML formatter, message splitter, reliable sender)
 
@@ -179,7 +179,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Bot Foundation | 0/3 | Planned | - |
+| 1. Bot Foundation | 1/3 | In progress | - |
 | 2. Async Pipeline & Claude Integration | 0/3 | Not started | - |
 | 3. Knowledge System & Retrieval | 0/3 | Not started | - |
 | 4. Recipe Knowledge | 0/3 | Not started | - |

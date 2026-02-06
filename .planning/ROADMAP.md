@@ -13,7 +13,7 @@ HeySous is a conversational AI meal planning assistant on Telegram, powered by C
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Bot Foundation** - Working Telegram bot with proper message formatting and delivery
-- [ ] **Phase 2: Async Pipeline & Claude Integration** - Bot processes messages asynchronously through Claude and responds intelligently
+- [x] **Phase 2: Async Pipeline & Claude Integration** - Bot processes messages asynchronously through Claude and responds intelligently
 - [ ] **Phase 3: Knowledge System & Retrieval** - Agent retrieves relevant context per conversation within a token budget
 - [ ] **Phase 4: Recipe Knowledge** - Users can teach the bot recipes and retrieve them conversationally
 - [ ] **Phase 5: Preference Learning** - System remembers user preferences and applies them as active constraints
@@ -53,9 +53,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 02-01-PLAN.md -- Config, Claude client, system prompt, and token usage schema (Anthropic SDK, Sous persona, cost tracking DB)
+- [x] 02-01-PLAN.md -- Config, Claude client, system prompt, and token usage schema (Anthropic SDK, Sous persona, cost tracking DB)
 - [x] 02-02-PLAN.md -- Message debounce queue (TDD: sliding window batching for rapid consecutive messages)
-- [ ] 02-03-PLAN.md -- Pipeline processor and end-to-end wiring (retry/timeout logic, /costs command, async flow integration)
+- [x] 02-03-PLAN.md -- Pipeline processor and end-to-end wiring (retry/timeout logic, /costs command, async flow integration)
 
 ### Phase 3: Knowledge System & Retrieval
 **Goal**: Agent retrieves relevant knowledge per conversation and manages conversation context within a token budget
@@ -180,7 +180,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Bot Foundation | 3/3 | Complete | 2026-02-06 |
-| 2. Async Pipeline & Claude Integration | 2/3 | In progress | - |
+| 2. Async Pipeline & Claude Integration | 3/3 | Complete | 2026-02-06 |
 | 3. Knowledge System & Retrieval | 0/3 | Not started | - |
 | 4. Recipe Knowledge | 0/3 | Not started | - |
 | 5. Preference Learning | 0/2 | Not started | - |

@@ -1,12 +1,38 @@
-import { Bot } from "grammy";
+/**
+ * Bot Factory
+ *
+ * Creates and configures the grammY bot instance with middleware,
+ * command handlers, and the async message pipeline.
+ *
+ * Middleware order:
+ * 1. hydrateReply (parse mode support)
+ * 2. autoChatAction (typing indicators)
+ * 3. db injection (database context for handlers)
+ * 4. startHandler (/start command)
+ * 5. costsHandler (/costs admin command)
+ * 6. messageHandler (catch-all message:text -- MUST be last)
+ * 7. error boundary
+ */
+
+import { Bot, type Composer } from "grammy";
 import { hydrateReply, parseMode } from "@grammyjs/parse-mode";
 import { autoChatAction } from "@grammyjs/auto-chat-action";
 import type { BotContext } from "./context.js";
 import { startHandler } from "./handlers/start.js";
-import { messageHandler } from "./handlers/message.js";
 import { setupErrorHandler } from "./middlewares/error-handler.js";
+import type { DrizzleDatabase } from "../db/index.js";
 
-export function createBot(token: string): Bot<BotContext> {
+interface CreateBotOptions {
+  costsHandler: Composer<BotContext>;
+  messageHandler: Composer<BotContext>;
+  db: DrizzleDatabase;
+}
+
+export function createBot(
+  token: string,
+  options: CreateBotOptions,
+): Bot<BotContext> {
+  const { costsHandler, messageHandler, db } = options;
   const bot = new Bot<BotContext>(token);
 
   // Set default parse mode for all API calls
@@ -15,8 +41,16 @@ export function createBot(token: string): Bot<BotContext> {
   // Register middleware in order
   bot.use(hydrateReply);
   bot.use(autoChatAction());
+
+  // Inject database into context for handlers that need it
+  bot.use((ctx, next) => {
+    ctx.db = db;
+    return next();
+  });
+
   bot.use(startHandler);
-  bot.use(messageHandler); // MUST be after commands
+  bot.use(costsHandler); // /costs command -- MUST be before catch-all message handler
+  bot.use(messageHandler); // catch-all message:text -- MUST be last
 
   // Set up error boundary
   setupErrorHandler(bot);

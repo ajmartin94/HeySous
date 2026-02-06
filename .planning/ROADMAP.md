@@ -33,12 +33,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. Bot responses render with clean HTML formatting (bold, italic, lists) in Telegram
   3. Long responses arrive as multiple messages split at natural paragraph boundaries, not mid-sentence
   4. User sees a "typing..." indicator while the bot is preparing a response
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 01-01: Project scaffolding (Node.js, TypeScript, grammY, SQLite/Drizzle, project structure)
-- [ ] 01-02: Telegram bot connection (webhook handler, message receiving, basic reply)
-- [ ] 01-03: Message formatting and delivery (HTML formatter, message splitter, typing indicator)
+- [ ] 01-01-PLAN.md -- Project scaffolding (Node.js, TypeScript, grammY, SQLite/Drizzle, database setup)
+- [ ] 01-02-PLAN.md -- Telegram bot connection (bot instance, webhook/polling server, handlers, typing indicator)
+- [ ] 01-03-PLAN.md -- Message formatting and delivery (TDD: HTML formatter, message splitter, reliable sender)
 
 ### Phase 2: Async Pipeline & Claude Integration
 **Goal**: Bot processes messages through Claude asynchronously, responding with intelligent conversation while tracking costs
@@ -179,7 +179,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Bot Foundation | 0/3 | Not started | - |
+| 1. Bot Foundation | 0/3 | Planned | - |
 | 2. Async Pipeline & Claude Integration | 0/3 | Not started | - |
 | 3. Knowledge System & Retrieval | 0/3 | Not started | - |
 | 4. Recipe Knowledge | 0/3 | Not started | - |

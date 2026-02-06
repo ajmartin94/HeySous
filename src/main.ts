@@ -23,6 +23,7 @@ import { createMessageHandler } from "./bot/handlers/message.js";
 import { createCostsHandler } from "./bot/handlers/costs.js";
 import { createDebugHandler } from "./bot/handlers/debug.js";
 import { createRetrievalService } from "./knowledge/retrieval.js";
+import { createKnowledgeRepository } from "./knowledge/repository.js";
 import { logger } from "./logger.js";
 
 async function main(): Promise<void> {
@@ -48,12 +49,17 @@ async function main(): Promise<void> {
   const retrievalService = createRetrievalService({ sqlite, db, logger });
   logger.info("Knowledge retrieval service initialized");
 
+  // Initialize knowledge repository for write operations (recipes, preferences)
+  const knowledgeRepository = createKnowledgeRepository(db);
+  logger.info("Knowledge repository initialized");
+
   // Create pipeline processor with knowledge augmentation
   const processBatch = createProcessor({
     claudeClient,
     db,
     logger,
     retrievalService,
+    knowledgeRepository,
     sqlite,
   });
 

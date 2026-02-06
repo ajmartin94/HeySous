@@ -5,33 +5,33 @@
 See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Core value:** The recipe brain -- an AI agent that remembers everything about your meals and reasons over that knowledge to help you plan.
-**Current focus:** Phase 2: Async Pipeline & Claude Integration
+**Current focus:** Phase 2 complete. Ready for Phase 3: Knowledge System.
 
 ## Current Position
 
 Phase: 2 of 9 (Async Pipeline & Claude Integration)
-Plan: 2 of 3 in current phase
-Status: In progress
-Last activity: 2026-02-06 -- Completed 02-01-PLAN.md (Config, Claude client, system prompt, token usage schema)
+Plan: 3 of 3 in current phase
+Status: Phase complete
+Last activity: 2026-02-06 -- Completed 02-03-PLAN.md (Async pipeline integration)
 
-Progress: [█████░░░░░░░░░░░░░░░░░░░░░] 5/26 (19%)
+Progress: [██████░░░░░░░░░░░░░░░░░░░░] 6/26 (23%)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 5
+- Total plans completed: 6
 - Average duration: 3 min
-- Total execution time: 15 min
+- Total execution time: 18 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 1. Bot Foundation | 3/3 | 10 min | 3.3 min |
-| 2. Async Pipeline | 2/3 | 5 min | 2.5 min |
+| 2. Async Pipeline | 3/3 | 8 min | 2.7 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-02 (3 min), 01-03 (3 min), 02-02 (2 min), 02-01 (3 min)
+- Last 5 plans: 01-03 (3 min), 02-02 (2 min), 02-01 (3 min), 02-03 (3 min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -64,6 +64,12 @@ Recent decisions affecting current work:
 - [02-02]: 1500ms default debounce window for message batching
 - [02-02]: Delete-before-process pattern prevents double-processing race condition
 - [02-02]: processFn errors caught silently -- queue never crashes on processor errors
+- [02-03]: Factory pattern for all handlers (createMessageHandler, createCostsHandler, createProcessor)
+- [02-03]: Database injected into BotContext via middleware, not global singleton
+- [02-03]: Costs handler registered before message handler for command priority
+- [02-03]: Processor never throws -- outer try/catch with in-character error for fire-and-forget safety
+- [02-03]: One silent retry before user-facing error (two attempts total)
+- [02-03]: Admin-only /costs: non-admin users see nothing (silent return)
 
 ### Pending Todos
 
@@ -76,5 +82,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-06
-Stopped at: Completed 02-01-PLAN.md (Config, Claude client, system prompt, token usage schema)
+Stopped at: Completed 02-03-PLAN.md (Async pipeline integration -- Phase 2 complete)
 Resume file: None

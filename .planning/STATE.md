@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Core value:** The recipe brain -- an AI agent that remembers everything about your meals and reasons over that knowledge to help you plan.
-**Current focus:** Phase 3 in progress: Knowledge System.
+**Current focus:** Phase 3 complete: Knowledge System. Ready for Phase 4.
 
 ## Current Position
 
 Phase: 3 of 9 (Knowledge System)
-Plan: 2 of 3 in current phase
-Status: In progress
-Last activity: 2026-02-06 -- Completed 03-02-PLAN.md (Knowledge retrieval and tool use)
+Plan: 3 of 3 in current phase
+Status: Phase complete
+Last activity: 2026-02-06 -- Completed 03-03-PLAN.md (End-to-end wiring)
 
-Progress: [████████░░░░░░░░░░░░░░░░░░] 8/26 (31%)
+Progress: [█████████░░░░░░░░░░░░░░░░░] 9/26 (35%)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 8
+- Total plans completed: 9
 - Average duration: 3.3 min
-- Total execution time: 26 min
+- Total execution time: 30 min
 
 **By Phase:**
 
@@ -29,11 +29,11 @@ Progress: [████████░░░░░░░░░░░░░░░
 |-------|-------|-------|----------|
 | 1. Bot Foundation | 3/3 | 10 min | 3.3 min |
 | 2. Async Pipeline | 3/3 | 8 min | 2.7 min |
-| 3. Knowledge System | 2/3 | 8 min | 4.0 min |
+| 3. Knowledge System | 3/3 | 12 min | 4.0 min |
 
 **Recent Trend:**
-- Last 5 plans: 02-01 (3 min), 02-03 (3 min), 03-01 (6 min), 03-02 (2 min)
-- Trend: Stable, retrieval plan straightforward
+- Last 5 plans: 02-03 (3 min), 03-01 (6 min), 03-02 (2 min), 03-03 (4 min)
+- Trend: Stable ~4 min for knowledge system plans
 
 *Updated after each plan completion*
 
@@ -80,6 +80,12 @@ Recent decisions affecting current work:
 - [03-02]: Search results secondary-sorted by recency among equal-relevance items
 - [03-02]: Tool handler is synchronous -- all underlying ops are sync via better-sqlite3
 - [03-02]: Tool results returned as JSON strings per Anthropic tool_result API convention
+- [03-03]: Tool use loop max 3 iterations with forced text response as safety valve
+- [03-03]: 4-hour session gap boundary for conversation context
+- [03-03]: 2000 token budget for conversation history (matching token-budget config)
+- [03-03]: Messages saved synchronously with .run() before/after Claude call
+- [03-03]: Aggregate token usage across all tool use iterations for cost tracking
+- [03-03]: /debug command has no admin restriction (power user feature)
 
 ### Pending Todos
 
@@ -92,5 +98,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-06
-Stopped at: Completed 03-02-PLAN.md (Knowledge retrieval and tool use)
+Stopped at: Completed 03-03-PLAN.md (End-to-end wiring) -- Phase 3 complete
 Resume file: None

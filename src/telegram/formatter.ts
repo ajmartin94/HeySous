@@ -17,6 +17,7 @@ const ALLOWED_TAGS = new Set([
   "a",
   "code",
   "pre",
+  "blockquote",
 ]);
 
 /**
@@ -33,7 +34,7 @@ export function escapeHtml(text: string): string {
 
 /**
  * Format a bot response by stripping unsupported HTML tags while preserving
- * Telegram-supported tags (b, strong, i, em, u, ins, s, strike, del, a, code, pre).
+ * Telegram-supported tags (b, strong, i, em, u, ins, s, strike, del, a, code, pre, blockquote).
  * Also replaces <br> variants with newlines.
  */
 export function formatBotResponse(text: string): string {

@@ -50,12 +50,12 @@ Plans:
   3. Rapid consecutive messages are batched into a single Claude call rather than triggering multiple parallel calls
   4. Token usage is logged per request with conversation type tags visible in logs
   5. System prompt content benefits from prompt caching (verifiable via API response cache metrics)
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 02-01: Async webhook processing (immediate 200 response, in-process message queue)
-- [ ] 02-02: Claude service (API client, system prompt, prompt builder, prompt caching)
-- [ ] 02-03: Message pipeline (debouncing/batching, token usage logging, end-to-end async flow)
+- [ ] 02-01-PLAN.md -- Config, Claude client, system prompt, and token usage schema (Anthropic SDK, Sous persona, cost tracking DB)
+- [ ] 02-02-PLAN.md -- Message debounce queue (TDD: sliding window batching for rapid consecutive messages)
+- [ ] 02-03-PLAN.md -- Pipeline processor and end-to-end wiring (retry/timeout logic, /costs command, async flow integration)
 
 ### Phase 3: Knowledge System & Retrieval
 **Goal**: Agent retrieves relevant knowledge per conversation and manages conversation context within a token budget

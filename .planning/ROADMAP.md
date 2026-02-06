@@ -82,12 +82,12 @@ Plans:
   3. User can ask for any stored recipe by name or description and see it formatted clearly in chat
   4. User can update a stored recipe through conversation ("the stromboli actually takes 70 minutes")
   5. Recipes are stored as rich context the agent retrieves and reasons over, not as rigid database records
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 04-01: Recipe storage (schema, persistence as rich knowledge items)
-- [ ] 04-02: Recipe capture flow (conversational entry, extraction, confirmation before save)
-- [ ] 04-03: Recipe retrieval and update (ask for recipes, update through conversation, notes/feedback storage)
+- [ ] 04-01-PLAN.md -- Write tool infrastructure (changelog schema, save/update/delete tools, tool handler dispatch, formatter blockquote)
+- [ ] 04-02-PLAN.md -- Recipe system prompt (creation flow, content format, display format, tag taxonomy, updates, deletion, reasoning)
+- [ ] 04-03-PLAN.md -- Pipeline wiring (max iterations bump, processor + main.ts dependency injection, end-to-end integration)
 
 ### Phase 5: Preference Learning
 **Goal**: System remembers user preferences across conversations and actively applies them as constraints

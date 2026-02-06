@@ -22,7 +22,7 @@ export function calculateCost(model: string, usage: TokenUsage): number {
 }
 
 /** Default max tool use iterations before forcing a text response. */
-const DEFAULT_MAX_ITERATIONS = 3;
+const DEFAULT_MAX_ITERATIONS = 5;
 
 /**
  * Create a Claude API client with the given credentials.
@@ -100,7 +100,7 @@ export function createClaudeClient(apiKey: string, model: string) {
      * @param messages - Full message array including conversation history
      * @param tools - Anthropic tool definitions
      * @param onToolCall - Synchronous callback to handle tool calls
-     * @param maxIterations - Maximum tool use iterations (default 3)
+     * @param maxIterations - Maximum tool use iterations (default 5)
      * @returns ClaudeResponse with aggregated usage from all iterations
      */
     async sendMessageWithTools(

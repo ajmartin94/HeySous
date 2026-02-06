@@ -52,6 +52,7 @@ interface ProcessorDeps {
   db: DrizzleDatabase;
   logger: Logger;
   retrievalService: ReturnType<typeof createRetrievalService>;
+  knowledgeRepository: ReturnType<typeof createKnowledgeRepository>;
   sqlite: BetterSqlite3.Database;
 }
 
@@ -62,7 +63,7 @@ interface ProcessorDeps {
  * from the MessageQueue.
  */
 export function createProcessor(deps: ProcessorDeps) {
-  const { claudeClient, db, logger: log, retrievalService } = deps;
+  const { claudeClient, db, logger: log, retrievalService, knowledgeRepository } = deps;
 
   return async function processBatch(batch: PendingBatch): Promise<void> {
     const ctx = batch.ctx as BotContext;
@@ -119,7 +120,6 @@ export function createProcessor(deps: ProcessorDeps) {
       ];
 
       // g. Create tool handler for knowledge retrieval and write operations
-      const knowledgeRepository = createKnowledgeRepository(db);
       const toolHandler = createToolHandler({
         retrievalService,
         knowledgeRepository,

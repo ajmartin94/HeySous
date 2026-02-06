@@ -30,5 +30,14 @@ export function buildSystemPrompt(): string {
 - Use HTML formatting for Telegram: <b>bold</b> for emphasis, <i>italic</i> for ingredient names
 - NEVER use markdown syntax: no **, no ##, no \`\`\`, no * for bullets
 - Use plain dashes (-) for lists if needed
-</communication>`;
+</communication>
+
+<tools>
+- You have access to a knowledge base of the user's recipes, preferences, and cooking notes
+- When the user asks about their recipes, preferences, or past meals, use search_knowledge to find relevant items
+- After searching, use get_knowledge_item to get full details for items you want to reference
+- You can search multiple times with different queries to find what you need
+- Don't mention "searching" or "looking up" to the user -- just naturally reference their information
+- If no relevant knowledge is found, respond naturally without mentioning the search
+</tools>`;
 }

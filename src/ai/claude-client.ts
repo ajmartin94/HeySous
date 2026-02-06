@@ -21,6 +21,9 @@ export function calculateCost(model: string, usage: TokenUsage): number {
   return inputCost + outputCost + cacheWriteCost + cacheReadCost;
 }
 
+/** Default max tool use iterations before forcing a text response. */
+const DEFAULT_MAX_ITERATIONS = 3;
+
 /**
  * Create a Claude API client with the given credentials.
  *
@@ -38,6 +41,7 @@ export function createClaudeClient(apiKey: string, model: string) {
   return {
     /**
      * Send a message to Claude and return the structured response.
+     * Simple single-turn call without tool support (backward compatible).
      *
      * @param userMessages - Array of user message strings, joined with double newlines
      * @returns ClaudeResponse with text, usage, model, and stopReason
@@ -77,6 +81,168 @@ export function createClaudeClient(apiKey: string, model: string) {
         },
         model: response.model,
         stopReason: response.stop_reason ?? "unknown",
+      };
+    },
+
+    /**
+     * Send a message to Claude with tool support and automatic tool use loop.
+     *
+     * Implements the manual tool use loop per research Pattern 1:
+     * 1. Call Claude with messages and tools
+     * 2. If stop_reason is "end_turn", extract text and return
+     * 3. If response has tool_use blocks, call onToolCall for each
+     * 4. Append assistant response + tool_results to messages
+     * 5. Loop back to (1) until max iterations
+     * 6. Safety: if max iterations reached, do one final call WITHOUT tools
+     *
+     * Token usage is aggregated across all iterations.
+     *
+     * @param messages - Full message array including conversation history
+     * @param tools - Anthropic tool definitions
+     * @param onToolCall - Synchronous callback to handle tool calls
+     * @param maxIterations - Maximum tool use iterations (default 3)
+     * @returns ClaudeResponse with aggregated usage from all iterations
+     */
+    async sendMessageWithTools(
+      messages: Anthropic.MessageParam[],
+      tools: Anthropic.Tool[],
+      onToolCall: (name: string, input: Record<string, unknown>) => string,
+      maxIterations: number = DEFAULT_MAX_ITERATIONS,
+    ): Promise<ClaudeResponse> {
+      const systemPrompt = buildSystemPrompt();
+      const systemBlock = [
+        {
+          type: "text" as const,
+          text: systemPrompt,
+          cache_control: { type: "ephemeral" as const },
+        },
+      ];
+
+      // Aggregate token usage across all iterations
+      const totalUsage: TokenUsage = {
+        inputTokens: 0,
+        outputTokens: 0,
+        cacheCreationInputTokens: 0,
+        cacheReadInputTokens: 0,
+      };
+
+      // Mutable copy of messages for the loop
+      const loopMessages: Anthropic.MessageParam[] = [...messages];
+      let finalModel = model;
+      let finalStopReason = "unknown";
+
+      for (let iteration = 0; iteration < maxIterations; iteration++) {
+        const response = await client.messages.create({
+          model,
+          max_tokens: 2048,
+          system: systemBlock,
+          messages: loopMessages,
+          tools,
+        });
+
+        // Aggregate usage
+        totalUsage.inputTokens += response.usage.input_tokens;
+        totalUsage.outputTokens += response.usage.output_tokens;
+        totalUsage.cacheCreationInputTokens +=
+          response.usage.cache_creation_input_tokens ?? 0;
+        totalUsage.cacheReadInputTokens +=
+          response.usage.cache_read_input_tokens ?? 0;
+
+        finalModel = response.model;
+        finalStopReason = response.stop_reason ?? "unknown";
+
+        // Check if Claude is done (no tool use)
+        if (response.stop_reason === "end_turn") {
+          const textContent = response.content
+            .filter(
+              (block): block is Anthropic.TextBlock => block.type === "text",
+            )
+            .map((block) => block.text)
+            .join("\n");
+
+          return {
+            text: textContent,
+            usage: totalUsage,
+            model: finalModel,
+            stopReason: finalStopReason,
+          };
+        }
+
+        // Extract tool_use blocks
+        const toolUseBlocks = response.content.filter(
+          (block): block is Anthropic.ToolUseBlock => block.type === "tool_use",
+        );
+
+        if (toolUseBlocks.length === 0) {
+          // No tool use and not end_turn -- extract text and return
+          const textContent = response.content
+            .filter(
+              (block): block is Anthropic.TextBlock => block.type === "text",
+            )
+            .map((block) => block.text)
+            .join("\n");
+
+          return {
+            text: textContent,
+            usage: totalUsage,
+            model: finalModel,
+            stopReason: finalStopReason,
+          };
+        }
+
+        // Handle tool calls
+        const toolResults: Anthropic.ToolResultBlockParam[] =
+          toolUseBlocks.map((block) => {
+            const result = onToolCall(
+              block.name,
+              block.input as Record<string, unknown>,
+            );
+            return {
+              type: "tool_result" as const,
+              tool_use_id: block.id,
+              content: result,
+            };
+          });
+
+        // Append assistant response + all tool results in ONE user message
+        // (per research pitfall 3: all tool_results immediately after assistant)
+        loopMessages.push({
+          role: "assistant" as const,
+          content: response.content,
+        });
+        loopMessages.push({
+          role: "user" as const,
+          content: toolResults,
+        });
+      }
+
+      // Max iterations reached -- do one final call WITHOUT tools to force text response
+      const finalResponse = await client.messages.create({
+        model,
+        max_tokens: 2048,
+        system: systemBlock,
+        messages: loopMessages,
+      });
+
+      totalUsage.inputTokens += finalResponse.usage.input_tokens;
+      totalUsage.outputTokens += finalResponse.usage.output_tokens;
+      totalUsage.cacheCreationInputTokens +=
+        finalResponse.usage.cache_creation_input_tokens ?? 0;
+      totalUsage.cacheReadInputTokens +=
+        finalResponse.usage.cache_read_input_tokens ?? 0;
+
+      const textContent = finalResponse.content
+        .filter(
+          (block): block is Anthropic.TextBlock => block.type === "text",
+        )
+        .map((block) => block.text)
+        .join("\n");
+
+      return {
+        text: textContent,
+        usage: totalUsage,
+        model: finalResponse.model,
+        stopReason: finalResponse.stop_reason ?? "unknown",
       };
     },
   };

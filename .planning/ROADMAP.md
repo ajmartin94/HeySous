@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Bot Foundation** - Working Telegram bot with proper message formatting and delivery
 - [x] **Phase 2: Async Pipeline & Claude Integration** - Bot processes messages asynchronously through Claude and responds intelligently
-- [ ] **Phase 3: Knowledge System & Retrieval** - Agent retrieves relevant context per conversation within a token budget
+- [x] **Phase 3: Knowledge System & Retrieval** - Agent retrieves relevant context per conversation within a token budget
 - [ ] **Phase 4: Recipe Knowledge** - Users can teach the bot recipes and retrieve them conversationally
 - [ ] **Phase 5: Preference Learning** - System remembers user preferences and applies them as active constraints
 - [ ] **Phase 6: Meal Planning** - Users can generate and adjust weekly dinner plans through conversation
@@ -68,9 +68,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 03-01-PLAN.md -- Knowledge storage layer (schema, FTS5 index, repository CRUD, token budget utilities)
-- [ ] 03-02-PLAN.md -- Retrieval service and tool interface (two-pass search, tool definitions, tool dispatcher)
-- [ ] 03-03-PLAN.md -- Pipeline integration (conversation context, tool use loop, /debug command, end-to-end wiring)
+- [x] 03-01-PLAN.md -- Knowledge storage layer (schema, FTS5 index, repository CRUD, token budget utilities)
+- [x] 03-02-PLAN.md -- Retrieval service and tool interface (two-pass search, tool definitions, tool dispatcher)
+- [x] 03-03-PLAN.md -- Pipeline integration (conversation context, tool use loop, /debug command, end-to-end wiring)
 
 ### Phase 4: Recipe Knowledge
 **Goal**: Users can teach the bot their recipes through conversation and retrieve them anytime
@@ -181,7 +181,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 |-------|----------------|--------|-----------|
 | 1. Bot Foundation | 3/3 | Complete | 2026-02-06 |
 | 2. Async Pipeline & Claude Integration | 3/3 | Complete | 2026-02-06 |
-| 3. Knowledge System & Retrieval | 0/3 | Not started | - |
+| 3. Knowledge System & Retrieval | 3/3 | Complete | 2026-02-06 |
 | 4. Recipe Knowledge | 0/3 | Not started | - |
 | 5. Preference Learning | 0/2 | Not started | - |
 | 6. Meal Planning | 0/3 | Not started | - |

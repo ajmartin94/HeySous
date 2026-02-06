@@ -21,11 +21,11 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Agent & Knowledge System (AGENT)
 
 - [x] **AGENT-01**: Claude receives a system prompt defining its role as a cooking partner with the user's context
-- [ ] **AGENT-02**: Agent retrieves relevant knowledge (recipes, preferences, history) per conversation within a token budget (~4K tokens)
-- [ ] **AGENT-03**: Agent decides what to look up based on conversation context -- no hardcoded query paths
+- [x] **AGENT-02**: Agent retrieves relevant knowledge (recipes, preferences, history) per conversation within a token budget (~4K tokens)
+- [x] **AGENT-03**: Agent decides what to look up based on conversation context -- no hardcoded query paths
 - [x] **AGENT-04**: Prompt caching applied to stable system prompt content (90% cost reduction on cached portion)
 - [x] **AGENT-05**: Token usage logged per request, tagged by conversation type, for cost monitoring
-- [ ] **AGENT-06**: Conversation context maintained within a session; older turns summarized to stay within budget
+- [x] **AGENT-06**: Conversation context maintained within a session; older turns summarized to stay within budget
 
 ### Recipe Knowledge (RECIPE)
 
@@ -127,11 +127,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INFRA-05 | Phase 1: Bot Foundation | Complete |
 | INFRA-06 | Phase 2: Async Pipeline & Claude Integration | Complete |
 | AGENT-01 | Phase 2: Async Pipeline & Claude Integration | Complete |
-| AGENT-02 | Phase 3: Knowledge System & Retrieval | Pending |
-| AGENT-03 | Phase 3: Knowledge System & Retrieval | Pending |
+| AGENT-02 | Phase 3: Knowledge System & Retrieval | Complete |
+| AGENT-03 | Phase 3: Knowledge System & Retrieval | Complete |
 | AGENT-04 | Phase 2: Async Pipeline & Claude Integration | Complete |
 | AGENT-05 | Phase 2: Async Pipeline & Claude Integration | Complete |
-| AGENT-06 | Phase 3: Knowledge System & Retrieval | Pending |
+| AGENT-06 | Phase 3: Knowledge System & Retrieval | Complete |
 | RECIPE-01 | Phase 4: Recipe Knowledge | Pending |
 | RECIPE-02 | Phase 4: Recipe Knowledge | Pending |
 | RECIPE-03 | Phase 4: Recipe Knowledge | Pending |
@@ -169,4 +169,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-02-05*
-*Last updated: 2026-02-06 -- Phase 2 requirements marked Complete*
+*Last updated: 2026-02-06 -- Phase 3 requirements marked Complete*

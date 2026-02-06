@@ -51,7 +51,8 @@ export class MessageQueue {
         userId,
         messages: [{ text, timestamp: new Date() }],
         ctx,
-        timer: undefined as unknown as ReturnType<typeof setTimeout>,
+        // Timer is assigned immediately below; placeholder satisfies the type.
+        timer: null as unknown as ReturnType<typeof setTimeout>,
       });
     }
 
@@ -61,14 +62,12 @@ export class MessageQueue {
       // New messages arriving during processing will start a fresh batch.
       this.pending.delete(chatId);
 
-      const batch: PendingBatch = {
+      processFn({
         chatId: entry.chatId,
         userId: entry.userId,
         messages: entry.messages,
         ctx: entry.ctx,
-      };
-
-      processFn(batch).catch(() => {
+      }).catch(() => {
         // Queue must not crash on processor errors.
         // Logging will be added by the caller (pipeline processor).
       });

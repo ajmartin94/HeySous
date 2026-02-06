@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-05)
 ## Current Position
 
 Phase: 3 of 9 (Knowledge System)
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase
 Status: In progress
-Last activity: 2026-02-06 -- Completed 03-01-PLAN.md (Knowledge storage layer)
+Last activity: 2026-02-06 -- Completed 03-02-PLAN.md (Knowledge retrieval and tool use)
 
-Progress: [███████░░░░░░░░░░░░░░░░░░░] 7/26 (27%)
+Progress: [████████░░░░░░░░░░░░░░░░░░] 8/26 (31%)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 7
-- Average duration: 3.4 min
-- Total execution time: 24 min
+- Total plans completed: 8
+- Average duration: 3.3 min
+- Total execution time: 26 min
 
 **By Phase:**
 
@@ -29,11 +29,11 @@ Progress: [███████░░░░░░░░░░░░░░░░
 |-------|-------|-------|----------|
 | 1. Bot Foundation | 3/3 | 10 min | 3.3 min |
 | 2. Async Pipeline | 3/3 | 8 min | 2.7 min |
-| 3. Knowledge System | 1/3 | 6 min | 6.0 min |
+| 3. Knowledge System | 2/3 | 8 min | 4.0 min |
 
 **Recent Trend:**
-- Last 5 plans: 02-02 (2 min), 02-01 (3 min), 02-03 (3 min), 03-01 (6 min)
-- Trend: Slight increase (knowledge layer more complex)
+- Last 5 plans: 02-01 (3 min), 02-03 (3 min), 03-01 (6 min), 03-02 (2 min)
+- Trend: Stable, retrieval plan straightforward
 
 *Updated after each plan completion*
 
@@ -76,6 +76,10 @@ Recent decisions affecting current work:
 - [03-01]: BM25 weights title 10x, summary 5x, content 1x for search relevance
 - [03-01]: FTS5 query escaping wraps terms in double quotes, LIKE fallback on parse error
 - [03-01]: Repository uses Drizzle .returning().get() for synchronous insert-and-return
+- [03-02]: Token budget enforcement trims from end (least relevant) when over 4K soft limit
+- [03-02]: Search results secondary-sorted by recency among equal-relevance items
+- [03-02]: Tool handler is synchronous -- all underlying ops are sync via better-sqlite3
+- [03-02]: Tool results returned as JSON strings per Anthropic tool_result API convention
 
 ### Pending Todos
 
@@ -88,5 +92,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-06
-Stopped at: Completed 03-01-PLAN.md (Knowledge storage layer)
+Stopped at: Completed 03-02-PLAN.md (Knowledge retrieval and tool use)
 Resume file: None

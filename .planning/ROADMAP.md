@@ -12,7 +12,7 @@ HeySous is a conversational AI meal planning assistant on Telegram, powered by C
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Bot Foundation** - Working Telegram bot with proper message formatting and delivery
+- [x] **Phase 1: Bot Foundation** - Working Telegram bot with proper message formatting and delivery
 - [ ] **Phase 2: Async Pipeline & Claude Integration** - Bot processes messages asynchronously through Claude and responds intelligently
 - [ ] **Phase 3: Knowledge System & Retrieval** - Agent retrieves relevant context per conversation within a token budget
 - [ ] **Phase 4: Recipe Knowledge** - Users can teach the bot recipes and retrieve them conversationally
@@ -38,7 +38,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 Plans:
 - [x] 01-01-PLAN.md -- Project scaffolding (Node.js, TypeScript, grammY, SQLite/Drizzle, database setup)
 - [x] 01-02-PLAN.md -- Telegram bot connection (bot instance, webhook/polling server, handlers, typing indicator)
-- [ ] 01-03-PLAN.md -- Message formatting and delivery (TDD: HTML formatter, message splitter, reliable sender)
+- [x] 01-03-PLAN.md -- Message formatting and delivery (TDD: HTML formatter, message splitter, reliable sender)
 
 ### Phase 2: Async Pipeline & Claude Integration
 **Goal**: Bot processes messages through Claude asynchronously, responding with intelligent conversation while tracking costs
@@ -179,7 +179,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Bot Foundation | 2/3 | In progress | - |
+| 1. Bot Foundation | 3/3 | Complete | 2026-02-06 |
 | 2. Async Pipeline & Claude Integration | 0/3 | Not started | - |
 | 3. Knowledge System & Retrieval | 0/3 | Not started | - |
 | 4. Recipe Knowledge | 0/3 | Not started | - |

@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Core value:** The recipe brain -- an AI agent that remembers everything about your meals and reasons over that knowledge to help you plan.
-**Current focus:** Phase 4 in progress -- Recipe Knowledge.
+**Current focus:** Phase 4 in progress -- Recipe Knowledge (2/3 plans complete).
 
 ## Current Position
 
 Phase: 4 of 9 (Recipe Knowledge)
 Plan: 2 of 3 in current phase
 Status: In progress
-Last activity: 2026-02-06 -- Completed 04-02-PLAN.md
+Last activity: 2026-02-06 -- Completed 04-01-PLAN.md and 04-02-PLAN.md
 
-Progress: [██████████░░░░░░░░░░░░░░░░] 10/26 (38%)
+Progress: [███████████░░░░░░░░░░░░░░░] 11/26 (42%)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 10
-- Average duration: 3.1 min
-- Total execution time: 31 min
+- Total plans completed: 11
+- Average duration: 3.0 min
+- Total execution time: 33 min
 
 **By Phase:**
 
@@ -30,11 +30,11 @@ Progress: [██████████░░░░░░░░░░░░░
 | 1. Bot Foundation | 3/3 | 10 min | 3.3 min |
 | 2. Async Pipeline | 3/3 | 8 min | 2.7 min |
 | 3. Knowledge System | 3/3 | 12 min | 4.0 min |
-| 4. Recipe Knowledge | 1/3 | 1 min | 1.0 min |
+| 4. Recipe Knowledge | 2/3 | 3 min | 1.5 min |
 
 **Recent Trend:**
-- Last 5 plans: 03-01 (6 min), 03-02 (2 min), 03-03 (4 min), 04-02 (1 min)
-- Trend: Prompt-only plans are fast (~1 min)
+- Last 5 plans: 03-02 (2 min), 03-03 (4 min), 04-02 (1 min), 04-01 (2 min)
+- Trend: Phase 4 plans executing fast (~1.5 min avg)
 
 *Updated after each plan completion*
 
@@ -87,6 +87,9 @@ Recent decisions affecting current work:
 - [03-03]: Messages saved synchronously with .run() before/after Claude call
 - [03-03]: Aggregate token usage across all tool use iterations for cost tracking
 - [03-03]: /debug command has no admin restriction (power user feature)
+- [04-01]: No foreign key on knowledgeChangelog.knowledgeItemId -- logs persist after item deletion for data mining
+- [04-01]: Write tools capture previous content snapshots in changelog before mutation
+- [04-01]: Tool handler signature extended with knowledgeRepository and db deps for write operations
 - [04-02]: Recipe intelligence lives entirely in system prompt -- no code-level recipe parsing or templates
 - [04-02]: Namespaced tag taxonomy (cuisine:italian, protein:chicken, etc.) auto-assigned by Claude
 - [04-02]: Recipe content stored as structured plain text, not JSON or HTML
@@ -103,5 +106,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-06
-Stopped at: Completed 04-02-PLAN.md
+Stopped at: Completed 04-01-PLAN.md and 04-02-PLAN.md -- 04-03 remaining
 Resume file: None

@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Core value:** The recipe brain -- an AI agent that remembers everything about your meals and reasons over that knowledge to help you plan.
-**Current focus:** Phase 5 in progress -- preference-aware pipeline.
+**Current focus:** Phase 5 complete -- preference-aware pipeline. Ready for Phase 6.
 
 ## Current Position
 
 Phase: 5 of 9 (Preference Learning)
-Plan: 1 of 2 in current phase
-Status: In progress
-Last activity: 2026-02-07 -- Completed 05-01-PLAN.md
+Plan: 2 of 2 in current phase
+Status: Phase complete
+Last activity: 2026-02-07 -- Completed 05-02-PLAN.md
 
-Progress: [█████████████░░░░░░░░░░░░░] 13/26 (50%)
+Progress: [██████████████░░░░░░░░░░░░] 14/26 (54%)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 13
-- Average duration: 3.1 min
-- Total execution time: 40 min
+- Total plans completed: 14
+- Average duration: 3.0 min
+- Total execution time: 42 min
 
 **By Phase:**
 
@@ -31,11 +31,11 @@ Progress: [█████████████░░░░░░░░░░
 | 2. Async Pipeline | 3/3 | 8 min | 2.7 min |
 | 3. Knowledge System | 3/3 | 12 min | 4.0 min |
 | 4. Recipe Knowledge | 3/3 | 5 min | 1.7 min |
-| 5. Preference Learning | 1/2 | 5 min | 5.0 min |
+| 5. Preference Learning | 2/2 | 7 min | 3.5 min |
 
 **Recent Trend:**
-- Last 5 plans: 04-02 (1 min), 04-01 (2 min), 04-03 (2 min), 05-01 (5 min)
-- Trend: Preference plan slightly longer due to larger system prompt work
+- Last 5 plans: 04-01 (2 min), 04-03 (2 min), 05-01 (5 min), 05-02 (2 min)
+- Trend: Preference command handler fast -- straightforward wiring task
 
 *Updated after each plan completion*
 
@@ -102,6 +102,8 @@ Recent decisions affecting current work:
 - [05-01]: Preference context injected after recipe_management section, preserving existing prompt structure
 - [05-01]: Claude client systemPrompt parameter is optional with fallback to buildSystemPrompt() for backward compatibility
 - [05-01]: Preference markers: [ALLERGY] for severity:allergy, [RESTRICTION] for severity:restriction, [inferred] for inferred
+- [05-02]: Preference grouping priority: household > dietary > schedule > cooking > other
+- [05-02]: No admin restriction on /preferences -- any user can view their own (matches /debug pattern)
 
 ### Pending Todos
 
@@ -114,5 +116,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-07
-Stopped at: Completed 05-01-PLAN.md
+Stopped at: Completed 05-02-PLAN.md (Phase 5 complete)
 Resume file: None

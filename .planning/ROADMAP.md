@@ -17,7 +17,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3: Knowledge System & Retrieval** - Agent retrieves relevant context per conversation within a token budget
 - [x] **Phase 4: Recipe Knowledge** - Users can teach the bot recipes and retrieve them conversationally
 - [x] **Phase 5: Preference Learning** - System remembers user preferences and applies them as active constraints
-- [ ] **Phase 6: Meal Planning** - Users can generate and adjust weekly dinner plans through conversation
+- [x] **Phase 6: Meal Planning** - Users can generate and adjust weekly dinner plans through conversation
 - [ ] **Phase 7: Grocery Lists** - Grocery lists generated from meal plans with aggregation and store splitting
 - [ ] **Phase 8: Reminders** - Proactive daily prep summaries and time-aware reminders that survive restarts
 - [ ] **Phase 9: Feedback Loop** - Post-meal check-ins that annotate recipes and improve future planning
@@ -117,9 +117,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 06-01-PLAN.md -- Meal plan data layer (schema, repository, date utils, cooking history, context builder)
-- [ ] 06-02-PLAN.md -- Claude tools and system prompt (plan tool definitions, tool handler dispatch, planning instructions, context injection)
-- [ ] 06-03-PLAN.md -- Pipeline wiring and /plan command (/plan handler, processor integration, main.ts wiring, auto-marking)
+- [x] 06-01-PLAN.md -- Meal plan data layer (schema, repository, date utils, cooking history, context builder)
+- [x] 06-02-PLAN.md -- Claude tools and system prompt (plan tool definitions, tool handler dispatch, planning instructions, context injection)
+- [x] 06-03-PLAN.md -- Pipeline wiring and /plan command (/plan handler, processor integration, main.ts wiring, auto-marking)
 
 ### Phase 7: Grocery Lists
 **Goal**: Grocery lists are automatically generated from meal plans with smart aggregation and store-aware organization
@@ -184,7 +184,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | 3. Knowledge System & Retrieval | 3/3 | Complete | 2026-02-06 |
 | 4. Recipe Knowledge | 3/3 | Complete | 2026-02-06 |
 | 5. Preference Learning | 2/2 | Complete | 2026-02-06 |
-| 6. Meal Planning | 0/3 | Not started | - |
+| 6. Meal Planning | 3/3 | Complete | 2026-02-07 |
 | 7. Grocery Lists | 0/3 | Not started | - |
 | 8. Reminders | 0/4 | Not started | - |
 | 9. Feedback Loop | 0/2 | Not started | - |

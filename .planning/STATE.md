@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Core value:** The recipe brain -- an AI agent that remembers everything about your meals and reasons over that knowledge to help you plan.
-**Current focus:** Phase 6 in progress -- data layer and AI tools complete, integration wiring next.
+**Current focus:** Phase 6 complete -- meal planning fully integrated. Ready for Phase 7 (Grocery Lists).
 
 ## Current Position
 
-Phase: 6 of 9 (Meal Planning)
-Plan: 2 of 3 in current phase
-Status: In progress
-Last activity: 2026-02-07 -- Completed 06-02-PLAN.md
+Phase: 6 of 9 (Meal Planning) -- COMPLETE
+Plan: 3 of 3 in current phase
+Status: Phase complete
+Last activity: 2026-02-07 -- Completed 06-03-PLAN.md
 
-Progress: [████████████████░░░░░░░░░░] 16/26 (62%)
+Progress: [█████████████████░░░░░░░░░] 17/26 (65%)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 16
+- Total plans completed: 17
 - Average duration: 2.9 min
-- Total execution time: 47 min
+- Total execution time: 49 min
 
 **By Phase:**
 
@@ -32,11 +32,11 @@ Progress: [████████████████░░░░░░░
 | 3. Knowledge System | 3/3 | 12 min | 4.0 min |
 | 4. Recipe Knowledge | 3/3 | 5 min | 1.7 min |
 | 5. Preference Learning | 2/2 | 7 min | 3.5 min |
-| 6. Meal Planning | 2/3 | 5 min | 2.5 min |
+| 6. Meal Planning | 3/3 | 7 min | 2.3 min |
 
 **Recent Trend:**
-- Last 5 plans: 05-01 (5 min), 05-02 (2 min), 06-01 (3 min), 06-02 (2 min)
-- Trend: Steady pace, tool/prompt plans run fast
+- Last 5 plans: 05-02 (2 min), 06-01 (3 min), 06-02 (2 min), 06-03 (2 min)
+- Trend: Steady pace, integration/wiring plans run fast
 
 *Updated after each plan completion*
 
@@ -114,6 +114,9 @@ Recent decisions affecting current work:
 - [06-02]: Plan tool deps (planRepository, sqlite) are optional in createToolHandler for backward compat
 - [06-02]: Plan context injected after preference management, before meal planning instructions
 - [06-02]: MEAL_PLANNING_PROMPT always included regardless of plan context existence
+- [06-03]: Raw SQLite JOIN for /plan display (same pattern as preferences handler)
+- [06-03]: Dinner-only detection for simplified display format
+- [06-03]: autoMarkCookedMeals runs before Claude call, ensuring history is current
 
 ### Pending Todos
 
@@ -126,5 +129,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-07
-Stopped at: Completed 06-02-PLAN.md (Phase 6, plan 2 of 3)
+Stopped at: Completed 06-03-PLAN.md (Phase 6 complete, all 3 plans done)
 Resume file: None

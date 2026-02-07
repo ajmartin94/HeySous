@@ -22,11 +22,14 @@ import { calculateCost } from "../ai/claude-client.js";
 import { sendFormattedMessage } from "../telegram/sender.js";
 import { messages, tokenUsage } from "../db/schema.js";
 import { createToolHandler } from "../ai/tool-handler.js";
-import { KNOWLEDGE_TOOLS } from "../ai/tools.js";
+import { KNOWLEDGE_TOOLS, PLAN_TOOLS } from "../ai/tools.js";
 import { buildConversationContext } from "../conversation/context-builder.js";
 import type { ConversationTurn } from "../conversation/types.js";
 import type { createRetrievalService } from "../knowledge/retrieval.js";
 import { createKnowledgeRepository } from "../knowledge/repository.js";
+import type { createPlanRepository } from "../planning/repository.js";
+import { autoMarkCookedMeals, getCookingHistory } from "../planning/history.js";
+import { buildPlanContext } from "../planning/context.js";
 import { getPreferenceSummaries } from "../knowledge/preferences.js";
 import { buildSystemPrompt } from "../ai/system-prompt.js";
 import type { DrizzleDatabase } from "../db/index.js";
@@ -56,6 +59,7 @@ interface ProcessorDeps {
   logger: Logger;
   retrievalService: ReturnType<typeof createRetrievalService>;
   knowledgeRepository: ReturnType<typeof createKnowledgeRepository>;
+  planRepository: ReturnType<typeof createPlanRepository>;
   sqlite: BetterSqlite3.Database;
 }
 
@@ -66,7 +70,7 @@ interface ProcessorDeps {
  * from the MessageQueue.
  */
 export function createProcessor(deps: ProcessorDeps) {
-  const { claudeClient, db, logger: log, retrievalService, knowledgeRepository } = deps;
+  const { claudeClient, db, logger: log, retrievalService, knowledgeRepository, planRepository } = deps;
 
   return async function processBatch(batch: PendingBatch): Promise<void> {
     const ctx = batch.ctx as BotContext;
@@ -122,17 +126,27 @@ export function createProcessor(deps: ProcessorDeps) {
         { role: "user" as const, content: userText },
       ];
 
-      // g. Create tool handler for knowledge retrieval and write operations
+      // g. Create tool handler for knowledge retrieval, write ops, and plan tools
       const toolHandler = createToolHandler({
         retrievalService,
         knowledgeRepository,
         db,
         chatId,
+        planRepository,
+        sqlite: deps.sqlite,
       });
+
+      // g2. Auto-mark past planned meals as cooked before Claude processes
+      autoMarkCookedMeals(deps.sqlite, chatId);
+
+      // g3. Load active plan context for system prompt injection
+      const activePlans = planRepository.getActivePlans(chatId);
+      const cookingHistoryEntries = getCookingHistory(deps.sqlite, chatId);
+      const planContext = buildPlanContext(activePlans, cookingHistoryEntries);
 
       // h. Load user preferences for system prompt injection
       const preferences = getPreferenceSummaries(deps.sqlite, chatId);
-      const systemPrompt = buildSystemPrompt(preferences);
+      const systemPrompt = buildSystemPrompt(preferences, planContext);
 
       // i. 30-second timeout warning timer
       let timeoutFired = false;
@@ -154,7 +168,7 @@ export function createProcessor(deps: ProcessorDeps) {
       try {
         response = await claudeClient.sendMessageWithTools(
           fullMessages,
-          KNOWLEDGE_TOOLS,
+          [...KNOWLEDGE_TOOLS, ...PLAN_TOOLS],
           toolHandler.handleToolCall,
           undefined,
           systemPrompt,
@@ -174,7 +188,7 @@ export function createProcessor(deps: ProcessorDeps) {
         try {
           response = await claudeClient.sendMessageWithTools(
             fullMessages,
-            KNOWLEDGE_TOOLS,
+            [...KNOWLEDGE_TOOLS, ...PLAN_TOOLS],
             toolHandler.handleToolCall,
             undefined,
             systemPrompt,

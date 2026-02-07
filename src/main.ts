@@ -23,8 +23,10 @@ import { createMessageHandler } from "./bot/handlers/message.js";
 import { createCostsHandler } from "./bot/handlers/costs.js";
 import { createDebugHandler } from "./bot/handlers/debug.js";
 import { createPreferencesHandler } from "./bot/handlers/preferences.js";
+import { createPlanHandler } from "./bot/handlers/plan.js";
 import { createRetrievalService } from "./knowledge/retrieval.js";
 import { createKnowledgeRepository } from "./knowledge/repository.js";
+import { createPlanRepository } from "./planning/repository.js";
 import { logger } from "./logger.js";
 
 async function main(): Promise<void> {
@@ -54,6 +56,10 @@ async function main(): Promise<void> {
   const knowledgeRepository = createKnowledgeRepository(db);
   logger.info("Knowledge repository initialized");
 
+  // Initialize plan repository for meal plan CRUD
+  const planRepository = createPlanRepository(db);
+  logger.info("Plan repository initialized");
+
   // Create pipeline processor with knowledge augmentation
   const processBatch = createProcessor({
     claudeClient,
@@ -61,6 +67,7 @@ async function main(): Promise<void> {
     logger,
     retrievalService,
     knowledgeRepository,
+    planRepository,
     sqlite,
   });
 
@@ -68,6 +75,7 @@ async function main(): Promise<void> {
   const costsHandler = createCostsHandler(db);
   const debugHandler = createDebugHandler(retrievalService);
   const preferencesHandler = createPreferencesHandler(sqlite);
+  const planHandler = createPlanHandler(sqlite);
   const messageHandler = createMessageHandler(queue, processBatch);
 
   // Create bot instance with all dependencies
@@ -75,6 +83,7 @@ async function main(): Promise<void> {
     costsHandler,
     debugHandler,
     preferencesHandler,
+    planHandler,
     messageHandler,
     db,
   });

@@ -12,8 +12,9 @@
  * 5. costsHandler (/costs admin command)
  * 6. debugHandler (/debug retrieval stats)
  * 7. preferencesHandler (/preferences user preferences)
- * 8. messageHandler (catch-all message:text -- MUST be last)
- * 9. error boundary
+ * 8. planHandler (/plan meal plan display)
+ * 9. messageHandler (catch-all message:text -- MUST be last)
+ * 10. error boundary
  */
 
 import { Bot, type Composer } from "grammy";
@@ -28,6 +29,7 @@ interface CreateBotOptions {
   costsHandler: Composer<BotContext>;
   debugHandler: Composer<BotContext>;
   preferencesHandler: Composer<BotContext>;
+  planHandler: Composer<BotContext>;
   messageHandler: Composer<BotContext>;
   db: DrizzleDatabase;
 }
@@ -36,7 +38,7 @@ export function createBot(
   token: string,
   options: CreateBotOptions,
 ): Bot<BotContext> {
-  const { costsHandler, debugHandler, preferencesHandler, messageHandler, db } = options;
+  const { costsHandler, debugHandler, preferencesHandler, planHandler, messageHandler, db } = options;
   const bot = new Bot<BotContext>(token);
 
   // Set default parse mode for all API calls
@@ -56,6 +58,7 @@ export function createBot(
   bot.use(costsHandler); // /costs command -- MUST be before catch-all message handler
   bot.use(debugHandler); // /debug command -- retrieval stats
   bot.use(preferencesHandler); // /preferences command -- user preferences
+  bot.use(planHandler); // /plan command -- meal plan display
   bot.use(messageHandler); // catch-all message:text -- MUST be last
 
   // Set up error boundary

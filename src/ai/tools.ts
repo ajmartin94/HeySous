@@ -149,3 +149,135 @@ export const KNOWLEDGE_TOOLS: Anthropic.Tool[] = [
     },
   },
 ];
+
+/**
+ * Anthropic tool definitions for meal planning operations.
+ *
+ * Four tools for plan CRUD and cooking history:
+ * 1. save_meal_plan -- Create/replace a weekly meal plan
+ * 2. get_meal_plan -- Retrieve a plan for a specific week
+ * 3. log_meal -- Log an unplanned meal to cooking history
+ * 4. get_cooking_history -- Query recent cooking history
+ */
+export const PLAN_TOOLS: Anthropic.Tool[] = [
+  {
+    name: "save_meal_plan",
+    description:
+      "Save or update a weekly meal plan. Provide the week start date (Monday) and an array of " +
+      "meal entries. Each entry needs a day (0=Mon through 6=Sun), meal type, and recipe name. " +
+      "Replaces all entries for that week -- always send the COMPLETE plan, not just changes.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        week_start_date: {
+          type: "string",
+          description:
+            "Monday of the plan week in ISO format: YYYY-MM-DD",
+        },
+        entries: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              day: {
+                type: "number",
+                description: "0=Monday through 6=Sunday",
+              },
+              meal_type: {
+                type: "string",
+                enum: ["breakfast", "lunch", "dinner"],
+                description: "Meal type, default: dinner",
+              },
+              recipe_name: {
+                type: "string",
+                description: "Name of the recipe or meal",
+              },
+              knowledge_item_id: {
+                type: "number",
+                description:
+                  "Optional ID of stored recipe in knowledge base",
+              },
+            },
+            required: ["day", "recipe_name"],
+          },
+          description: "Array of meal entries for the week",
+        },
+      },
+      required: ["week_start_date", "entries"],
+    },
+  },
+  {
+    name: "get_meal_plan",
+    description:
+      "Get the meal plan for a specific week. If no week specified, returns the current " +
+      "week's plan. Returns all entries for the week.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        week_start_date: {
+          type: "string",
+          description:
+            "Monday of the plan week in ISO format: YYYY-MM-DD. Omit for current week.",
+        },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "log_meal",
+    description:
+      "Log a meal to cooking history. Use for unplanned meals the user mentions " +
+      "('we had pizza tonight') or corrections to planned meals. Planned meals are " +
+      "auto-logged when the day passes.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        recipe_name: {
+          type: "string",
+          description: "Name of the meal/recipe",
+        },
+        cooked_date: {
+          type: "string",
+          description:
+            "Date the meal was cooked in ISO format: YYYY-MM-DD",
+        },
+        meal_type: {
+          type: "string",
+          enum: ["breakfast", "lunch", "dinner"],
+          description: "Meal type (default: dinner)",
+        },
+        knowledge_item_id: {
+          type: "number",
+          description: "Optional ID of stored recipe",
+        },
+        notes: {
+          type: "string",
+          description: "Optional notes about the meal",
+        },
+      },
+      required: ["recipe_name", "cooked_date"],
+    },
+  },
+  {
+    name: "get_cooking_history",
+    description:
+      "Get recent cooking history. Returns what was cooked/planned in the date range. " +
+      "Defaults to the last 3 weeks if no range specified.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        start_date: {
+          type: "string",
+          description:
+            "Start of date range in ISO format: YYYY-MM-DD",
+        },
+        end_date: {
+          type: "string",
+          description:
+            "End of date range in ISO format: YYYY-MM-DD",
+        },
+      },
+      required: [],
+    },
+  },
+];

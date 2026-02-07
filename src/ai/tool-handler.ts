@@ -1,5 +1,10 @@
+import type BetterSqlite3 from "better-sqlite3";
 import type { createRetrievalService } from "../knowledge/retrieval.js";
 import type { createKnowledgeRepository } from "../knowledge/repository.js";
+import type { createPlanRepository } from "../planning/repository.js";
+import type { PlanEntry, MealType } from "../planning/repository.js";
+import { logMeal, getCookingHistory } from "../planning/history.js";
+import { getWeekStartDate, DAY_NAMES } from "../planning/date-utils.js";
 import type { DrizzleDatabase } from "../db/index.js";
 import { knowledgeChangelog } from "../knowledge/schema.js";
 
@@ -17,8 +22,10 @@ export function createToolHandler(deps: {
   knowledgeRepository: ReturnType<typeof createKnowledgeRepository>;
   db: DrizzleDatabase;
   chatId: string;
+  planRepository?: ReturnType<typeof createPlanRepository>;
+  sqlite?: BetterSqlite3.Database;
 }) {
-  const { retrievalService, knowledgeRepository, db, chatId } = deps;
+  const { retrievalService, knowledgeRepository, db, chatId, planRepository, sqlite } = deps;
 
   return {
     /**
@@ -177,6 +184,129 @@ export function createToolHandler(deps: {
           return JSON.stringify({
             message: `Deleted "${previous.title}"`,
             deleted: true,
+          });
+        }
+
+        case "save_meal_plan": {
+          if (!planRepository) {
+            return JSON.stringify({ error: "Plan tools not available" });
+          }
+
+          const weekStartDate = input.week_start_date as string;
+          const rawEntries = input.entries as Array<{
+            day: number;
+            meal_type?: string;
+            recipe_name: string;
+            knowledge_item_id?: number;
+          }>;
+
+          const entries: PlanEntry[] = rawEntries.map((e) => ({
+            day: e.day,
+            recipeName: e.recipe_name,
+            mealType: (e.meal_type as MealType) ?? "dinner",
+            knowledgeItemId: e.knowledge_item_id,
+          }));
+
+          const plan = planRepository.savePlan(chatId, weekStartDate, entries);
+
+          return JSON.stringify({
+            message: `Saved plan for week of ${weekStartDate}`,
+            plan: {
+              id: plan.id,
+              weekStartDate: plan.weekStartDate,
+              entries: plan.entries.map((e) => ({
+                day: e.dayOfWeek,
+                dayName: DAY_NAMES[e.dayOfWeek] ?? `Day ${e.dayOfWeek}`,
+                mealType: e.mealType,
+                recipeName: e.recipeName,
+              })),
+            },
+          });
+        }
+
+        case "get_meal_plan": {
+          if (!planRepository) {
+            return JSON.stringify({ error: "Plan tools not available" });
+          }
+
+          const weekStartDate =
+            (input.week_start_date as string | undefined) ??
+            getWeekStartDate();
+
+          const plan = planRepository.getPlan(chatId, weekStartDate);
+
+          if (!plan) {
+            return JSON.stringify({
+              message: `No plan found for week of ${weekStartDate}`,
+            });
+          }
+
+          return JSON.stringify({
+            plan: {
+              id: plan.id,
+              weekStartDate: plan.weekStartDate,
+              entries: plan.entries.map((e) => ({
+                day: e.dayOfWeek,
+                dayName: DAY_NAMES[e.dayOfWeek] ?? `Day ${e.dayOfWeek}`,
+                mealType: e.mealType,
+                recipeName: e.recipeName,
+                knowledgeItemId: e.knowledgeItemId,
+              })),
+            },
+          });
+        }
+
+        case "log_meal": {
+          if (!sqlite) {
+            return JSON.stringify({ error: "Plan tools not available" });
+          }
+
+          const recipeName = input.recipe_name as string;
+          const cookedDate = input.cooked_date as string;
+          const mealType = input.meal_type as string | undefined;
+          const knowledgeItemId = input.knowledge_item_id as
+            | number
+            | undefined;
+          const notes = input.notes as string | undefined;
+
+          logMeal(sqlite, {
+            chatId,
+            recipeName,
+            cookedDate,
+            mealType,
+            knowledgeItemId,
+            notes,
+            source: "unplanned",
+          });
+
+          return JSON.stringify({
+            message: `Logged ${recipeName} for ${cookedDate}`,
+          });
+        }
+
+        case "get_cooking_history": {
+          if (!sqlite) {
+            return JSON.stringify({ error: "Plan tools not available" });
+          }
+
+          const startDate = input.start_date as string | undefined;
+          const endDate = input.end_date as string | undefined;
+
+          const history = getCookingHistory(
+            sqlite,
+            chatId,
+            startDate,
+            endDate,
+          );
+
+          return JSON.stringify({
+            history: history.map((h) => ({
+              recipeName: h.recipeName,
+              cookedDate: h.cookedDate,
+              mealType: h.mealType,
+              source: h.source,
+              notes: h.notes,
+            })),
           });
         }
 

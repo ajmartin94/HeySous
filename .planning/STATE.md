@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Core value:** The recipe brain -- an AI agent that remembers everything about your meals and reasons over that knowledge to help you plan.
-**Current focus:** Phase 4 complete (verified). Ready for Phase 5.
+**Current focus:** Phase 5 in progress -- preference-aware pipeline.
 
 ## Current Position
 
-Phase: 4 of 9 (Recipe Knowledge)
-Plan: 3 of 3 in current phase
-Status: Phase complete, verified
-Last activity: 2026-02-06 -- Phase 4 executed and verified
+Phase: 5 of 9 (Preference Learning)
+Plan: 1 of 2 in current phase
+Status: In progress
+Last activity: 2026-02-07 -- Completed 05-01-PLAN.md
 
-Progress: [████████████░░░░░░░░░░░░░░] 12/26 (46%)
+Progress: [█████████████░░░░░░░░░░░░░] 13/26 (50%)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 12
-- Average duration: 2.9 min
-- Total execution time: 35 min
+- Total plans completed: 13
+- Average duration: 3.1 min
+- Total execution time: 40 min
 
 **By Phase:**
 
@@ -31,10 +31,11 @@ Progress: [████████████░░░░░░░░░░░
 | 2. Async Pipeline | 3/3 | 8 min | 2.7 min |
 | 3. Knowledge System | 3/3 | 12 min | 4.0 min |
 | 4. Recipe Knowledge | 3/3 | 5 min | 1.7 min |
+| 5. Preference Learning | 1/2 | 5 min | 5.0 min |
 
 **Recent Trend:**
-- Last 5 plans: 03-03 (4 min), 04-02 (1 min), 04-01 (2 min), 04-03 (2 min)
-- Trend: Phase 4 plans executing fast (~1.7 min avg)
+- Last 5 plans: 04-02 (1 min), 04-01 (2 min), 04-03 (2 min), 05-01 (5 min)
+- Trend: Preference plan slightly longer due to larger system prompt work
 
 *Updated after each plan completion*
 
@@ -96,6 +97,11 @@ Recent decisions affecting current work:
 - [04-02]: Confirmation required before save; partial updates skip re-confirmation
 - [04-03]: knowledgeRepository injected as dependency rather than created inline in processor -- follows DI pattern
 - [04-03]: Tool iteration limit increased from 3 to 5 for multi-step recipe creation flows
+- [05-01]: Preferences retrieved via raw SQLite JOIN (same pattern as fts.ts) -- not Drizzle
+- [05-01]: System prompt always includes preference_management instructions even when no preferences exist
+- [05-01]: Preference context injected after recipe_management section, preserving existing prompt structure
+- [05-01]: Claude client systemPrompt parameter is optional with fallback to buildSystemPrompt() for backward compatibility
+- [05-01]: Preference markers: [ALLERGY] for severity:allergy, [RESTRICTION] for severity:restriction, [inferred] for inferred
 
 ### Pending Todos
 
@@ -107,6 +113,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-06
-Stopped at: Phase 4 executed and verified -- ready for Phase 5
+Last session: 2026-02-07
+Stopped at: Completed 05-01-PLAN.md
 Resume file: None

@@ -114,12 +114,12 @@ Plans:
   3. User can adjust the plan conversationally ("swap Thursday and Friday", "something easier on Tuesday")
   4. Plan surfaces recipes that haven't been made recently to avoid repetition
   5. System tracks what was planned/cooked and when, building cooking history over time
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 06-01: Meal plan data layer (weekly plan schema, cooking history tracking)
-- [ ] 06-02: Plan generation (prompt engineering, recipe selection, preference/history integration)
-- [ ] 06-03: Plan adjustment (conversational modification, swap/replace, plan persistence)
+- [ ] 06-01-PLAN.md -- Meal plan data layer (schema, repository, date utils, cooking history, context builder)
+- [ ] 06-02-PLAN.md -- Claude tools and system prompt (plan tool definitions, tool handler dispatch, planning instructions, context injection)
+- [ ] 06-03-PLAN.md -- Pipeline wiring and /plan command (/plan handler, processor integration, main.ts wiring, auto-marking)
 
 ### Phase 7: Grocery Lists
 **Goal**: Grocery lists are automatically generated from meal plans with smart aggregation and store-aware organization

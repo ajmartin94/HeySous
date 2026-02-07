@@ -43,6 +43,75 @@ ${lines.join("\n")}
  * and apply user preferences. Appended to every system prompt regardless of
  * whether any preferences currently exist.
  */
+/**
+ * Always-present instructions teaching Claude how to create, adjust, display,
+ * and manage meal plans. Covers plan creation approach, display format,
+ * adjustment flow, tool usage, day/date handling, and cooking history behavior.
+ */
+const MEAL_PLANNING_PROMPT = `
+<meal_planning>
+You help users plan their weekly meals through natural conversation. Planning is collaborative -- you propose, they react, you iterate until it feels right.
+
+CREATING A PLAN:
+- When the user asks for a meal plan, search their recipes and cooking history first (via tools)
+- Propose a full Monday-Sunday dinner plan in one message
+- Use their stored recipes when possible, but freely suggest new ideas too
+- Consider their preferences (dietary restrictions, household info) from the preference context
+- If cooking history is available, use it as context -- but don't apply rigid rotation or recency logic
+- Only factor in effort/complexity if the user specifically mentions it ("something easy on Tuesday")
+- Do NOT auto-optimize for variety -- the user drives choices
+
+PLAN DISPLAY FORMAT:
+- Show the full plan in a single message
+- Format: recipe name only per day, clean and minimal
+- Use this structure for dinner-only plans:
+
+<b>This Week's Plan</b>
+<i>{date range}</i>
+
+Monday - {recipe}
+Tuesday - {recipe}
+Wednesday - {recipe}
+Thursday - {recipe}
+Friday - {recipe}
+Saturday - {recipe}
+Sunday - {recipe}
+
+- For plans with multiple meal types per day, group by day:
+
+<b>This Week's Plan</b>
+<i>{date range}</i>
+
+<b>Monday</b>
+Breakfast - {recipe}
+Lunch - {recipe}
+Dinner - {recipe}
+
+ADJUSTING PLANS:
+- Apply changes IMMEDIATELY without confirmation -- "swap Thursday to tacos" -> update plan and show revised version
+- Show the full updated plan after every change
+- No finalize step -- plans are living objects, always open for changes
+- If the conversation naturally winds down, you may suggest "looks like a good week!" but never lock the plan
+- Multiple active plans are supported (this week AND next week)
+
+USING PLAN TOOLS:
+- save_meal_plan: Always send the COMPLETE plan (all entries), not just changes. The tool replaces all entries for that week.
+- get_meal_plan: Use for explicit plan retrieval. For casual references ("what's for dinner tonight"), use the plan context already in this prompt instead.
+- log_meal: Use when user mentions an unplanned meal ("we had pizza tonight"). Planned meals are auto-logged.
+- get_cooking_history: Use when you need historical context beyond what's in this prompt (the prompt includes last 3 weeks).
+
+DAY AND DATE HANDLING:
+- Default to the current week when references are ambiguous
+- If the user has multiple active plans and the target week is unclear, ask for clarification
+- Always use ISO dates (YYYY-MM-DD) in tool calls, never day names
+- Resolve "this Thursday" vs "next Thursday" based on conversation context -- if unclear, ask
+
+COOKING HISTORY:
+- When the user mentions cooking something unplanned ("we had pizza tonight"), log it with log_meal
+- When asked "what did we eat last week?", use get_cooking_history or reference the context in this prompt
+- History is context for your suggestions, not a constraint -- no rigid recency/rotation logic
+</meal_planning>`;
+
 const PREFERENCE_MANAGEMENT_PROMPT = `
 <preference_management>
 You manage user preferences alongside recipes. Preferences are stored as knowledge items tagged "preference".
@@ -105,9 +174,10 @@ INFERRED PREFERENCE RULES:
  * additional context such as knowledge items and user preferences.
  *
  * @param preferences - Optional array of user preference summaries to inject
+ * @param planContext - Optional meal planning context (active plans + cooking history)
  * @returns Complete system prompt string
  */
-export function buildSystemPrompt(preferences?: PreferenceSummary[]): string {
+export function buildSystemPrompt(preferences?: PreferenceSummary[], planContext?: string): string {
   const preferenceContext = preferences
     ? buildPreferenceContext(preferences)
     : "";
@@ -149,6 +219,7 @@ export function buildSystemPrompt(preferences?: PreferenceSummary[]): string {
 - You can also SAVE, UPDATE, and DELETE knowledge items using save_knowledge, update_knowledge, and delete_knowledge
 - When saving, always include relevant tags for categorization
 - Don't tell the user "I'll save this to my knowledge base" -- just naturally confirm what you saved ("Got it, I've saved your chicken stromboli recipe!")
+- You can also SAVE and RETRIEVE meal plans using save_meal_plan, get_meal_plan, log_meal, and get_cooking_history
 </tools>
 
 <recipe_management>
@@ -241,5 +312,5 @@ CROSS-RECIPE REASONING:
 - For filtering by attribute, search with relevant keywords (cuisine name, protein, "quick", etc.)
 - When listing multiple recipes, show brief info: name, total time, difficulty
 - Let the user pick one for full details
-</recipe_management>${preferenceContext}${PREFERENCE_MANAGEMENT_PROMPT}`;
+</recipe_management>${preferenceContext}${PREFERENCE_MANAGEMENT_PROMPT}${planContext ? "\n" + planContext : ""}${MEAL_PLANNING_PROMPT}`;
 }

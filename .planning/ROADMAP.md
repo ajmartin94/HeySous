@@ -98,11 +98,11 @@ Plans:
   2. Preferences actively influence agent behavior -- allergies excluded from suggestions, not just stored
   3. User can update preferences conversationally and the change takes effect immediately
   4. Dietary restrictions are treated as hard constraints that are never violated in suggestions
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 05-01: Preference storage and retrieval (schema, persistence, injection into agent context)
-- [ ] 05-02: Active preference application (hard constraints for dietary restrictions, soft influence for preferences)
+- [ ] 05-01-PLAN.md -- Preference retrieval, system prompt injection, and processor integration (preference loading, constraint instructions, tool description updates)
+- [ ] 05-02-PLAN.md -- /preferences command handler and bot wiring (formatted display, category grouping, main.ts integration)
 
 ### Phase 6: Meal Planning
 **Goal**: Users can generate and adjust a weekly dinner plan through conversation, informed by their recipes and preferences

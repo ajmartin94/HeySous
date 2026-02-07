@@ -62,10 +62,10 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Preference Learning (PREF)
 
-- [ ] **PREF-01**: System remembers stated preferences across conversations (dinner time, allergies, cooking goals, stores)
-- [ ] **PREF-02**: Preferences actively influence planning -- allergies excluded from suggestions, not just stored
-- [ ] **PREF-03**: User can update preferences conversationally ("actually, dinner is at 6:30 now")
-- [ ] **PREF-04**: Dietary restrictions treated as hard constraints (never violated in suggestions)
+- [x] **PREF-01**: System remembers stated preferences across conversations (dinner time, allergies, cooking goals, stores)
+- [x] **PREF-02**: Preferences actively influence planning -- allergies excluded from suggestions, not just stored
+- [x] **PREF-03**: User can update preferences conversationally ("actually, dinner is at 6:30 now")
+- [x] **PREF-04**: Dietary restrictions treated as hard constraints (never violated in suggestions)
 
 ### Feedback Loop (FEED)
 
@@ -153,10 +153,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | REMIND-03 | Phase 8: Reminders | Pending |
 | REMIND-04 | Phase 8: Reminders | Pending |
 | REMIND-05 | Phase 8: Reminders | Pending |
-| PREF-01 | Phase 5: Preference Learning | Pending |
-| PREF-02 | Phase 5: Preference Learning | Pending |
-| PREF-03 | Phase 5: Preference Learning | Pending |
-| PREF-04 | Phase 5: Preference Learning | Pending |
+| PREF-01 | Phase 5: Preference Learning | Complete |
+| PREF-02 | Phase 5: Preference Learning | Complete |
+| PREF-03 | Phase 5: Preference Learning | Complete |
+| PREF-04 | Phase 5: Preference Learning | Complete |
 | FEED-01 | Phase 9: Feedback Loop | Pending |
 | FEED-02 | Phase 9: Feedback Loop | Pending |
 | FEED-03 | Phase 9: Feedback Loop | Pending |
@@ -169,4 +169,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-02-05*
-*Last updated: 2026-02-06 -- Phase 4 requirements marked Complete*
+*Last updated: 2026-02-06 -- Phase 5 requirements marked Complete*

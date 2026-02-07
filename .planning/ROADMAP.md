@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Async Pipeline & Claude Integration** - Bot processes messages asynchronously through Claude and responds intelligently
 - [x] **Phase 3: Knowledge System & Retrieval** - Agent retrieves relevant context per conversation within a token budget
 - [x] **Phase 4: Recipe Knowledge** - Users can teach the bot recipes and retrieve them conversationally
-- [ ] **Phase 5: Preference Learning** - System remembers user preferences and applies them as active constraints
+- [x] **Phase 5: Preference Learning** - System remembers user preferences and applies them as active constraints
 - [ ] **Phase 6: Meal Planning** - Users can generate and adjust weekly dinner plans through conversation
 - [ ] **Phase 7: Grocery Lists** - Grocery lists generated from meal plans with aggregation and store splitting
 - [ ] **Phase 8: Reminders** - Proactive daily prep summaries and time-aware reminders that survive restarts
@@ -101,8 +101,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 05-01-PLAN.md -- Preference retrieval, system prompt injection, and processor integration (preference loading, constraint instructions, tool description updates)
-- [ ] 05-02-PLAN.md -- /preferences command handler and bot wiring (formatted display, category grouping, main.ts integration)
+- [x] 05-01-PLAN.md -- Preference retrieval, system prompt injection, and processor integration (preference loading, constraint instructions, tool description updates)
+- [x] 05-02-PLAN.md -- /preferences command handler and bot wiring (formatted display, category grouping, main.ts integration)
 
 ### Phase 6: Meal Planning
 **Goal**: Users can generate and adjust a weekly dinner plan through conversation, informed by their recipes and preferences
@@ -183,7 +183,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | 2. Async Pipeline & Claude Integration | 3/3 | Complete | 2026-02-06 |
 | 3. Knowledge System & Retrieval | 3/3 | Complete | 2026-02-06 |
 | 4. Recipe Knowledge | 3/3 | Complete | 2026-02-06 |
-| 5. Preference Learning | 0/2 | Not started | - |
+| 5. Preference Learning | 2/2 | Complete | 2026-02-06 |
 | 6. Meal Planning | 0/3 | Not started | - |
 | 7. Grocery Lists | 0/3 | Not started | - |
 | 8. Reminders | 0/4 | Not started | - |

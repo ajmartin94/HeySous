@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Core value:** The recipe brain -- an AI agent that remembers everything about your meals and reasons over that knowledge to help you plan.
-**Current focus:** Phase 6 in progress -- meal planning data layer complete, tools and wiring next.
+**Current focus:** Phase 6 in progress -- data layer and AI tools complete, integration wiring next.
 
 ## Current Position
 
 Phase: 6 of 9 (Meal Planning)
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase
 Status: In progress
-Last activity: 2026-02-07 -- Completed 06-01-PLAN.md
+Last activity: 2026-02-07 -- Completed 06-02-PLAN.md
 
-Progress: [███████████████░░░░░░░░░░░] 15/26 (58%)
+Progress: [████████████████░░░░░░░░░░] 16/26 (62%)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 15
-- Average duration: 3.0 min
-- Total execution time: 45 min
+- Total plans completed: 16
+- Average duration: 2.9 min
+- Total execution time: 47 min
 
 **By Phase:**
 
@@ -32,11 +32,11 @@ Progress: [███████████████░░░░░░░░
 | 3. Knowledge System | 3/3 | 12 min | 4.0 min |
 | 4. Recipe Knowledge | 3/3 | 5 min | 1.7 min |
 | 5. Preference Learning | 2/2 | 7 min | 3.5 min |
-| 6. Meal Planning | 1/3 | 3 min | 3.0 min |
+| 6. Meal Planning | 2/3 | 5 min | 2.5 min |
 
 **Recent Trend:**
-- Last 5 plans: 04-03 (2 min), 05-01 (5 min), 05-02 (2 min), 06-01 (3 min)
-- Trend: Steady pace on data layer plans
+- Last 5 plans: 05-01 (5 min), 05-02 (2 min), 06-01 (3 min), 06-02 (2 min)
+- Trend: Steady pace, tool/prompt plans run fast
 
 *Updated after each plan completion*
 
@@ -110,6 +110,10 @@ Recent decisions affecting current work:
 - [06-01]: Week start always Monday via ISO week rules
 - [06-01]: History defaults to 21-day lookback when no date range specified
 - [06-01]: initializePlanning in history.ts (matches initializeFts in fts.ts pattern)
+- [06-02]: PLAN_TOOLS is a separate export from KNOWLEDGE_TOOLS for selective tool set inclusion
+- [06-02]: Plan tool deps (planRepository, sqlite) are optional in createToolHandler for backward compat
+- [06-02]: Plan context injected after preference management, before meal planning instructions
+- [06-02]: MEAL_PLANNING_PROMPT always included regardless of plan context existence
 
 ### Pending Todos
 
@@ -122,5 +126,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-07
-Stopped at: Completed 06-01-PLAN.md (Phase 6, plan 1 of 3)
+Stopped at: Completed 06-02-PLAN.md (Phase 6, plan 2 of 3)
 Resume file: None

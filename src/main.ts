@@ -22,6 +22,7 @@ import { createProcessor } from "./pipeline/processor.js";
 import { createMessageHandler } from "./bot/handlers/message.js";
 import { createCostsHandler } from "./bot/handlers/costs.js";
 import { createDebugHandler } from "./bot/handlers/debug.js";
+import { createPreferencesHandler } from "./bot/handlers/preferences.js";
 import { createRetrievalService } from "./knowledge/retrieval.js";
 import { createKnowledgeRepository } from "./knowledge/repository.js";
 import { logger } from "./logger.js";
@@ -66,12 +67,14 @@ async function main(): Promise<void> {
   // Create handlers
   const costsHandler = createCostsHandler(db);
   const debugHandler = createDebugHandler(retrievalService);
+  const preferencesHandler = createPreferencesHandler(sqlite);
   const messageHandler = createMessageHandler(queue, processBatch);
 
   // Create bot instance with all dependencies
   const bot = createBot(config.botToken, {
     costsHandler,
     debugHandler,
+    preferencesHandler,
     messageHandler,
     db,
   });

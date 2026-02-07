@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Core value:** The recipe brain -- an AI agent that remembers everything about your meals and reasons over that knowledge to help you plan.
-**Current focus:** Phase 5 complete -- preference-aware pipeline. Ready for Phase 6.
+**Current focus:** Phase 6 in progress -- meal planning data layer complete, tools and wiring next.
 
 ## Current Position
 
-Phase: 5 of 9 (Preference Learning)
-Plan: 2 of 2 in current phase
-Status: Phase complete
-Last activity: 2026-02-07 -- Completed 05-02-PLAN.md
+Phase: 6 of 9 (Meal Planning)
+Plan: 1 of 3 in current phase
+Status: In progress
+Last activity: 2026-02-07 -- Completed 06-01-PLAN.md
 
-Progress: [██████████████░░░░░░░░░░░░] 14/26 (54%)
+Progress: [███████████████░░░░░░░░░░░] 15/26 (58%)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 14
+- Total plans completed: 15
 - Average duration: 3.0 min
-- Total execution time: 42 min
+- Total execution time: 45 min
 
 **By Phase:**
 
@@ -32,10 +32,11 @@ Progress: [██████████████░░░░░░░░░
 | 3. Knowledge System | 3/3 | 12 min | 4.0 min |
 | 4. Recipe Knowledge | 3/3 | 5 min | 1.7 min |
 | 5. Preference Learning | 2/2 | 7 min | 3.5 min |
+| 6. Meal Planning | 1/3 | 3 min | 3.0 min |
 
 **Recent Trend:**
-- Last 5 plans: 04-01 (2 min), 04-03 (2 min), 05-01 (5 min), 05-02 (2 min)
-- Trend: Preference command handler fast -- straightforward wiring task
+- Last 5 plans: 04-03 (2 min), 05-01 (5 min), 05-02 (2 min), 06-01 (3 min)
+- Trend: Steady pace on data layer plans
 
 *Updated after each plan completion*
 
@@ -104,6 +105,11 @@ Recent decisions affecting current work:
 - [05-01]: Preference markers: [ALLERGY] for severity:allergy, [RESTRICTION] for severity:restriction, [inferred] for inferred
 - [05-02]: Preference grouping priority: household > dietary > schedule > cooking > other
 - [05-02]: No admin restriction on /preferences -- any user can view their own (matches /debug pattern)
+- [06-01]: MealType enum constrained to "breakfast" | "lunch" | "dinner" for Drizzle type safety
+- [06-01]: Auto-mark uses SQLite date() arithmetic for cooked_date computation
+- [06-01]: Week start always Monday via ISO week rules
+- [06-01]: History defaults to 21-day lookback when no date range specified
+- [06-01]: initializePlanning in history.ts (matches initializeFts in fts.ts pattern)
 
 ### Pending Todos
 
@@ -116,5 +122,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-07
-Stopped at: Completed 05-02-PLAN.md (Phase 5 complete)
+Stopped at: Completed 06-01-PLAN.md (Phase 6, plan 1 of 3)
 Resume file: None

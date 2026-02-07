@@ -58,7 +58,11 @@ export const KNOWLEDGE_TOOLS: Anthropic.Tool[] = [
       "a brief summary (1-2 sentences for search results), the full content, and relevant tags. " +
       "For recipes, tags should include: 'recipe', cuisine type (e.g., 'cuisine:italian'), " +
       "meal type (e.g., 'meal:dinner'), protein (e.g., 'protein:chicken'), and difficulty " +
-      "(e.g., 'difficulty:easy'). Returns the saved item's ID.",
+      "(e.g., 'difficulty:easy'). " +
+      "For preferences, tags should include: 'preference', plus domain tags " +
+      "(e.g., 'pref:dietary', 'pref:schedule', 'pref:cooking'), subject tags " +
+      "(e.g., 'subject:self', 'subject:household'), and severity tags for allergies/restrictions " +
+      "(e.g., 'severity:allergy', 'severity:restriction'). Returns the saved item's ID.",
     input_schema: {
       type: "object" as const,
       properties: {

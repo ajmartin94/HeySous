@@ -46,8 +46,11 @@ export function createClaudeClient(apiKey: string, model: string) {
      * @param userMessages - Array of user message strings, joined with double newlines
      * @returns ClaudeResponse with text, usage, model, and stopReason
      */
-    async sendMessage(userMessages: string[]): Promise<ClaudeResponse> {
-      const systemPrompt = buildSystemPrompt();
+    async sendMessage(
+      userMessages: string[],
+      systemPrompt?: string,
+    ): Promise<ClaudeResponse> {
+      const prompt = systemPrompt ?? buildSystemPrompt();
       const combinedUserText = userMessages.join("\n\n");
 
       const response = await client.messages.create({
@@ -56,7 +59,7 @@ export function createClaudeClient(apiKey: string, model: string) {
         system: [
           {
             type: "text" as const,
-            text: systemPrompt,
+            text: prompt,
             cache_control: { type: "ephemeral" as const },
           },
         ],
@@ -108,12 +111,13 @@ export function createClaudeClient(apiKey: string, model: string) {
       tools: Anthropic.Tool[],
       onToolCall: (name: string, input: Record<string, unknown>) => string,
       maxIterations: number = DEFAULT_MAX_ITERATIONS,
+      systemPrompt?: string,
     ): Promise<ClaudeResponse> {
-      const systemPrompt = buildSystemPrompt();
+      const prompt = systemPrompt ?? buildSystemPrompt();
       const systemBlock = [
         {
           type: "text" as const,
-          text: systemPrompt,
+          text: prompt,
           cache_control: { type: "ephemeral" as const },
         },
       ];

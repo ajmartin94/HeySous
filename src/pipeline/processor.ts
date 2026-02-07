@@ -27,6 +27,8 @@ import { buildConversationContext } from "../conversation/context-builder.js";
 import type { ConversationTurn } from "../conversation/types.js";
 import type { createRetrievalService } from "../knowledge/retrieval.js";
 import { createKnowledgeRepository } from "../knowledge/repository.js";
+import { getPreferenceSummaries } from "../knowledge/preferences.js";
+import { buildSystemPrompt } from "../ai/system-prompt.js";
 import type { DrizzleDatabase } from "../db/index.js";
 import type { Logger } from "pino";
 
@@ -38,12 +40,13 @@ const IN_CHARACTER_ERROR =
 const CONVERSATION_TOKEN_BUDGET = 2000;
 
 interface ClaudeClient {
-  sendMessage(userMessages: string[]): Promise<ClaudeResponse>;
+  sendMessage(userMessages: string[], systemPrompt?: string): Promise<ClaudeResponse>;
   sendMessageWithTools(
     messages: Anthropic.MessageParam[],
     tools: Anthropic.Tool[],
     onToolCall: (name: string, input: Record<string, unknown>) => string,
     maxIterations?: number,
+    systemPrompt?: string,
   ): Promise<ClaudeResponse>;
 }
 
@@ -127,7 +130,11 @@ export function createProcessor(deps: ProcessorDeps) {
         chatId,
       });
 
-      // h. 30-second timeout warning timer
+      // h. Load user preferences for system prompt injection
+      const preferences = getPreferenceSummaries(deps.sqlite, chatId);
+      const systemPrompt = buildSystemPrompt(preferences);
+
+      // i. 30-second timeout warning timer
       let timeoutFired = false;
       const timeoutTimer = setTimeout(async () => {
         timeoutFired = true;
@@ -140,7 +147,7 @@ export function createProcessor(deps: ProcessorDeps) {
         }
       }, TIMEOUT_WARNING_MS);
 
-      // i. Call Claude with tools and one silent retry
+      // j. Call Claude with tools and one silent retry
       let response: ClaudeResponse;
       const startTime = Date.now();
 
@@ -149,6 +156,8 @@ export function createProcessor(deps: ProcessorDeps) {
           fullMessages,
           KNOWLEDGE_TOOLS,
           toolHandler.handleToolCall,
+          undefined,
+          systemPrompt,
         );
       } catch (firstError) {
         log.warn(
@@ -167,6 +176,8 @@ export function createProcessor(deps: ProcessorDeps) {
             fullMessages,
             KNOWLEDGE_TOOLS,
             toolHandler.handleToolCall,
+            undefined,
+            systemPrompt,
           );
         } catch (secondError) {
           clearTimeout(timeoutTimer);
@@ -192,10 +203,10 @@ export function createProcessor(deps: ProcessorDeps) {
       const requestDurationMs = Date.now() - startTime;
       clearTimeout(timeoutTimer);
 
-      // j. Send response via formatted sender
+      // k. Send response via formatted sender
       await sendFormattedMessage(ctx, response.text);
 
-      // k. Save outgoing response to messages table for conversation continuity
+      // l. Save outgoing response to messages table for conversation continuity
       db.insert(messages)
         .values({
           chatId,
@@ -205,7 +216,7 @@ export function createProcessor(deps: ProcessorDeps) {
         })
         .run();
 
-      // l. Log token usage to database
+      // m. Log token usage to database
       const estimatedCost = calculateCost(response.model, response.usage);
 
       await db.insert(tokenUsage).values({
@@ -221,7 +232,7 @@ export function createProcessor(deps: ProcessorDeps) {
         requestDurationMs,
       });
 
-      // m. Log token usage to pino
+      // n. Log token usage to pino
       log.info(
         {
           chatId,

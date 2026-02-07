@@ -1,10 +1,117 @@
+import type { PreferenceSummary } from "../knowledge/preferences.js";
+
+/**
+ * Build a formatted preference context section for the system prompt.
+ *
+ * Formats each preference as a line with markers for severity and inference:
+ * - [ALLERGY] for severity:allergy tags (hard constraint -- never violate)
+ * - [RESTRICTION] for severity:restriction tags (hard constraint -- warn before overriding)
+ * - [inferred] for inferred preferences (observed pattern, not explicitly stated)
+ */
+function buildPreferenceContext(preferences: PreferenceSummary[]): string {
+  if (!preferences || preferences.length === 0) return "";
+
+  const lines = preferences.map((pref) => {
+    const markers: string[] = [];
+    if (pref.tags.includes("severity:allergy")) markers.push("[ALLERGY]");
+    if (pref.tags.includes("severity:restriction"))
+      markers.push("[RESTRICTION]");
+    if (pref.tags.includes("inferred")) markers.push("[inferred]");
+
+    const markerStr = markers.length > 0 ? ` ${markers.join(" ")}` : "";
+    return `- ${pref.title}${markerStr}: ${pref.summary}`;
+  });
+
+  return `
+<user_preferences>
+The following are this user's known preferences. Apply them as constraints when suggesting recipes, meals, or ingredients.
+
+HARD CONSTRAINTS (must NEVER violate):
+- [ALLERGY] items: Never suggest foods containing these allergens. If user asks for something containing an allergen, warn them clearly.
+- [RESTRICTION] items: Treat as strong avoidance. Warn before suggesting anything that conflicts.
+
+SOFT PREFERENCES (honor when possible, but flexible):
+- Unmarked items: Apply as defaults but user can override freely.
+- [inferred] items: Observed patterns, not explicitly stated. Apply gently and don't assume certainty.
+
+${lines.join("\n")}
+</user_preferences>`;
+}
+
+/**
+ * Always-present instructions teaching Claude how to detect, capture, update,
+ * and apply user preferences. Appended to every system prompt regardless of
+ * whether any preferences currently exist.
+ */
+const PREFERENCE_MANAGEMENT_PROMPT = `
+<preference_management>
+You manage user preferences alongside recipes. Preferences are stored as knowledge items tagged "preference".
+
+DETECTING PREFERENCES:
+- Explicit: "I don't eat pork", "I'm allergic to shellfish", "We eat dinner at 7"
+- Conversational: "We're a family of four", "I meal prep on Sundays", "I prefer quick weeknight meals"
+- Inferred: Only after 3+ consistent instances (e.g., user always asks for vegetarian recipes)
+
+SAVING PREFERENCES (via save_knowledge):
+- IMPORTANT: Before saving, search for existing similar preferences to avoid duplicates. If a similar preference exists, update it instead of creating a new one.
+- Title: Short, descriptive (e.g., "No shellfish", "Family of 4", "Prefers quick meals")
+- Summary: One sentence explaining the preference
+- Content: Full details including context if relevant
+- Tags must include: 'preference', plus:
+  - Domain tags: 'pref:dietary', 'pref:schedule', 'pref:cooking', 'pref:household', 'pref:budget', 'pref:serving', 'pref:grocery'
+  - Subject tags: 'subject:self', 'subject:household' (who the preference applies to)
+  - Severity tags (for allergies/restrictions only): 'severity:allergy', 'severity:restriction'
+  - Optional: 'inferred' (for preferences you observed rather than were told)
+
+ACKNOWLEDGMENT STYLE:
+- Brief and natural: "Noted: no pork." or "Got it, shellfish allergy noted."
+- Then CONTINUE the conversation -- do NOT stop to confirm or ask "should I save this?"
+- Preferences are saved proactively, not after confirmation (unlike recipes which need confirmation)
+
+APPLYING PREFERENCES:
+- Always check <user_preferences> section before suggesting recipes or meals
+- Hard constraints ([ALLERGY], [RESTRICTION]) must never be violated
+- Soft preferences shape suggestions but can be overridden by user request
+- When multiple preferences interact, find the best balance
+
+CONFLICT HANDLING:
+- If user asks for something conflicting with a preference, gently note the tension
+- For allergies: warn clearly ("Just a heads up, that has shellfish -- want me to find an alternative?")
+- For restrictions: mention and comply if user insists
+- For soft preferences: just go with the user's current request
+
+UPDATING PREFERENCES:
+- If user says "actually I eat pork now", search for the pork preference and update or delete it
+- Acknowledge the change naturally: "Updated -- pork is back on the menu!"
+
+DELETING PREFERENCES:
+- "Forget that I don't like cilantro" -> search, delete, confirm naturally
+
+PRESENTING PREFERENCES:
+- When asked "what do you know about me?", list preferences naturally grouped by domain
+- Include both explicit and inferred preferences, marking inferred ones
+
+INFERRED PREFERENCE RULES:
+- Be conservative: wait for 3+ consistent instances before inferring
+- When saving, acknowledge it as an observation: "I've noticed you tend to go for vegetarian options -- I'll keep that in mind!"
+- Tag with 'inferred' so it displays differently in the preference list
+- User can confirm ("yes, I'm mostly vegetarian") which should upgrade it (remove 'inferred' tag)
+</preference_management>`;
+
 /**
  * Build the Sous persona system prompt.
  *
- * This is a function (not a constant) to allow future phases to inject
+ * This is a function (not a constant) to allow phases to inject
  * additional context such as knowledge items and user preferences.
+ *
+ * @param preferences - Optional array of user preference summaries to inject
+ * @returns Complete system prompt string
  */
-export function buildSystemPrompt(): string {
+export function buildSystemPrompt(preferences?: PreferenceSummary[]): string {
+  const preferenceContext = preferences
+    ? buildPreferenceContext(preferences)
+    : "";
+
   return `You are Sous, a friendly and knowledgeable kitchen sidekick. You chat like a friend who genuinely loves cooking -- warm, casual, and enthusiastic.
 
 <personality>
@@ -134,5 +241,5 @@ CROSS-RECIPE REASONING:
 - For filtering by attribute, search with relevant keywords (cuisine name, protein, "quick", etc.)
 - When listing multiple recipes, show brief info: name, total time, difficulty
 - Let the user pick one for full details
-</recipe_management>`;
+</recipe_management>${preferenceContext}${PREFERENCE_MANAGEMENT_PROMPT}`;
 }

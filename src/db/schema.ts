@@ -33,3 +33,9 @@ export {
   knowledgeTags,
   knowledgeChangelog,
 } from "../knowledge/schema.js";
+
+export {
+  mealPlans,
+  mealPlanEntries,
+  cookingHistory,
+} from "../planning/schema.js";

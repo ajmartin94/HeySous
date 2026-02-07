@@ -38,11 +38,11 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Meal Planning (PLAN)
 
-- [ ] **PLAN-01**: User can request a weekly dinner plan through conversation
-- [ ] **PLAN-02**: Plan generated from user's stored recipes, respecting preferences, constraints, and recent history
-- [ ] **PLAN-03**: User can adjust the plan conversationally ("swap Thursday and Friday", "something easier on Tuesday")
-- [ ] **PLAN-04**: Plan considers what hasn't been made recently to surface forgotten favorites
-- [ ] **PLAN-05**: Cooking history tracked -- what was planned/cooked and when
+- [x] **PLAN-01**: User can request a weekly dinner plan through conversation
+- [x] **PLAN-02**: Plan generated from user's stored recipes, respecting preferences, constraints, and recent history
+- [x] **PLAN-03**: User can adjust the plan conversationally ("swap Thursday and Friday", "something easier on Tuesday")
+- [x] **PLAN-04**: Plan considers what hasn't been made recently to surface forgotten favorites
+- [x] **PLAN-05**: Cooking history tracked -- what was planned/cooked and when
 
 ### Grocery List (GROCERY)
 
@@ -138,11 +138,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | RECIPE-04 | Phase 4: Recipe Knowledge | Complete |
 | RECIPE-05 | Phase 4: Recipe Knowledge | Complete |
 | RECIPE-06 | Phase 4: Recipe Knowledge | Complete |
-| PLAN-01 | Phase 6: Meal Planning | Pending |
-| PLAN-02 | Phase 6: Meal Planning | Pending |
-| PLAN-03 | Phase 6: Meal Planning | Pending |
-| PLAN-04 | Phase 6: Meal Planning | Pending |
-| PLAN-05 | Phase 6: Meal Planning | Pending |
+| PLAN-01 | Phase 6: Meal Planning | Complete |
+| PLAN-02 | Phase 6: Meal Planning | Complete |
+| PLAN-03 | Phase 6: Meal Planning | Complete |
+| PLAN-04 | Phase 6: Meal Planning | Complete |
+| PLAN-05 | Phase 6: Meal Planning | Complete |
 | GROCERY-01 | Phase 7: Grocery Lists | Pending |
 | GROCERY-02 | Phase 7: Grocery Lists | Pending |
 | GROCERY-03 | Phase 7: Grocery Lists | Pending |
@@ -169,4 +169,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-02-05*
-*Last updated: 2026-02-06 -- Phase 5 requirements marked Complete*
+*Last updated: 2026-02-07 -- Phase 6 requirements marked Complete*

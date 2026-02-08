@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Core value:** The recipe brain -- an AI agent that remembers everything about your meals and reasons over that knowledge to help you plan.
-**Current focus:** Phase 6 complete -- meal planning fully integrated. Ready for Phase 7 (Grocery Lists).
+**Current focus:** Phase 7 in progress -- grocery list data layer complete, tools/prompt/buttons/wiring remaining.
 
 ## Current Position
 
-Phase: 6 of 9 (Meal Planning) -- COMPLETE
-Plan: 3 of 3 in current phase
-Status: Phase complete
-Last activity: 2026-02-07 -- Completed 06-03-PLAN.md
+Phase: 7 of 9 (Grocery Lists)
+Plan: 1 of 4 in current phase
+Status: In progress
+Last activity: 2026-02-08 -- Completed 07-01-PLAN.md
 
-Progress: [█████████████████░░░░░░░░░] 17/26 (65%)
+Progress: [██████████████████░░░░░░░░] 18/26 (69%)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 17
-- Average duration: 2.9 min
-- Total execution time: 49 min
+- Total plans completed: 18
+- Average duration: 2.8 min
+- Total execution time: 51 min
 
 **By Phase:**
 
@@ -33,10 +33,11 @@ Progress: [█████████████████░░░░░░
 | 4. Recipe Knowledge | 3/3 | 5 min | 1.7 min |
 | 5. Preference Learning | 2/2 | 7 min | 3.5 min |
 | 6. Meal Planning | 3/3 | 7 min | 2.3 min |
+| 7. Grocery Lists | 1/4 | 2 min | 2.0 min |
 
 **Recent Trend:**
-- Last 5 plans: 05-02 (2 min), 06-01 (3 min), 06-02 (2 min), 06-03 (2 min)
-- Trend: Steady pace, integration/wiring plans run fast
+- Last 5 plans: 06-01 (3 min), 06-02 (2 min), 06-03 (2 min), 07-01 (2 min)
+- Trend: Steady pace, data layer plans consistently fast
 
 *Updated after each plan completion*
 
@@ -117,6 +118,11 @@ Recent decisions affecting current work:
 - [06-03]: Raw SQLite JOIN for /plan display (same pattern as preferences handler)
 - [06-03]: Dinner-only detection for simplified display format
 - [06-03]: autoMarkCookedMeals runs before Claude call, ensuring history is current
+- [07-01]: store and section are freeform text, not enums -- user-configurable per CONTEXT.md
+- [07-01]: planId has no foreign key -- soft link since plans can change independently
+- [07-01]: Only one active list per chat -- createList deactivates existing active list automatically
+- [07-01]: Items ordered by store, section, name for consistent grouped display
+- [07-01]: Batch insert uses SQLite transaction for atomicity
 
 ### Pending Todos
 
@@ -128,6 +134,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-07
-Stopped at: Completed 06-03-PLAN.md (Phase 6 complete, all 3 plans done)
+Last session: 2026-02-08
+Stopped at: Completed 07-01-PLAN.md (grocery data layer)
 Resume file: None

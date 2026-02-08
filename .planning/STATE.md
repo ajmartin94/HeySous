@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Core value:** The recipe brain -- an AI agent that remembers everything about your meals and reasons over that knowledge to help you plan.
-**Current focus:** Phase 7 in progress -- grocery list data layer complete, tools/prompt/buttons/wiring remaining.
+**Current focus:** Phase 7 in progress -- data layer + interaction utilities complete, tools/prompt and pipeline wiring remaining.
 
 ## Current Position
 
 Phase: 7 of 9 (Grocery Lists)
-Plan: 1 of 4 in current phase
+Plan: 3 of 4 in current phase
 Status: In progress
-Last activity: 2026-02-08 -- Completed 07-01-PLAN.md
+Last activity: 2026-02-08 -- Completed 07-03-PLAN.md
 
-Progress: [██████████████████░░░░░░░░] 18/26 (69%)
+Progress: [████████████████████░░░░░░] 20/26 (77%)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 18
-- Average duration: 2.8 min
-- Total execution time: 51 min
+- Total plans completed: 20
+- Average duration: 2.7 min
+- Total execution time: 55 min
 
 **By Phase:**
 
@@ -33,11 +33,11 @@ Progress: [██████████████████░░░░░
 | 4. Recipe Knowledge | 3/3 | 5 min | 1.7 min |
 | 5. Preference Learning | 2/2 | 7 min | 3.5 min |
 | 6. Meal Planning | 3/3 | 7 min | 2.3 min |
-| 7. Grocery Lists | 1/4 | 2 min | 2.0 min |
+| 7. Grocery Lists | 3/4 | 6 min | 2.0 min |
 
 **Recent Trend:**
-- Last 5 plans: 06-01 (3 min), 06-02 (2 min), 06-03 (2 min), 07-01 (2 min)
-- Trend: Steady pace, data layer plans consistently fast
+- Last 5 plans: 06-02 (2 min), 06-03 (2 min), 07-01 (2 min), 07-02 (2 min), 07-03 (2 min)
+- Trend: Steady 2-min pace on utility and data layer plans
 
 *Updated after each plan completion*
 
@@ -123,6 +123,10 @@ Recent decisions affecting current work:
 - [07-01]: Only one active list per chat -- createList deactivates existing active list automatically
 - [07-01]: Items ordered by store, section, name for consistent grouped display
 - [07-01]: Batch insert uses SQLite transaction for atomicity
+- [07-03]: Callback data format g:t:{id} -- 13 bytes max, well under 64-byte Telegram limit
+- [07-03]: 80-item safety valve on buttons -- skip keyboard entirely for very large lists
+- [07-03]: 2 buttons per row for mobile readability, labels truncated at 30 chars
+- [07-03]: Unchecked items sorted before checked within each section for visibility
 
 ### Pending Todos
 
@@ -135,5 +139,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-08
-Stopped at: Completed 07-01-PLAN.md (grocery data layer)
+Stopped at: Completed 07-03-PLAN.md (Telegram interaction utilities)
 Resume file: None

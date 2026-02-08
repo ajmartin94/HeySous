@@ -39,3 +39,8 @@ export {
   mealPlanEntries,
   cookingHistory,
 } from "../planning/schema.js";
+
+export {
+  groceryLists,
+  groceryListItems,
+} from "../grocery/schema.js";

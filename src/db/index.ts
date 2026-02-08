@@ -5,6 +5,7 @@ import { drizzle } from "drizzle-orm/better-sqlite3";
 import * as schema from "./schema.js";
 import { initializeFts } from "../knowledge/fts.js";
 import { initializePlanning } from "../planning/history.js";
+import { initializeGrocery } from "../grocery/init.js";
 
 export type DrizzleDatabase = ReturnType<typeof createDatabase>;
 
@@ -26,6 +27,9 @@ export function createDatabase(dbPath: string) {
 
   // Initialize meal planning tables
   initializePlanning(sqlite);
+
+  // Initialize grocery list tables
+  initializeGrocery(sqlite);
 
   // Return Drizzle ORM instance with schema
   return drizzle(sqlite, { schema });

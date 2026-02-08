@@ -281,3 +281,105 @@ export const PLAN_TOOLS: Anthropic.Tool[] = [
     },
   },
 ];
+
+/**
+ * Anthropic tool definitions for grocery list management.
+ *
+ * Three tools for grocery list CRUD:
+ * 1. save_grocery_list -- Create a new grocery list with all items
+ * 2. update_grocery_list -- Modify the active list (add, remove, check, uncheck)
+ * 3. get_grocery_list -- Retrieve the active list with all items
+ */
+export const GROCERY_TOOLS: Anthropic.Tool[] = [
+  {
+    name: "save_grocery_list",
+    description:
+      "Creates a new grocery list, replacing any existing active list. Send ALL items " +
+      "with store assignment, section, and quantity. Stores are user-defined (not hardcoded). " +
+      "Sections are categories like Produce, Dairy, Meat, Pantry, Bakery, Frozen, Beverages.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        items: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              name: { type: "string", description: "Item name" },
+              quantity: {
+                type: "string",
+                description:
+                  "Amount needed (e.g., '2 lbs', '3', '1 bunch')",
+              },
+              store: {
+                type: "string",
+                description: "Store name (user-defined)",
+              },
+              section: {
+                type: "string",
+                description:
+                  "Store section (Produce, Dairy, Meat, Pantry, etc.)",
+              },
+            },
+            required: ["name", "store", "section"],
+          },
+          description: "Array of grocery items",
+        },
+      },
+      required: ["items"],
+    },
+  },
+  {
+    name: "update_grocery_list",
+    description:
+      "Update the active grocery list. Use for the pantry check (removing items user has), " +
+      "adding extras (snacks, drinks), or checking off items conversationally. " +
+      "Provide at least one action.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        add_items: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              name: { type: "string" },
+              quantity: { type: "string" },
+              store: { type: "string" },
+              section: { type: "string" },
+            },
+            required: ["name", "store", "section"],
+          },
+          description: "Items to add to the list",
+        },
+        remove_item_ids: {
+          type: "array",
+          items: { type: "number" },
+          description: "Item IDs to remove from the list",
+        },
+        check_item_ids: {
+          type: "array",
+          items: { type: "number" },
+          description: "Item IDs to mark as checked",
+        },
+        uncheck_item_ids: {
+          type: "array",
+          items: { type: "number" },
+          description: "Item IDs to mark as unchecked",
+        },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "get_grocery_list",
+    description:
+      "Get the active grocery list with all items, their IDs, stores, sections, " +
+      "quantities, and checked status.",
+    input_schema: {
+      type: "object" as const,
+      properties: {},
+      required: [],
+    },
+  },
+];

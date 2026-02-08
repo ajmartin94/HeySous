@@ -3,6 +3,7 @@ import type { createRetrievalService } from "../knowledge/retrieval.js";
 import type { createKnowledgeRepository } from "../knowledge/repository.js";
 import type { createPlanRepository } from "../planning/repository.js";
 import type { PlanEntry, MealType } from "../planning/repository.js";
+import type { createGroceryRepository } from "../grocery/repository.js";
 import { logMeal, getCookingHistory } from "../planning/history.js";
 import { getWeekStartDate, DAY_NAMES } from "../planning/date-utils.js";
 import type { DrizzleDatabase } from "../db/index.js";
@@ -24,8 +25,9 @@ export function createToolHandler(deps: {
   chatId: string;
   planRepository?: ReturnType<typeof createPlanRepository>;
   sqlite?: BetterSqlite3.Database;
+  groceryRepository?: ReturnType<typeof createGroceryRepository>;
 }) {
-  const { retrievalService, knowledgeRepository, db, chatId, planRepository, sqlite } = deps;
+  const { retrievalService, knowledgeRepository, db, chatId, planRepository, sqlite, groceryRepository } = deps;
 
   return {
     /**
@@ -306,6 +308,108 @@ export function createToolHandler(deps: {
               mealType: h.mealType,
               source: h.source,
               notes: h.notes,
+            })),
+          });
+        }
+
+        case "save_grocery_list": {
+          if (!groceryRepository) {
+            return JSON.stringify({ error: "Grocery tools not available" });
+          }
+
+          const items = input.items as Array<{
+            name: string;
+            quantity?: string;
+            store: string;
+            section: string;
+          }>;
+
+          const list = groceryRepository.createList(chatId);
+          groceryRepository.addItems(list.id, items);
+
+          return JSON.stringify({
+            message: `Grocery list created with ${items.length} items`,
+            listId: list.id,
+            itemCount: items.length,
+          });
+        }
+
+        case "update_grocery_list": {
+          if (!groceryRepository) {
+            return JSON.stringify({ error: "Grocery tools not available" });
+          }
+
+          const activeList = groceryRepository.getActiveList(chatId);
+          if (!activeList) {
+            return JSON.stringify({
+              error: "No active grocery list. Use save_grocery_list to create one first.",
+            });
+          }
+
+          const addItems = input.add_items as
+            | Array<{
+                name: string;
+                quantity?: string;
+                store: string;
+                section: string;
+              }>
+            | undefined;
+          const removeItemIds = input.remove_item_ids as number[] | undefined;
+          const checkItemIds = input.check_item_ids as number[] | undefined;
+          const uncheckItemIds = input.uncheck_item_ids as number[] | undefined;
+
+          if (addItems && addItems.length > 0) {
+            groceryRepository.addItems(activeList.id, addItems);
+          }
+          if (removeItemIds && removeItemIds.length > 0) {
+            groceryRepository.removeItems(removeItemIds);
+          }
+          if (checkItemIds && checkItemIds.length > 0) {
+            groceryRepository.checkItems(checkItemIds);
+          }
+          if (uncheckItemIds && uncheckItemIds.length > 0) {
+            groceryRepository.uncheckItems(uncheckItemIds);
+          }
+
+          const updatedItems = groceryRepository.getListItems(activeList.id);
+
+          return JSON.stringify({
+            message: "List updated",
+            listId: activeList.id,
+            messageId: activeList.messageId,
+            items: updatedItems.map((i) => ({
+              id: i.id,
+              name: i.name,
+              quantity: i.quantity,
+              store: i.store,
+              section: i.section,
+              checked: i.checked,
+            })),
+          });
+        }
+
+        case "get_grocery_list": {
+          if (!groceryRepository) {
+            return JSON.stringify({ error: "Grocery tools not available" });
+          }
+
+          const currentList = groceryRepository.getActiveList(chatId);
+          if (!currentList) {
+            return JSON.stringify({ message: "No active grocery list" });
+          }
+
+          const listItems = groceryRepository.getListItems(currentList.id);
+
+          return JSON.stringify({
+            listId: currentList.id,
+            status: currentList.status,
+            items: listItems.map((i) => ({
+              id: i.id,
+              name: i.name,
+              quantity: i.quantity,
+              store: i.store,
+              section: i.section,
+              checked: i.checked,
             })),
           });
         }

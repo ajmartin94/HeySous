@@ -8,13 +8,15 @@
  * 1. hydrateReply (parse mode support)
  * 2. autoChatAction (typing indicators)
  * 3. db injection (database context for handlers)
- * 4. startHandler (/start command)
- * 5. costsHandler (/costs admin command)
- * 6. debugHandler (/debug retrieval stats)
- * 7. preferencesHandler (/preferences user preferences)
- * 8. planHandler (/plan meal plan display)
- * 9. messageHandler (catch-all message:text -- MUST be last)
- * 10. error boundary
+ * 4. groceryCallbackHandler (inline button callbacks -- before commands)
+ * 5. startHandler (/start command)
+ * 6. costsHandler (/costs admin command)
+ * 7. debugHandler (/debug retrieval stats)
+ * 8. preferencesHandler (/preferences user preferences)
+ * 9. planHandler (/plan meal plan display)
+ * 10. groceryHandler (/grocery grocery list display)
+ * 11. messageHandler (catch-all message:text -- MUST be last)
+ * 12. error boundary
  */
 
 import { Bot, type Composer } from "grammy";
@@ -30,6 +32,8 @@ interface CreateBotOptions {
   debugHandler: Composer<BotContext>;
   preferencesHandler: Composer<BotContext>;
   planHandler: Composer<BotContext>;
+  groceryHandler: Composer<BotContext>;
+  groceryCallbackHandler: Composer<BotContext>;
   messageHandler: Composer<BotContext>;
   db: DrizzleDatabase;
 }
@@ -38,7 +42,7 @@ export function createBot(
   token: string,
   options: CreateBotOptions,
 ): Bot<BotContext> {
-  const { costsHandler, debugHandler, preferencesHandler, planHandler, messageHandler, db } = options;
+  const { costsHandler, debugHandler, preferencesHandler, planHandler, groceryHandler, groceryCallbackHandler, messageHandler, db } = options;
   const bot = new Bot<BotContext>(token);
 
   // Set default parse mode for all API calls
@@ -54,11 +58,13 @@ export function createBot(
     return next();
   });
 
+  bot.use(groceryCallbackHandler); // inline button callbacks -- must be before command handlers
   bot.use(startHandler);
   bot.use(costsHandler); // /costs command -- MUST be before catch-all message handler
   bot.use(debugHandler); // /debug command -- retrieval stats
   bot.use(preferencesHandler); // /preferences command -- user preferences
   bot.use(planHandler); // /plan command -- meal plan display
+  bot.use(groceryHandler); // /grocery command -- grocery list display
   bot.use(messageHandler); // catch-all message:text -- MUST be last
 
   // Set up error boundary

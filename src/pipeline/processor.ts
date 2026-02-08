@@ -22,14 +22,18 @@ import { calculateCost } from "../ai/claude-client.js";
 import { sendFormattedMessage } from "../telegram/sender.js";
 import { messages, tokenUsage } from "../db/schema.js";
 import { createToolHandler } from "../ai/tool-handler.js";
-import { KNOWLEDGE_TOOLS, PLAN_TOOLS } from "../ai/tools.js";
+import { KNOWLEDGE_TOOLS, PLAN_TOOLS, GROCERY_TOOLS } from "../ai/tools.js";
 import { buildConversationContext } from "../conversation/context-builder.js";
 import type { ConversationTurn } from "../conversation/types.js";
 import type { createRetrievalService } from "../knowledge/retrieval.js";
 import { createKnowledgeRepository } from "../knowledge/repository.js";
 import type { createPlanRepository } from "../planning/repository.js";
+import type { createGroceryRepository } from "../grocery/repository.js";
 import { autoMarkCookedMeals, getCookingHistory } from "../planning/history.js";
 import { buildPlanContext } from "../planning/context.js";
+import { buildGroceryContext } from "../grocery/context.js";
+import { formatGroceryList } from "../grocery/formatter.js";
+import { buildGroceryKeyboard } from "../grocery/buttons.js";
 import { getPreferenceSummaries } from "../knowledge/preferences.js";
 import { buildSystemPrompt } from "../ai/system-prompt.js";
 import type { DrizzleDatabase } from "../db/index.js";
@@ -61,6 +65,7 @@ interface ProcessorDeps {
   knowledgeRepository: ReturnType<typeof createKnowledgeRepository>;
   planRepository: ReturnType<typeof createPlanRepository>;
   sqlite: BetterSqlite3.Database;
+  groceryRepository?: ReturnType<typeof createGroceryRepository>;
 }
 
 /**
@@ -126,7 +131,7 @@ export function createProcessor(deps: ProcessorDeps) {
         { role: "user" as const, content: userText },
       ];
 
-      // g. Create tool handler for knowledge retrieval, write ops, and plan tools
+      // g. Create tool handler for knowledge retrieval, write ops, plan tools, and grocery tools
       const toolHandler = createToolHandler({
         retrievalService,
         knowledgeRepository,
@@ -134,6 +139,7 @@ export function createProcessor(deps: ProcessorDeps) {
         chatId,
         planRepository,
         sqlite: deps.sqlite,
+        groceryRepository: deps.groceryRepository,
       });
 
       // g2. Auto-mark past planned meals as cooked before Claude processes
@@ -144,9 +150,14 @@ export function createProcessor(deps: ProcessorDeps) {
       const cookingHistoryEntries = getCookingHistory(deps.sqlite, chatId);
       const planContext = buildPlanContext(activePlans, cookingHistoryEntries);
 
+      // g4. Load active grocery list context for system prompt injection
+      const groceryContext = deps.groceryRepository
+        ? buildGroceryContext(deps.sqlite, chatId)
+        : "";
+
       // h. Load user preferences for system prompt injection
       const preferences = getPreferenceSummaries(deps.sqlite, chatId);
-      const systemPrompt = buildSystemPrompt(preferences, planContext);
+      const systemPrompt = buildSystemPrompt(preferences, planContext, groceryContext);
 
       // i. 30-second timeout warning timer
       let timeoutFired = false;
@@ -165,12 +176,14 @@ export function createProcessor(deps: ProcessorDeps) {
       let response: ClaudeResponse;
       const startTime = Date.now();
 
+      const allTools = [...KNOWLEDGE_TOOLS, ...PLAN_TOOLS, ...GROCERY_TOOLS];
+
       try {
         response = await claudeClient.sendMessageWithTools(
           fullMessages,
-          [...KNOWLEDGE_TOOLS, ...PLAN_TOOLS],
+          allTools,
           toolHandler.handleToolCall,
-          undefined,
+          10, // Increased from 5 for grocery list generation (plan + recipe lookups + save)
           systemPrompt,
         );
       } catch (firstError) {
@@ -188,9 +201,9 @@ export function createProcessor(deps: ProcessorDeps) {
         try {
           response = await claudeClient.sendMessageWithTools(
             fullMessages,
-            [...KNOWLEDGE_TOOLS, ...PLAN_TOOLS],
+            allTools,
             toolHandler.handleToolCall,
-            undefined,
+            10, // Increased from 5 for grocery list generation (plan + recipe lookups + save)
             systemPrompt,
           );
         } catch (secondError) {
@@ -229,6 +242,29 @@ export function createProcessor(deps: ProcessorDeps) {
           direction: "out" as const,
         })
         .run();
+
+      // l2. Edit grocery list message if tools modified it
+      if (deps.groceryRepository) {
+        try {
+          const activeList = deps.groceryRepository.getActiveList(chatId);
+          if (activeList && activeList.messageId) {
+            const groceryItems = deps.groceryRepository.getListItems(activeList.id);
+            const formattedList = formatGroceryList(groceryItems);
+            const keyboard = buildGroceryKeyboard(groceryItems);
+            await ctx.api.editMessageText(
+              chatId,
+              activeList.messageId,
+              formattedList,
+              { parse_mode: "HTML", reply_markup: keyboard },
+            );
+          }
+        } catch (editError) {
+          log.debug(
+            { error: editError instanceof Error ? editError.message : String(editError) },
+            "Grocery list message edit skipped",
+          );
+        }
+      }
 
       // m. Log token usage to database
       const estimatedCost = calculateCost(response.model, response.usage);

@@ -131,12 +131,13 @@ Plans:
   3. List is split between Kroger and Costco based on learned store preferences
   4. User can check off items through conversation or inline interaction
   5. List is organized by store section where possible
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] 07-01: Grocery list generation (ingredient extraction, aggregation, quantity merging)
-- [ ] 07-02: Store splitting and organization (Kroger/Costco assignment, section grouping)
-- [ ] 07-03: List interaction (check off items, view remaining, conversational management)
+- [ ] 07-01-PLAN.md -- Grocery data layer (schema, table init, repository CRUD with factory function)
+- [ ] 07-02-PLAN.md -- Claude tools and system prompt (GROCERY_TOOLS, tool handler dispatch, grocery instructions, context builder)
+- [ ] 07-03-PLAN.md -- Telegram interaction utilities (inline keyboard builder, HTML list formatter with strikethrough)
+- [ ] 07-04-PLAN.md -- Pipeline wiring and /grocery command (callback handler, bot registration, main.ts wiring, post-loop message editing)
 
 ### Phase 8: Reminders
 **Goal**: System proactively sends prep reminders that survive restarts and respect the user's schedule
@@ -185,6 +186,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | 4. Recipe Knowledge | 3/3 | Complete | 2026-02-06 |
 | 5. Preference Learning | 2/2 | Complete | 2026-02-06 |
 | 6. Meal Planning | 3/3 | Complete | 2026-02-07 |
-| 7. Grocery Lists | 0/3 | Not started | - |
+| 7. Grocery Lists | 0/4 | Not started | - |
 | 8. Reminders | 0/4 | Not started | - |
 | 9. Feedback Loop | 0/2 | Not started | - |

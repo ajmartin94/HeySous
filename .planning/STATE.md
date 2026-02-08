@@ -123,6 +123,11 @@ Recent decisions affecting current work:
 - [07-01]: Only one active list per chat -- createList deactivates existing active list automatically
 - [07-01]: Items ordered by store, section, name for consistent grouped display
 - [07-01]: Batch insert uses SQLite transaction for atomicity
+- [07-02]: update_grocery_list response includes messageId for post-loop Telegram message editing
+- [07-02]: Grocery context is lightweight summary (item count, store count, checked) to keep system prompt tokens low
+- [07-02]: GROCERY_LIST_PROMPT always included regardless of grocery context existence
+- [07-02]: groceryContext injected after planContext; GROCERY_LIST_PROMPT after MEAL_PLANNING_PROMPT
+- [07-02]: buildSystemPrompt groceryContext parameter is optional for backward compatibility
 - [07-03]: Callback data format g:t:{id} -- 13 bytes max, well under 64-byte Telegram limit
 - [07-03]: 80-item safety valve on buttons -- skip keyboard entirely for very large lists
 - [07-03]: 2 buttons per row for mobile readability, labels truncated at 30 chars

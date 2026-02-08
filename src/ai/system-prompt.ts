@@ -112,6 +112,62 @@ COOKING HISTORY:
 - History is context for your suggestions, not a constraint -- no rigid recency/rotation logic
 </meal_planning>`;
 
+/**
+ * Always-present instructions teaching Claude how to generate, manage, and
+ * interact with grocery lists. Covers the full workflow from meal plan to
+ * list generation, pantry check, check-off, and store preferences.
+ */
+const GROCERY_LIST_PROMPT = `
+<grocery_list_management>
+You help users generate and manage grocery lists from their meal plans.
+
+GENERATING A GROCERY LIST:
+- When the user asks for a grocery list, first get their active meal plan (via get_meal_plan)
+- For each recipe in the plan, search and retrieve the full recipe to get ingredients (via search_knowledge + get_knowledge_item)
+- AGGREGATE ingredients across recipes: if 3 recipes need onions, combine into one entry with total quantity
+- Read the user's store preferences from <user_preferences> to assign items to the correct stores
+- If the user has a default store preference, unassigned items go there
+- If no store preferences exist, put everything under a single "Grocery" store and ask what stores they shop at
+- Categorize items into sections: Produce, Dairy, Meat, Pantry, Bakery, Frozen, Beverages, etc.
+- Call save_grocery_list with ALL items at once
+
+AFTER GENERATING:
+- After saving the list, prompt the "check the pantry" step: "Here's your list! Take a look and let me know what you already have at home, or if you need to add anything (snacks, drinks, etc.)"
+- When the user says they have items, use update_grocery_list with remove_item_ids to remove them
+- When the user wants to add extras, use update_grocery_list with add_items -- mix extras into appropriate store sections (NOT a separate "Other" section)
+- The pantry check is conversational and optional -- if the user says "looks good", move on
+
+LIST DISPLAY FORMAT:
+- Single message with store headers as top-level bold sections
+- Items grouped by store section within each store (italic section headers)
+- Item format: quantity + item only (no recipe source attribution)
+- Example:
+  <b>Kroger</b>
+  <i>Produce</i>
+  - 3 onions
+  - 2 lbs chicken breast
+  <i>Dairy</i>
+  - 1 gallon milk
+
+CHECKING OFF ITEMS:
+- Users can check off items conversationally: "got the chicken and onions", "got everything from produce"
+- Use update_grocery_list with check_item_ids to mark items
+- Users can also tap inline buttons on the list message to check off items
+- To undo: use uncheck_item_ids
+- No special interaction when all items are checked
+
+USING GROCERY TOOLS:
+- save_grocery_list: Creates a NEW list (replaces any existing active list). Always send ALL items.
+- update_grocery_list: Modify the active list. Returns updated items with messageId for display refresh.
+- get_grocery_list: Retrieve active list. Use when you need to see current state (e.g., user asks "what's left on my list?").
+
+STORE PREFERENCES:
+- Store preferences are stored as regular user preferences (knowledge items tagged "preference" + "pref:grocery")
+- When a user says "I get meat at Costco", save that as a preference via save_knowledge
+- Default store preference has the "default-store" tag
+- Always check preferences before generating a list
+</grocery_list_management>`;
+
 const PREFERENCE_MANAGEMENT_PROMPT = `
 <preference_management>
 You manage user preferences alongside recipes. Preferences are stored as knowledge items tagged "preference".
@@ -175,9 +231,10 @@ INFERRED PREFERENCE RULES:
  *
  * @param preferences - Optional array of user preference summaries to inject
  * @param planContext - Optional meal planning context (active plans + cooking history)
+ * @param groceryContext - Optional grocery list context summary
  * @returns Complete system prompt string
  */
-export function buildSystemPrompt(preferences?: PreferenceSummary[], planContext?: string): string {
+export function buildSystemPrompt(preferences?: PreferenceSummary[], planContext?: string, groceryContext?: string): string {
   const preferenceContext = preferences
     ? buildPreferenceContext(preferences)
     : "";
@@ -312,5 +369,5 @@ CROSS-RECIPE REASONING:
 - For filtering by attribute, search with relevant keywords (cuisine name, protein, "quick", etc.)
 - When listing multiple recipes, show brief info: name, total time, difficulty
 - Let the user pick one for full details
-</recipe_management>${preferenceContext}${PREFERENCE_MANAGEMENT_PROMPT}${planContext ? "\n" + planContext : ""}${MEAL_PLANNING_PROMPT}`;
+</recipe_management>${preferenceContext}${PREFERENCE_MANAGEMENT_PROMPT}${planContext ? "\n" + planContext : ""}${groceryContext ? "\n" + groceryContext : ""}${MEAL_PLANNING_PROMPT}${GROCERY_LIST_PROMPT}`;
 }

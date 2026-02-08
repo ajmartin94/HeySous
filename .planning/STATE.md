@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Core value:** The recipe brain -- an AI agent that remembers everything about your meals and reasons over that knowledge to help you plan.
-**Current focus:** Phase 7 in progress -- data layer + interaction utilities complete, tools/prompt and pipeline wiring remaining.
+**Current focus:** Phase 7 complete -- grocery lists fully functional end-to-end. Ready for Phase 8 (Reminders).
 
 ## Current Position
 
 Phase: 7 of 9 (Grocery Lists)
-Plan: 3 of 4 in current phase
-Status: In progress
-Last activity: 2026-02-08 -- Completed 07-03-PLAN.md
+Plan: 4 of 4 in current phase
+Status: Phase complete
+Last activity: 2026-02-08 -- Completed 07-04-PLAN.md
 
-Progress: [████████████████████░░░░░░] 20/26 (77%)
+Progress: [█████████████████████░░░░░] 21/26 (81%)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 20
-- Average duration: 2.7 min
-- Total execution time: 55 min
+- Total plans completed: 21
+- Average duration: 2.8 min
+- Total execution time: 58 min
 
 **By Phase:**
 
@@ -33,11 +33,11 @@ Progress: [████████████████████░░░
 | 4. Recipe Knowledge | 3/3 | 5 min | 1.7 min |
 | 5. Preference Learning | 2/2 | 7 min | 3.5 min |
 | 6. Meal Planning | 3/3 | 7 min | 2.3 min |
-| 7. Grocery Lists | 3/4 | 6 min | 2.0 min |
+| 7. Grocery Lists | 4/4 | 9 min | 2.3 min |
 
 **Recent Trend:**
-- Last 5 plans: 06-02 (2 min), 06-03 (2 min), 07-01 (2 min), 07-02 (2 min), 07-03 (2 min)
-- Trend: Steady 2-min pace on utility and data layer plans
+- Last 5 plans: 06-03 (2 min), 07-01 (2 min), 07-02 (2 min), 07-03 (2 min), 07-04 (3 min)
+- Trend: Steady 2-3 min pace, integration plans slightly longer
 
 *Updated after each plan completion*
 
@@ -132,6 +132,10 @@ Recent decisions affecting current work:
 - [07-03]: 80-item safety valve on buttons -- skip keyboard entirely for very large lists
 - [07-03]: 2 buttons per row for mobile readability, labels truncated at 30 chars
 - [07-03]: Unchecked items sorted before checked within each section for visibility
+- [07-04]: groceryCallbackHandler registered before all command handlers (callback queries need early routing)
+- [07-04]: Tool iteration limit increased from 5 to 10 for grocery list generation flow
+- [07-04]: Post-tool-loop grocery message edit is best-effort (debug-level logging on failure)
+- [07-04]: Callback handler uses on("callback_query:data") with next() passthrough for non-grocery callbacks
 
 ### Pending Todos
 
@@ -144,5 +148,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-08
-Stopped at: Completed 07-03-PLAN.md (Telegram interaction utilities)
+Stopped at: Completed 07-04-PLAN.md (Pipeline wiring -- Phase 7 complete)
 Resume file: None

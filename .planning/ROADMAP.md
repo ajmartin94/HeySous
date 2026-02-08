@@ -18,7 +18,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 4: Recipe Knowledge** - Users can teach the bot recipes and retrieve them conversationally
 - [x] **Phase 5: Preference Learning** - System remembers user preferences and applies them as active constraints
 - [x] **Phase 6: Meal Planning** - Users can generate and adjust weekly dinner plans through conversation
-- [ ] **Phase 7: Grocery Lists** - Grocery lists generated from meal plans with aggregation and store splitting
+- [x] **Phase 7: Grocery Lists** - Grocery lists generated from meal plans with aggregation and store splitting
 - [ ] **Phase 8: Reminders** - Proactive daily prep summaries and time-aware reminders that survive restarts
 - [ ] **Phase 9: Feedback Loop** - Post-meal check-ins that annotate recipes and improve future planning
 
@@ -134,10 +134,10 @@ Plans:
 **Plans**: 4 plans
 
 Plans:
-- [ ] 07-01-PLAN.md -- Grocery data layer (schema, table init, repository CRUD with factory function)
-- [ ] 07-02-PLAN.md -- Claude tools and system prompt (GROCERY_TOOLS, tool handler dispatch, grocery instructions, context builder)
-- [ ] 07-03-PLAN.md -- Telegram interaction utilities (inline keyboard builder, HTML list formatter with strikethrough)
-- [ ] 07-04-PLAN.md -- Pipeline wiring and /grocery command (callback handler, bot registration, main.ts wiring, post-loop message editing)
+- [x] 07-01-PLAN.md -- Grocery data layer (schema, table init, repository CRUD with factory function)
+- [x] 07-02-PLAN.md -- Claude tools and system prompt (GROCERY_TOOLS, tool handler dispatch, grocery instructions, context builder)
+- [x] 07-03-PLAN.md -- Telegram interaction utilities (inline keyboard builder, HTML list formatter with strikethrough)
+- [x] 07-04-PLAN.md -- Pipeline wiring and /grocery command (callback handler, bot registration, main.ts wiring, post-loop message editing)
 
 ### Phase 8: Reminders
 **Goal**: System proactively sends prep reminders that survive restarts and respect the user's schedule
@@ -186,6 +186,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | 4. Recipe Knowledge | 3/3 | Complete | 2026-02-06 |
 | 5. Preference Learning | 2/2 | Complete | 2026-02-06 |
 | 6. Meal Planning | 3/3 | Complete | 2026-02-07 |
-| 7. Grocery Lists | 0/4 | Not started | - |
+| 7. Grocery Lists | 4/4 | Complete | 2026-02-08 |
 | 8. Reminders | 0/4 | Not started | - |
 | 9. Feedback Loop | 0/2 | Not started | - |

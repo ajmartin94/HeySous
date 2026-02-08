@@ -46,11 +46,11 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Grocery List (GROCERY)
 
-- [ ] **GROCERY-01**: Grocery list generated from the active meal plan
-- [ ] **GROCERY-02**: Ingredients aggregated across recipes (3 recipes needing onions = total quantity, not 3 separate entries)
-- [ ] **GROCERY-03**: List split between Kroger and Costco based on learned preferences
-- [ ] **GROCERY-04**: User can check off items through conversation or inline interaction
-- [ ] **GROCERY-05**: List organized by store section where possible
+- [x] **GROCERY-01**: Grocery list generated from the active meal plan
+- [x] **GROCERY-02**: Ingredients aggregated across recipes (3 recipes needing onions = total quantity, not 3 separate entries)
+- [x] **GROCERY-03**: List split between Kroger and Costco based on learned preferences
+- [x] **GROCERY-04**: User can check off items through conversation or inline interaction
+- [x] **GROCERY-05**: List organized by store section where possible
 
 ### Reminders (REMIND)
 
@@ -143,11 +143,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PLAN-03 | Phase 6: Meal Planning | Complete |
 | PLAN-04 | Phase 6: Meal Planning | Complete |
 | PLAN-05 | Phase 6: Meal Planning | Complete |
-| GROCERY-01 | Phase 7: Grocery Lists | Pending |
-| GROCERY-02 | Phase 7: Grocery Lists | Pending |
-| GROCERY-03 | Phase 7: Grocery Lists | Pending |
-| GROCERY-04 | Phase 7: Grocery Lists | Pending |
-| GROCERY-05 | Phase 7: Grocery Lists | Pending |
+| GROCERY-01 | Phase 7: Grocery Lists | Complete |
+| GROCERY-02 | Phase 7: Grocery Lists | Complete |
+| GROCERY-03 | Phase 7: Grocery Lists | Complete |
+| GROCERY-04 | Phase 7: Grocery Lists | Complete |
+| GROCERY-05 | Phase 7: Grocery Lists | Complete |
 | REMIND-01 | Phase 8: Reminders | Pending |
 | REMIND-02 | Phase 8: Reminders | Pending |
 | REMIND-03 | Phase 8: Reminders | Pending |

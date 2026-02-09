@@ -27,8 +27,10 @@ interface GroupedPreferences {
 /**
  * Group preferences by category using tag-based classification.
  *
- * Priority: household > dietary > schedule > cooking > other.
- * Each preference appears in exactly one group.
+ * Priority: dietary > schedule > cooking > household > other.
+ * Domain tags (pref:dietary, pref:schedule) take precedence over
+ * subject tags (subject:household) so dietary restrictions always
+ * appear in the Dietary section even if also tagged as household.
  */
 export function groupPreferences(
   prefs: PreferenceSummary[],
@@ -44,9 +46,7 @@ export function groupPreferences(
   for (const pref of prefs) {
     const tags = pref.tags;
 
-    if (tags.includes("subject:household")) {
-      groups.household.push(pref);
-    } else if (tags.includes("pref:dietary")) {
+    if (tags.includes("pref:dietary")) {
       groups.dietary.push(pref);
     } else if (tags.includes("pref:schedule")) {
       groups.schedule.push(pref);
@@ -57,6 +57,8 @@ export function groupPreferences(
       tags.includes("pref:grocery")
     ) {
       groups.cooking.push(pref);
+    } else if (tags.includes("subject:household")) {
+      groups.household.push(pref);
     } else {
       groups.other.push(pref);
     }

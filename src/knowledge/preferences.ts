@@ -34,7 +34,7 @@ export function getPreferenceSummaries(
       SELECT DISTINCT ki.id, ki.title, ki.summary
       FROM knowledge_items ki
       JOIN knowledge_tags kt ON kt.knowledge_item_id = ki.id
-      WHERE ki.chat_id = ? AND (kt.tag = 'preference' OR kt.tag LIKE 'pref:%')
+      WHERE ki.chat_id = ? AND (kt.tag = 'preference' OR kt.tag LIKE 'pref:%' OR kt.tag LIKE 'severity:%')
       ORDER BY ki.last_accessed_at DESC
       LIMIT ?
       `,

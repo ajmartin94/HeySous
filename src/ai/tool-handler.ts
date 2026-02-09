@@ -91,26 +91,31 @@ export function createToolHandler(deps: {
           const content = input.content as string;
           const tags = input.tags as string[];
 
-          const item = knowledgeRepository.create(chatId, {
-            title,
-            summary,
-            content,
-            tags,
-          });
+          try {
+            const item = knowledgeRepository.create(chatId, {
+              title,
+              summary,
+              content,
+              tags,
+            });
 
-          db.insert(knowledgeChangelog)
-            .values({
-              knowledgeItemId: item.id,
-              chatId,
-              action: "create",
-              changeDescription: "Created: " + title,
-            })
-            .run();
+            db.insert(knowledgeChangelog)
+              .values({
+                knowledgeItemId: item.id,
+                chatId,
+                action: "create",
+                changeDescription: "Created: " + title,
+              })
+              .run();
 
-          return JSON.stringify({
-            message: `Saved "${title}" (ID: ${item.id})`,
-            id: item.id,
-          });
+            return JSON.stringify({
+              message: `Saved "${title}" (ID: ${item.id})`,
+              id: item.id,
+            });
+          } catch (error) {
+            const msg = error instanceof Error ? error.message : String(error);
+            return JSON.stringify({ error: `Failed to save "${title}": ${msg}` });
+          }
         }
 
         case "update_knowledge": {
@@ -123,73 +128,83 @@ export function createToolHandler(deps: {
             | string
             | undefined;
 
-          // Get current item for changelog snapshot
-          const previous = knowledgeRepository.getById(id, chatId);
-          if (!previous) {
-            return JSON.stringify({ error: `No item found with ID ${id}` });
+          try {
+            // Get current item for changelog snapshot
+            const previous = knowledgeRepository.getById(id, chatId);
+            if (!previous) {
+              return JSON.stringify({ error: `No item found with ID ${id}` });
+            }
+
+            // Build changes object with only defined fields
+            const changes: Record<string, unknown> = {};
+            if (title !== undefined) changes.title = title;
+            if (summary !== undefined) changes.summary = summary;
+            if (content !== undefined) changes.content = content;
+            if (tags !== undefined) changes.tags = tags;
+
+            const updated = knowledgeRepository.update(id, chatId, changes);
+            if (!updated) {
+              return JSON.stringify({ error: `Failed to update item ${id}` });
+            }
+
+            // Build changelog description
+            const changedFields = Object.keys(changes);
+            const description =
+              changeDescription || `Updated fields: ${changedFields.join(", ")}`;
+
+            db.insert(knowledgeChangelog)
+              .values({
+                knowledgeItemId: id,
+                chatId,
+                action: "update",
+                changeDescription: description,
+                previousContent: previous.content,
+              })
+              .run();
+
+            return JSON.stringify({
+              message: `Updated "${updated.title}" (ID: ${id})`,
+              id: updated.id,
+            });
+          } catch (error) {
+            const msg = error instanceof Error ? error.message : String(error);
+            return JSON.stringify({ error: `Failed to update item ${id}: ${msg}` });
           }
-
-          // Build changes object with only defined fields
-          const changes: Record<string, unknown> = {};
-          if (title !== undefined) changes.title = title;
-          if (summary !== undefined) changes.summary = summary;
-          if (content !== undefined) changes.content = content;
-          if (tags !== undefined) changes.tags = tags;
-
-          const updated = knowledgeRepository.update(id, chatId, changes);
-          if (!updated) {
-            return JSON.stringify({ error: `Failed to update item ${id}` });
-          }
-
-          // Build changelog description
-          const changedFields = Object.keys(changes);
-          const description =
-            changeDescription || `Updated fields: ${changedFields.join(", ")}`;
-
-          db.insert(knowledgeChangelog)
-            .values({
-              knowledgeItemId: id,
-              chatId,
-              action: "update",
-              changeDescription: description,
-              previousContent: previous.content,
-            })
-            .run();
-
-          return JSON.stringify({
-            message: `Updated "${updated.title}" (ID: ${id})`,
-            id: updated.id,
-          });
         }
 
         case "delete_knowledge": {
           const id = input.id as number;
 
-          // Get current item for changelog snapshot
-          const previous = knowledgeRepository.getById(id, chatId);
-          if (!previous) {
-            return JSON.stringify({ error: `No item found with ID ${id}` });
+          try {
+            // Get current item for changelog snapshot
+            const previous = knowledgeRepository.getById(id, chatId);
+            if (!previous) {
+              return JSON.stringify({ error: `No item found with ID ${id}` });
+            }
+
+            const deleted = knowledgeRepository.delete(id, chatId);
+            if (!deleted) {
+              return JSON.stringify({ error: `Failed to delete item ${id}` });
+            }
+
+            db.insert(knowledgeChangelog)
+              .values({
+                knowledgeItemId: id,
+                chatId,
+                action: "delete",
+                changeDescription: "Deleted: " + previous.title,
+                previousContent: previous.content,
+              })
+              .run();
+
+            return JSON.stringify({
+              message: `Deleted "${previous.title}"`,
+              deleted: true,
+            });
+          } catch (error) {
+            const msg = error instanceof Error ? error.message : String(error);
+            return JSON.stringify({ error: `Failed to delete item ${id}: ${msg}` });
           }
-
-          const deleted = knowledgeRepository.delete(id, chatId);
-          if (!deleted) {
-            return JSON.stringify({ error: `Failed to delete item ${id}` });
-          }
-
-          db.insert(knowledgeChangelog)
-            .values({
-              knowledgeItemId: id,
-              chatId,
-              action: "delete",
-              changeDescription: "Deleted: " + previous.title,
-              previousContent: previous.content,
-            })
-            .run();
-
-          return JSON.stringify({
-            message: `Deleted "${previous.title}"`,
-            deleted: true,
-          });
         }
 
         case "save_meal_plan": {

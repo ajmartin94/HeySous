@@ -166,11 +166,11 @@ Plans:
   2. Feedback is stored as recipe annotations (actual time, what worked, what to change next time)
   3. Check-ins are low-friction and infrequent -- not every meal, never feels like homework
   4. Accumulated feedback visibly influences future planning and recipe suggestions
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 09-01: Post-meal check-in (scheduling, prompt design, low-friction interaction)
-- [ ] 09-02: Feedback storage and application (recipe annotations, actual times, influence on future planning)
+- [ ] 09-01-PLAN.md -- Feedback data layer, inline buttons, check-in generator, and sender (scheduling + delivery infrastructure)
+- [ ] 09-02-PLAN.md -- Callback handler, feedback extraction, recipe annotation, system prompt, tools, and full pipeline wiring
 
 ## Progress
 

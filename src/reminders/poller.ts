@@ -1,5 +1,6 @@
 import type { Logger } from "pino";
 import type { Reminder } from "./types.js";
+import type { FeedbackCheckin } from "../feedback/types.js";
 
 /**
  * Minimal interface for the reminder repository -- only methods the poller needs.
@@ -17,10 +18,24 @@ interface ReminderSender {
   sendReminder: (reminder: Reminder) => Promise<boolean>;
 }
 
+/**
+ * Minimal interface for the feedback sender -- only the sendCheckin method.
+ */
+interface FeedbackSender {
+  sendCheckin: (reminder: Reminder, checkin: FeedbackCheckin) => Promise<boolean>;
+}
+
+/** Minimal feedback repository interface for the poller. */
+interface FeedbackRepository {
+  getCheckinByReminderId: (reminderId: number) => FeedbackCheckin | null;
+}
+
 export interface ReminderPollerDeps {
   reminderRepository: ReminderRepository;
   sender: ReminderSender;
   logger: Logger;
+  feedbackSender?: FeedbackSender;
+  feedbackRepository?: FeedbackRepository;
 }
 
 /** Polling interval: 60 seconds. */
@@ -39,7 +54,7 @@ const POLL_INTERVAL_MS = 60_000;
  * - NEVER crashes -- all errors caught and logged
  */
 export function createReminderPoller(deps: ReminderPollerDeps) {
-  const { reminderRepository, sender, logger } = deps;
+  const { reminderRepository, sender, logger, feedbackSender, feedbackRepository } = deps;
   let intervalHandle: ReturnType<typeof setInterval> | null = null;
 
   /**
@@ -63,6 +78,27 @@ export function createReminderPoller(deps: ReminderPollerDeps) {
         try {
           // Mark sent BEFORE delivery -- prevents duplicates if process crashes mid-send
           reminderRepository.markSent(reminder.id, "");
+
+          // Route feedback_checkin reminders to the dedicated feedback sender
+          if (reminder.type === "feedback_checkin" && feedbackSender && feedbackRepository) {
+            const checkin = feedbackRepository.getCheckinByReminderId(reminder.id);
+            if (checkin) {
+              const success = await feedbackSender.sendCheckin(reminder, checkin);
+              if (success) {
+                logger.info(
+                  { reminderId: reminder.id, chatId: reminder.chatId, type: reminder.type },
+                  "Feedback check-in delivered",
+                );
+              } else {
+                reminderRepository.markFailed(reminder.id);
+                logger.info(
+                  { reminderId: reminder.id, chatId: reminder.chatId, type: reminder.type },
+                  "Feedback check-in delivery failed, marked as failed",
+                );
+              }
+              continue; // Skip the regular sender
+            }
+          }
 
           const success = await sender.sendReminder(reminder);
 

@@ -22,7 +22,7 @@ import { calculateCost } from "../ai/claude-client.js";
 import { sendFormattedMessage } from "../telegram/sender.js";
 import { messages, tokenUsage } from "../db/schema.js";
 import { createToolHandler } from "../ai/tool-handler.js";
-import { KNOWLEDGE_TOOLS, PLAN_TOOLS, GROCERY_TOOLS, REMINDER_TOOLS } from "../ai/tools.js";
+import { KNOWLEDGE_TOOLS, PLAN_TOOLS, GROCERY_TOOLS, REMINDER_TOOLS, FEEDBACK_TOOLS } from "../ai/tools.js";
 import { buildConversationContext } from "../conversation/context-builder.js";
 import type { ConversationTurn } from "../conversation/types.js";
 import type { createRetrievalService } from "../knowledge/retrieval.js";
@@ -34,6 +34,7 @@ import { autoMarkCookedMeals, getCookingHistory } from "../planning/history.js";
 import { buildPlanContext } from "../planning/context.js";
 import { buildGroceryContext } from "../grocery/context.js";
 import { buildReminderContext } from "../reminders/context.js";
+import { buildFeedbackContext } from "../feedback/context.js";
 import { formatGroceryList } from "../grocery/formatter.js";
 import { buildGroceryKeyboard } from "../grocery/buttons.js";
 import { getPreferenceSummaries } from "../knowledge/preferences.js";
@@ -70,6 +71,7 @@ interface ProcessorDeps {
   groceryRepository?: ReturnType<typeof createGroceryRepository>;
   reminderRepository?: ReturnType<typeof createReminderRepository>;
   generateRemindersFn?: (chatId: string) => void;
+  feedbackRepository?: ReturnType<typeof import("../feedback/repository.js").createFeedbackRepository>;
 }
 
 /**
@@ -166,9 +168,12 @@ export function createProcessor(deps: ProcessorDeps) {
         ? buildReminderContext(deps.sqlite, chatId)
         : "";
 
+      // g6. Load feedback context for system prompt injection
+      const feedbackContext = buildFeedbackContext(deps.sqlite, chatId);
+
       // h. Load user preferences for system prompt injection
       const preferences = getPreferenceSummaries(deps.sqlite, chatId);
-      const systemPrompt = buildSystemPrompt(preferences, planContext, groceryContext, reminderContext);
+      const systemPrompt = buildSystemPrompt(preferences, planContext, groceryContext, reminderContext, feedbackContext);
 
       // i. 30-second timeout warning timer
       let timeoutFired = false;
@@ -187,7 +192,7 @@ export function createProcessor(deps: ProcessorDeps) {
       let response: ClaudeResponse;
       const startTime = Date.now();
 
-      const allTools = [...KNOWLEDGE_TOOLS, ...PLAN_TOOLS, ...GROCERY_TOOLS, ...REMINDER_TOOLS];
+      const allTools = [...KNOWLEDGE_TOOLS, ...PLAN_TOOLS, ...GROCERY_TOOLS, ...REMINDER_TOOLS, ...FEEDBACK_TOOLS];
 
       try {
         response = await claudeClient.sendMessageWithTools(

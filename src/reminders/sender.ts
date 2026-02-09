@@ -118,6 +118,10 @@ function buildReminderPrompt(
       return `Generate a "time to start cooking" reminder for ${recipeName} (${mealType}). Be energetic and encouraging!`;
     }
 
+    case "feedback_checkin":
+      // Feedback check-ins use their own sender -- return empty if one reaches here
+      return "";
+
     default:
       return "Generate a friendly cooking reminder.";
   }
@@ -156,6 +160,9 @@ function getFallbackText(
       const recipeName = (context.recipeName as string) || "dinner";
       return `Time to start cooking ${recipeName}!`;
     }
+
+    case "feedback_checkin":
+      return "How was dinner tonight?";
 
     default:
       return "Reminder from Sous!";

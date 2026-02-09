@@ -34,6 +34,11 @@ import { createReminderRepository } from "./reminders/repository.js";
 import { createReminderPoller } from "./reminders/poller.js";
 import { createReminderSender } from "./reminders/sender.js";
 import { generateReminders } from "./reminders/generator.js";
+import { createFeedbackRepository } from "./feedback/repository.js";
+import { createFeedbackCallbackHandler } from "./feedback/handler.js";
+import { createFeedbackTextHandler } from "./bot/handlers/feedback.js";
+import { createFeedbackSender } from "./feedback/sender.js";
+import { generateFeedbackCheckins } from "./feedback/generator.js";
 import { logger } from "./logger.js";
 
 async function main(): Promise<void> {
@@ -75,10 +80,22 @@ async function main(): Promise<void> {
   const reminderRepository = createReminderRepository(sqlite);
   logger.info("Reminder repository initialized");
 
+  // Initialize feedback repository for feedback check-in CRUD
+  const feedbackRepository = createFeedbackRepository(sqlite);
+  logger.info("Feedback repository initialized");
+
   // Helper to regenerate reminders for a given chat (used by tool handler and startup)
   const regenerateReminders = (chatId: string): void => {
     const settings = reminderRepository.getOrCreateSettings(chatId);
     generateReminders({
+      reminderRepository,
+      planRepository,
+      sqlite,
+      chatId,
+      settings,
+    });
+    generateFeedbackCheckins({
+      feedbackRepository,
       reminderRepository,
       planRepository,
       sqlite,
@@ -99,6 +116,7 @@ async function main(): Promise<void> {
     groceryRepository,
     reminderRepository,
     generateRemindersFn: regenerateReminders,
+    feedbackRepository,
   });
 
   // Create handlers
@@ -109,6 +127,8 @@ async function main(): Promise<void> {
   const groceryHandler = createGroceryHandler(sqlite);
   const groceryCallbackHandler = createGroceryCallbackHandler(sqlite);
   const remindersHandler = createRemindersHandler(sqlite);
+  const feedbackCallbackHandler = createFeedbackCallbackHandler({ sqlite, feedbackRepository, knowledgeRepository, db });
+  const feedbackTextHandler = createFeedbackTextHandler({ sqlite, feedbackRepository, knowledgeRepository, db, claudeClient });
   const messageHandler = createMessageHandler(queue, processBatch);
 
   // Create bot instance with all dependencies
@@ -119,8 +139,10 @@ async function main(): Promise<void> {
     planHandler,
     groceryHandler,
     groceryCallbackHandler,
+    feedbackCallbackHandler,
     remindersHandler,
     messageHandler,
+    feedbackTextHandler,
     db,
   });
 
@@ -143,7 +165,11 @@ async function main(): Promise<void> {
   // Initialize reminder system: sender, poller, and startup regeneration
   // Cast bot to sender's minimal BotApi interface (sender is intentionally decoupled from grammY types)
   const reminderSender = createReminderSender({ bot: bot as Parameters<typeof createReminderSender>[0]["bot"], claudeClient, retrievalService, logger });
-  const reminderPoller = createReminderPoller({ reminderRepository, sender: reminderSender, logger });
+  const feedbackSender = createFeedbackSender({ bot: bot as Parameters<typeof createFeedbackSender>[0]["bot"], logger });
+  const reminderPoller = createReminderPoller({ reminderRepository, sender: reminderSender, logger, feedbackSender, feedbackRepository });
+
+  // Expire old feedback check-ins on startup
+  feedbackRepository.expireOldCheckins();
 
   // Regenerate reminders for all active chats on startup (restart-safe)
   const activeSettings = reminderRepository.getAllActiveSettings();

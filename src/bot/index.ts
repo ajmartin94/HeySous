@@ -8,16 +8,18 @@
  * 1. hydrateReply (parse mode support)
  * 2. autoChatAction (typing indicators)
  * 3. db injection (database context for handlers)
- * 4. groceryCallbackHandler (inline button callbacks -- before commands)
- * 5. startHandler (/start command)
- * 6. costsHandler (/costs admin command)
- * 7. debugHandler (/debug retrieval stats)
- * 8. preferencesHandler (/preferences user preferences)
- * 9. planHandler (/plan meal plan display)
- * 10. groceryHandler (/grocery grocery list display)
- * 11. remindersHandler (/reminders reminder settings display)
- * 12. messageHandler (catch-all message:text -- MUST be last)
- * 13. error boundary
+ * 4. groceryCallbackHandler (grocery inline button callbacks -- before commands)
+ * 5. feedbackCallbackHandler (feedback inline button callbacks)
+ * 6. startHandler (/start command)
+ * 7. costsHandler (/costs admin command)
+ * 8. debugHandler (/debug retrieval stats)
+ * 9. preferencesHandler (/preferences user preferences)
+ * 10. planHandler (/plan meal plan display)
+ * 11. groceryHandler (/grocery grocery list display)
+ * 12. remindersHandler (/reminders reminder settings display)
+ * 13. feedbackTextHandler (free-text feedback replies -- before catch-all)
+ * 14. messageHandler (catch-all message:text -- MUST be last)
+ * 15. error boundary
  */
 
 import { Bot, type Composer } from "grammy";
@@ -35,8 +37,10 @@ interface CreateBotOptions {
   planHandler: Composer<BotContext>;
   groceryHandler: Composer<BotContext>;
   groceryCallbackHandler: Composer<BotContext>;
+  feedbackCallbackHandler: Composer<BotContext>;
   remindersHandler: Composer<BotContext>;
   messageHandler: Composer<BotContext>;
+  feedbackTextHandler?: Composer<BotContext>;
   db: DrizzleDatabase;
 }
 
@@ -44,7 +48,7 @@ export function createBot(
   token: string,
   options: CreateBotOptions,
 ): Bot<BotContext> {
-  const { costsHandler, debugHandler, preferencesHandler, planHandler, groceryHandler, groceryCallbackHandler, remindersHandler, messageHandler, db } = options;
+  const { costsHandler, debugHandler, preferencesHandler, planHandler, groceryHandler, groceryCallbackHandler, feedbackCallbackHandler, remindersHandler, messageHandler, feedbackTextHandler, db } = options;
   const bot = new Bot<BotContext>(token);
 
   // Set default parse mode for all API calls
@@ -60,7 +64,8 @@ export function createBot(
     return next();
   });
 
-  bot.use(groceryCallbackHandler); // inline button callbacks -- must be before command handlers
+  bot.use(groceryCallbackHandler); // grocery inline button callbacks -- must be before command handlers
+  bot.use(feedbackCallbackHandler); // feedback inline button callbacks
   bot.use(startHandler);
   bot.use(costsHandler); // /costs command -- MUST be before catch-all message handler
   bot.use(debugHandler); // /debug command -- retrieval stats
@@ -68,6 +73,9 @@ export function createBot(
   bot.use(planHandler); // /plan command -- meal plan display
   bot.use(groceryHandler); // /grocery command -- grocery list display
   bot.use(remindersHandler); // /reminders command -- reminder settings display
+  if (feedbackTextHandler) {
+    bot.use(feedbackTextHandler); // free-text feedback replies -- must be before catch-all
+  }
   bot.use(messageHandler); // catch-all message:text -- MUST be last
 
   // Set up error boundary

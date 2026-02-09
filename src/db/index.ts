@@ -7,6 +7,7 @@ import { initializeFts } from "../knowledge/fts.js";
 import { initializePlanning } from "../planning/history.js";
 import { initializeGrocery } from "../grocery/init.js";
 import { initializeReminders } from "../reminders/init.js";
+import { initializeFeedback } from "../feedback/init.js";
 
 export type DrizzleDatabase = ReturnType<typeof createDatabase>;
 
@@ -34,6 +35,9 @@ export function createDatabase(dbPath: string) {
 
   // Initialize reminder tables
   initializeReminders(sqlite);
+
+  // Initialize feedback check-in tables
+  initializeFeedback(sqlite);
 
   // Return Drizzle ORM instance with schema
   return drizzle(sqlite, { schema });

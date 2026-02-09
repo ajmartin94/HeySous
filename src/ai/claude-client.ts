@@ -194,18 +194,29 @@ export function createClaudeClient(apiKey: string, model: string) {
           };
         }
 
-        // Handle tool calls
+        // Handle tool calls (with error resilience -- catch exceptions and return is_error)
         const toolResults: Anthropic.ToolResultBlockParam[] =
           toolUseBlocks.map((block) => {
-            const result = onToolCall(
-              block.name,
-              block.input as Record<string, unknown>,
-            );
-            return {
-              type: "tool_result" as const,
-              tool_use_id: block.id,
-              content: result,
-            };
+            try {
+              const result = onToolCall(
+                block.name,
+                block.input as Record<string, unknown>,
+              );
+              return {
+                type: "tool_result" as const,
+                tool_use_id: block.id,
+                content: result,
+              };
+            } catch (error) {
+              const errorMessage =
+                error instanceof Error ? error.message : String(error);
+              return {
+                type: "tool_result" as const,
+                tool_use_id: block.id,
+                content: JSON.stringify({ error: errorMessage }),
+                is_error: true,
+              };
+            }
           });
 
         // Append assistant response + all tool results in ONE user message

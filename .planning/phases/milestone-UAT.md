@@ -1,5 +1,5 @@
 ---
-status: complete
+status: diagnosed
 phase: full-milestone
 source: all SUMMARY.md files (01-01 through 09-02)
 started: 2026-02-09T12:00:00Z
@@ -146,67 +146,108 @@ skipped: 2
   reason: "User reported: that prompt triggered the guardrails redirecting the user to only talk about kitchen related things (which is a little odd, since the prompt is related to cooking)"
   severity: major
   test: 2
-  root_cause: ""
-  artifacts: []
-  missing: []
-  debug_session: ""
+  root_cause: "System prompt <boundaries> redirect narrows scope to 'dinner' and no behavioral section exists for general cooking knowledge. Line 326 says 'I can help you figure out dinner' which reframes bot purpose too narrowly."
+  artifacts:
+    - path: "src/ai/system-prompt.ts"
+      issue: "Boundary redirect phrasing too narrow (lines 324-329)"
+  missing:
+    - "Broaden redirect example to not narrow to 'dinner'"
+    - "Optionally add section encouraging general cooking knowledge sharing"
+  debug_session: ".planning/debug/system-prompt-guardrails-too-restrictive.md"
 
 - truth: "/costs command shows token usage statistics for admin users"
   status: failed
   reason: "User reported: didn't work. looks like it was silently ignored"
   severity: major
   test: 5
-  root_cause: ""
-  artifacts: []
-  missing: []
-  debug_session: ""
+  root_cause: "ADMIN_USER_IDS env var contains Telegram username 'ajmartin94' but costs handler compares against numeric ctx.from.id. These can never match."
+  artifacts:
+    - path: ".env"
+      issue: "ADMIN_USER_IDS has username instead of numeric ID (line 12)"
+    - path: "src/bot/handlers/costs.ts"
+      issue: "Admin check uses numeric ctx.from.id (lines 25-27)"
+  missing:
+    - "Support both username and numeric ID comparison in admin check"
+    - "Update .env.example to clarify numeric IDs required"
+  debug_session: ".planning/debug/costs-silently-ignored.md"
 
 - truth: "Recipe update through conversation works without errors"
   status: failed
   reason: "User reported: threw an error triggering the default 'i'm having trouble thinking right now' message"
   severity: major
   test: 9
-  root_cause: ""
-  artifacts: []
-  missing: []
-  debug_session: ""
+  root_cause: "Tool handler has zero error handling — any DB exception in handleToolCall crashes the entire sendMessageWithTools promise. update_knowledge has 3+ DB ops that can throw. Secondary: orphaned messages create consecutive user messages violating API alternation requirement."
+  artifacts:
+    - path: "src/ai/tool-handler.ts"
+      issue: "No try/catch around any tool operations (line 47)"
+    - path: "src/ai/claude-client.ts"
+      issue: "Tool call exception propagates and crashes .map() (lines 198-209)"
+    - path: "src/pipeline/processor.ts"
+      issue: "Incoming message saved before Claude call; orphaned on failure (lines 102-109)"
+  missing:
+    - "Wrap tool calls in try/catch, return error result to Claude instead of crashing"
+    - "Handle orphaned messages / consecutive user messages gracefully"
+  debug_session: ".planning/debug/update-knowledge-error.md"
 
 - truth: "/preferences displays actual preference values, not just labels"
   status: failed
   reason: "User reported: information is very vague. for the 6pm dinner time preference, only see 'Dinner Time Preference' under 'Household' tag. Not helpful in knowing what the preference actually is"
   severity: minor
   test: 11
-  root_cause: ""
-  artifacts: []
-  missing: []
-  debug_session: ""
+  root_cause: "formatPreferenceLine() at line 90 only renders pref.title, ignoring pref.summary. Also: SQL filter requires exact 'preference' tag — if Claude omits it, items are invisible. Grouping priority puts subject:household above domain tags."
+  artifacts:
+    - path: "src/bot/handlers/preferences.ts"
+      issue: "Line 90 only shows title, ignores summary"
+    - path: "src/bot/handlers/preferences.ts"
+      issue: "Lines 47-62: grouping priority misclassifies items"
+    - path: "src/knowledge/preferences.ts"
+      issue: "Line 37: SQL filter requires exact 'preference' tag"
+  missing:
+    - "Include pref.summary in formatted output"
+    - "Broaden SQL query to also match pref:* tags"
+    - "Fix grouping priority: domain tags before subject tags"
+  debug_session: ".planning/debug/preferences-display-missing-values.md"
 
 - truth: "/plan command shows the current week's meal plan"
   status: failed
   reason: "User reported: the slash command doesn't work. returning that we haven't planned yet, even though we just did"
   severity: major
   test: 14
-  root_cause: ""
-  artifacts: []
-  missing: []
-  debug_session: ""
+  root_cause: "System prompt MEAL_PLANNING_PROMPT never instructs Claude to call save_meal_plan after proposing or adjusting a plan. Claude outputs plans as text only. /plan queries the DB which is empty."
+  artifacts:
+    - path: "src/ai/system-prompt.ts"
+      issue: "MEAL_PLANNING_PROMPT missing save_meal_plan instruction (lines 51-113)"
+  missing:
+    - "Add instruction: always call save_meal_plan after proposing or adjusting a plan"
+  debug_session: ".planning/debug/plan-command-no-plan.md"
 
 - truth: "Reminder settings sync with user-stated preferences"
   status: failed
   reason: "User reported: earlier in the conversation i mentioned dinner time was 6pm. /reminders is showing 5:30"
   severity: minor
   test: 19
-  root_cause: ""
-  artifacts: []
-  missing: []
-  debug_session: ""
+  root_cause: "Preference system and reminder system are completely independent. save_knowledge for dinner time never triggers update_reminder_settings. Default dinner_time is hardcoded 17:30 in three places."
+  artifacts:
+    - path: "src/ai/system-prompt.ts"
+      issue: "preference_management section doesn't reference reminder tools (lines 242-295)"
+    - path: "src/reminders/init.ts"
+      issue: "Hardcoded DEFAULT '17:30' (line 15)"
+  missing:
+    - "Add prompt instruction: when detecting dinner time preference, also call update_reminder_settings"
+  debug_session: ".planning/debug/reminders-wrong-dinner-time.md"
 
 - truth: "/debug command shows retrieval metrics for active conversation"
   status: failed
   reason: "User reported: No retrieval stats yet -- send a message first! -- fail. something's not working. i have a whole conversation going"
   severity: major
   test: 23
-  root_cause: ""
-  artifacts: []
-  missing: []
-  debug_session: ""
+  root_cause: "lastMetrics only populated when Claude calls search_knowledge tool (not on every message). If Claude handles messages without searching, metrics stay at zero forever. Also: metrics are global, not per-chat."
+  artifacts:
+    - path: "src/knowledge/retrieval.ts"
+      issue: "lastMetrics only written by search() (lines 35-40, 96-101)"
+    - path: "src/bot/handlers/debug.ts"
+      issue: "Checks for all-zero metrics, shows 'no stats yet' (lines 26-36)"
+  missing:
+    - "Change /debug to show more helpful message when no search has occurred"
+    - "Make metrics per-chat instead of global"
+  debug_session: ".planning/debug/debug-no-retrieval-stats.md"

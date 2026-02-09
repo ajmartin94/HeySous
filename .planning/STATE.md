@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Core value:** The recipe brain -- an AI agent that remembers everything about your meals and reasons over that knowledge to help you plan.
-**Current focus:** All 9 phases complete. Full feedback loop wired end-to-end.
+**Current focus:** Milestone fixes phase -- closing UAT gaps found in testing.
 
 ## Current Position
 
-Phase: 9 of 9 (Feedback Loop)
-Plan: 2 of 2 in current phase
-Status: Phase complete
-Last activity: 2026-02-09 -- Completed 09-02-PLAN.md
+Phase: 10 of 10 (Milestone Fixes)
+Plan: 1 of 2 in current phase
+Status: In progress
+Last activity: 2026-02-09 -- Completed 10-01-PLAN.md
 
-Progress: [████████████████████████████] 28/28 (100%)
+Progress: [█████████████████████████████] 29/30 (97%)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 28
-- Average duration: 2.9 min
-- Total execution time: 79 min
+- Total plans completed: 29
+- Average duration: 2.8 min
+- Total execution time: 81 min
 
 **By Phase:**
 
@@ -36,10 +36,11 @@ Progress: [███████████████████████
 | 7. Grocery Lists | 4/4 | 9 min | 2.3 min |
 | 8. Reminders | 4/4 | 11 min | 2.8 min |
 | 9. Feedback Loop | 2/2 | 10 min | 5.0 min |
+| 10. Milestone Fixes | 1/2 | 2 min | 2.0 min |
 
 **Recent Trend:**
-- Last 5 plans: 08-03 (2 min), 08-04 (5 min), 09-01 (3 min), 09-02 (7 min)
-- Trend: Final plan took longer due to extensive wiring across 13 files
+- Last 5 plans: 08-04 (5 min), 09-01 (3 min), 09-02 (7 min), 10-01 (2 min)
+- Trend: Targeted bugfix plans are fast -- prompt and display fixes only
 
 *Updated after each plan completion*
 
@@ -167,17 +168,20 @@ Recent decisions affecting current work:
 - [09-02]: Free-text feedback handler registered before catch-all messageHandler
 - [09-02]: Deprioritization threshold: net score -2 (positive=+1, negative=-1)
 - [09-02]: feedbackContext injected after reminderContext in system prompt template
+- [10-01]: Broadened system prompt boundaries encourage general cooking knowledge, not just dinner planning
+- [10-01]: Admin ID check uses case-insensitive username comparison for robustness
+- [10-01]: Preference query uses OR with LIKE 'pref:%' to catch items missing base 'preference' tag
 
 ### Pending Todos
 
-None -- all phases complete.
+Complete 10-02-PLAN.md (remaining milestone fixes).
 
 ### Blockers/Concerns
 
-None -- project complete.
+None.
 
 ## Session Continuity
 
 Last session: 2026-02-09
-Stopped at: Completed 09-02-PLAN.md (Feedback loop integration -- final plan)
+Stopped at: Completed 10-01-PLAN.md (5 UAT gap fixes -- prompt, admin, preferences)
 Resume file: None

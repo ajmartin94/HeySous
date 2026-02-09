@@ -54,11 +54,11 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Reminders (REMIND)
 
-- [ ] **REMIND-01**: Daily prep summary sent each morning -- what's for dinner, what needs doing
-- [ ] **REMIND-02**: Time-aware prep reminders based on recipe analysis ("defrost chicken by 8am")
-- [ ] **REMIND-03**: Reminders persist across process restarts (database-backed, not in-memory)
-- [ ] **REMIND-04**: Reminders respect user's timezone
-- [ ] **REMIND-05**: User can mute or adjust reminders through conversation
+- [x] **REMIND-01**: Daily prep summary sent each morning -- what's for dinner, what needs doing
+- [x] **REMIND-02**: Time-aware prep reminders based on recipe analysis ("defrost chicken by 8am")
+- [x] **REMIND-03**: Reminders persist across process restarts (database-backed, not in-memory)
+- [x] **REMIND-04**: Reminders respect user's timezone
+- [x] **REMIND-05**: User can mute or adjust reminders through conversation
 
 ### Preference Learning (PREF)
 
@@ -148,11 +148,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | GROCERY-03 | Phase 7: Grocery Lists | Complete |
 | GROCERY-04 | Phase 7: Grocery Lists | Complete |
 | GROCERY-05 | Phase 7: Grocery Lists | Complete |
-| REMIND-01 | Phase 8: Reminders | Pending |
-| REMIND-02 | Phase 8: Reminders | Pending |
-| REMIND-03 | Phase 8: Reminders | Pending |
-| REMIND-04 | Phase 8: Reminders | Pending |
-| REMIND-05 | Phase 8: Reminders | Pending |
+| REMIND-01 | Phase 8: Reminders | Complete |
+| REMIND-02 | Phase 8: Reminders | Complete |
+| REMIND-03 | Phase 8: Reminders | Complete |
+| REMIND-04 | Phase 8: Reminders | Complete |
+| REMIND-05 | Phase 8: Reminders | Complete |
 | PREF-01 | Phase 5: Preference Learning | Complete |
 | PREF-02 | Phase 5: Preference Learning | Complete |
 | PREF-03 | Phase 5: Preference Learning | Complete |
@@ -169,4 +169,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-02-05*
-*Last updated: 2026-02-07 -- Phase 6 requirements marked Complete*
+*Last updated: 2026-02-08 -- Phase 8 requirements marked Complete*

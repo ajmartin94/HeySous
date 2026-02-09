@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Core value:** The recipe brain -- an AI agent that remembers everything about your meals and reasons over that knowledge to help you plan.
-**Current focus:** Phase 7 complete -- grocery lists fully functional end-to-end. Ready for Phase 8 (Reminders).
+**Current focus:** Phase 8 in progress -- reminders data layer complete, continuing with generator, poller, and wiring.
 
 ## Current Position
 
-Phase: 7 of 9 (Grocery Lists)
-Plan: 4 of 4 in current phase
-Status: Phase complete
-Last activity: 2026-02-08 -- Completed 07-04-PLAN.md
+Phase: 8 of 9 (Reminders)
+Plan: 1 of 4 in current phase
+Status: In progress
+Last activity: 2026-02-09 -- Completed 08-01-PLAN.md
 
-Progress: [█████████████████████░░░░░] 21/26 (81%)
+Progress: [██████████████████████░░░░] 22/26 (85%)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 21
-- Average duration: 2.8 min
-- Total execution time: 58 min
+- Total plans completed: 22
+- Average duration: 2.7 min
+- Total execution time: 60 min
 
 **By Phase:**
 
@@ -34,10 +34,11 @@ Progress: [█████████████████████░░
 | 5. Preference Learning | 2/2 | 7 min | 3.5 min |
 | 6. Meal Planning | 3/3 | 7 min | 2.3 min |
 | 7. Grocery Lists | 4/4 | 9 min | 2.3 min |
+| 8. Reminders | 1/4 | 2 min | 2.0 min |
 
 **Recent Trend:**
-- Last 5 plans: 06-03 (2 min), 07-01 (2 min), 07-02 (2 min), 07-03 (2 min), 07-04 (3 min)
-- Trend: Steady 2-3 min pace, integration plans slightly longer
+- Last 5 plans: 07-01 (2 min), 07-02 (2 min), 07-03 (2 min), 07-04 (3 min), 08-01 (2 min)
+- Trend: Steady 2-3 min pace
 
 *Updated after each plan completion*
 
@@ -136,6 +137,11 @@ Recent decisions affecting current work:
 - [07-04]: Tool iteration limit increased from 5 to 10 for grocery list generation flow
 - [07-04]: Post-tool-loop grocery message edit is best-effort (debug-level logging on failure)
 - [07-04]: Callback handler uses on("callback_query:data") with next() passthrough for non-grocery callbacks
+- [08-01]: Named parameters (@param) for upsert to avoid positional parameter complexity with 14+ binds
+- [08-01]: COALESCE pattern for partial settings updates -- null means "keep existing"
+- [08-01]: mutedUntil sentinel flag pattern since null is a valid value (unmute)
+- [08-01]: CHECK constraints on type and status columns in raw SQL for data integrity
+- [08-01]: UNIQUE on chat_id in reminder_settings for one-settings-per-chat upsert
 
 ### Pending Todos
 
@@ -147,6 +153,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-08
-Stopped at: Completed 07-04-PLAN.md (Pipeline wiring -- Phase 7 complete)
+Last session: 2026-02-09
+Stopped at: Completed 08-01-PLAN.md (Reminder data layer)
 Resume file: None

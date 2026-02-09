@@ -44,3 +44,8 @@ export {
   groceryLists,
   groceryListItems,
 } from "../grocery/schema.js";
+
+export {
+  reminderSettings,
+  reminders,
+} from "../reminders/schema.js";

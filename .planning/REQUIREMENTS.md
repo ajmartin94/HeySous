@@ -60,4 +60,35 @@
 
 ## Traceability
 
-*(Filled by roadmap)*
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| INFRA-01 | Phase 11 | Pending |
+| INFRA-02 | Phase 11 | Pending |
+| INFRA-03 | Phase 11 | Pending |
+| INFRA-04 | Phase 11 | Pending |
+| INFRA-05 | Phase 11 | Pending |
+| INFRA-06 | Phase 11 | Pending |
+| INFRA-07 | Phase 11 | Pending |
+| GROC-01 | Phase 12 | Pending |
+| GROC-02 | Phase 12 | Pending |
+| GROC-03 | Phase 12 | Pending |
+| GROC-04 | Phase 12 | Pending |
+| GROC-05 | Phase 12 | Pending |
+| GROC-06 | Phase 12 | Pending |
+| GROC-07 | Phase 12 | Pending |
+| GROC-08 | Phase 12 | Pending |
+| GROC-09 | Phase 12 | Pending |
+| GROC-10 | Phase 12 | Pending |
+| RECIPE-01 | Phase 13 | Pending |
+| RECIPE-02 | Phase 13 | Pending |
+| RECIPE-03 | Phase 13 | Pending |
+| RECIPE-04 | Phase 13 | Pending |
+| RECIPE-05 | Phase 13 | Pending |
+| RECIPE-06 | Phase 13 | Pending |
+| RECIPE-07 | Phase 13 | Pending |
+| PLAN-01 | Phase 14 | Pending |
+| PLAN-02 | Phase 14 | Pending |
+| PLAN-03 | Phase 14 | Pending |
+| PLAN-04 | Phase 14 | Pending |
+| PLAN-05 | Phase 14 | Pending |
+| PLAN-06 | Phase 14 | Pending |

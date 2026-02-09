@@ -1,0 +1,44 @@
+export interface KnowledgeItem {
+  id: number;
+  chatId: string;
+  title: string;
+  summary: string;
+  content: string;
+  source: string | null;
+  tags: string[];
+  createdAt: Date;
+  updatedAt: Date;
+  lastAccessedAt: Date;
+}
+
+export interface SearchResult {
+  id: number;
+  title: string;
+  summary: string;
+  relevance: number;
+  tags: string[];
+  lastAccessedAt: Date;
+}
+
+export interface RetrievalMetrics {
+  itemsSearched: number;
+  itemsReturned: number;
+  tokensUsed: number;
+  queryTimeMs: number;
+}
+
+export interface TokenBudgetConfig {
+  knowledgeSoftLimit: number;
+  knowledgeHardLimit: number;
+  conversationBudget: number;
+}
+
+export interface ChangelogEntry {
+  id: number;
+  knowledgeItemId: number;
+  chatId: string;
+  action: "create" | "update" | "delete";
+  changeDescription: string | null;
+  previousContent: string | null;
+  createdAt: Date;
+}

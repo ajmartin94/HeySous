@@ -1,0 +1,264 @@
+import Anthropic from "@anthropic-ai/sdk";
+import { buildSystemPrompt } from "./system-prompt.js";
+import type { ClaudeResponse, TokenUsage } from "./types.js";
+import { MODEL_PRICING } from "./types.js";
+
+/**
+ * Calculate estimated USD cost from token usage and model pricing.
+ * Returns 0 for unknown models.
+ */
+export function calculateCost(model: string, usage: TokenUsage): number {
+  const pricing = MODEL_PRICING[model];
+  if (!pricing) return 0;
+
+  const inputCost = (usage.inputTokens / 1_000_000) * pricing.inputPerMTok;
+  const outputCost = (usage.outputTokens / 1_000_000) * pricing.outputPerMTok;
+  const cacheWriteCost =
+    (usage.cacheCreationInputTokens / 1_000_000) * pricing.cacheWritePerMTok;
+  const cacheReadCost =
+    (usage.cacheReadInputTokens / 1_000_000) * pricing.cacheReadPerMTok;
+
+  return inputCost + outputCost + cacheWriteCost + cacheReadCost;
+}
+
+/** Default max tool use iterations before forcing a text response. */
+const DEFAULT_MAX_ITERATIONS = 5;
+
+/**
+ * Create a Claude API client with the given credentials.
+ *
+ * Factory pattern matches existing codebase conventions (createDatabase, createBot).
+ * maxRetries: 0 -- we handle retries ourselves for user-facing messaging.
+ * timeout: 60_000 -- 60 second timeout per request.
+ */
+export function createClaudeClient(apiKey: string, model: string) {
+  const client = new Anthropic({
+    apiKey,
+    maxRetries: 0,
+    timeout: 60_000,
+  });
+
+  return {
+    /**
+     * Send a message to Claude and return the structured response.
+     * Simple single-turn call without tool support (backward compatible).
+     *
+     * @param userMessages - Array of user message strings, joined with double newlines
+     * @returns ClaudeResponse with text, usage, model, and stopReason
+     */
+    async sendMessage(
+      userMessages: string[],
+      systemPrompt?: string,
+    ): Promise<ClaudeResponse> {
+      const prompt = systemPrompt ?? buildSystemPrompt();
+      const combinedUserText = userMessages.join("\n\n");
+
+      const response = await client.messages.create({
+        model,
+        max_tokens: 2048,
+        system: [
+          {
+            type: "text" as const,
+            text: prompt,
+            cache_control: { type: "ephemeral" as const },
+          },
+        ],
+        messages: [{ role: "user" as const, content: combinedUserText }],
+      });
+
+      const textContent = response.content
+        .filter(
+          (block): block is Anthropic.TextBlock => block.type === "text",
+        )
+        .map((block) => block.text)
+        .join("\n");
+
+      return {
+        text: textContent,
+        usage: {
+          inputTokens: response.usage.input_tokens,
+          outputTokens: response.usage.output_tokens,
+          cacheCreationInputTokens:
+            response.usage.cache_creation_input_tokens ?? 0,
+          cacheReadInputTokens: response.usage.cache_read_input_tokens ?? 0,
+        },
+        model: response.model,
+        stopReason: response.stop_reason ?? "unknown",
+      };
+    },
+
+    /**
+     * Send a message to Claude with tool support and automatic tool use loop.
+     *
+     * Implements the manual tool use loop per research Pattern 1:
+     * 1. Call Claude with messages and tools
+     * 2. If stop_reason is "end_turn", extract text and return
+     * 3. If response has tool_use blocks, call onToolCall for each
+     * 4. Append assistant response + tool_results to messages
+     * 5. Loop back to (1) until max iterations
+     * 6. Safety: if max iterations reached, do one final call WITHOUT tools
+     *
+     * Token usage is aggregated across all iterations.
+     *
+     * @param messages - Full message array including conversation history
+     * @param tools - Anthropic tool definitions
+     * @param onToolCall - Synchronous callback to handle tool calls
+     * @param maxIterations - Maximum tool use iterations (default 5)
+     * @returns ClaudeResponse with aggregated usage from all iterations
+     */
+    async sendMessageWithTools(
+      messages: Anthropic.MessageParam[],
+      tools: Anthropic.Tool[],
+      onToolCall: (name: string, input: Record<string, unknown>) => string,
+      maxIterations: number = DEFAULT_MAX_ITERATIONS,
+      systemPrompt?: string,
+    ): Promise<ClaudeResponse> {
+      const prompt = systemPrompt ?? buildSystemPrompt();
+      const systemBlock = [
+        {
+          type: "text" as const,
+          text: prompt,
+          cache_control: { type: "ephemeral" as const },
+        },
+      ];
+
+      // Aggregate token usage across all iterations
+      const totalUsage: TokenUsage = {
+        inputTokens: 0,
+        outputTokens: 0,
+        cacheCreationInputTokens: 0,
+        cacheReadInputTokens: 0,
+      };
+
+      // Mutable copy of messages for the loop
+      const loopMessages: Anthropic.MessageParam[] = [...messages];
+      let finalModel = model;
+      let finalStopReason = "unknown";
+
+      for (let iteration = 0; iteration < maxIterations; iteration++) {
+        const response = await client.messages.create({
+          model,
+          max_tokens: 2048,
+          system: systemBlock,
+          messages: loopMessages,
+          tools,
+        });
+
+        // Aggregate usage
+        totalUsage.inputTokens += response.usage.input_tokens;
+        totalUsage.outputTokens += response.usage.output_tokens;
+        totalUsage.cacheCreationInputTokens +=
+          response.usage.cache_creation_input_tokens ?? 0;
+        totalUsage.cacheReadInputTokens +=
+          response.usage.cache_read_input_tokens ?? 0;
+
+        finalModel = response.model;
+        finalStopReason = response.stop_reason ?? "unknown";
+
+        // Check if Claude is done (no tool use)
+        if (response.stop_reason === "end_turn") {
+          const textContent = response.content
+            .filter(
+              (block): block is Anthropic.TextBlock => block.type === "text",
+            )
+            .map((block) => block.text)
+            .join("\n");
+
+          return {
+            text: textContent,
+            usage: totalUsage,
+            model: finalModel,
+            stopReason: finalStopReason,
+          };
+        }
+
+        // Extract tool_use blocks
+        const toolUseBlocks = response.content.filter(
+          (block): block is Anthropic.ToolUseBlock => block.type === "tool_use",
+        );
+
+        if (toolUseBlocks.length === 0) {
+          // No tool use and not end_turn -- extract text and return
+          const textContent = response.content
+            .filter(
+              (block): block is Anthropic.TextBlock => block.type === "text",
+            )
+            .map((block) => block.text)
+            .join("\n");
+
+          return {
+            text: textContent,
+            usage: totalUsage,
+            model: finalModel,
+            stopReason: finalStopReason,
+          };
+        }
+
+        // Handle tool calls (with error resilience -- catch exceptions and return is_error)
+        const toolResults: Anthropic.ToolResultBlockParam[] =
+          toolUseBlocks.map((block) => {
+            try {
+              const result = onToolCall(
+                block.name,
+                block.input as Record<string, unknown>,
+              );
+              return {
+                type: "tool_result" as const,
+                tool_use_id: block.id,
+                content: result,
+              };
+            } catch (error) {
+              const errorMessage =
+                error instanceof Error ? error.message : String(error);
+              return {
+                type: "tool_result" as const,
+                tool_use_id: block.id,
+                content: JSON.stringify({ error: errorMessage }),
+                is_error: true,
+              };
+            }
+          });
+
+        // Append assistant response + all tool results in ONE user message
+        // (per research pitfall 3: all tool_results immediately after assistant)
+        loopMessages.push({
+          role: "assistant" as const,
+          content: response.content,
+        });
+        loopMessages.push({
+          role: "user" as const,
+          content: toolResults,
+        });
+      }
+
+      // Max iterations reached -- do one final call WITHOUT tools to force text response
+      const finalResponse = await client.messages.create({
+        model,
+        max_tokens: 2048,
+        system: systemBlock,
+        messages: loopMessages,
+      });
+
+      totalUsage.inputTokens += finalResponse.usage.input_tokens;
+      totalUsage.outputTokens += finalResponse.usage.output_tokens;
+      totalUsage.cacheCreationInputTokens +=
+        finalResponse.usage.cache_creation_input_tokens ?? 0;
+      totalUsage.cacheReadInputTokens +=
+        finalResponse.usage.cache_read_input_tokens ?? 0;
+
+      const textContent = finalResponse.content
+        .filter(
+          (block): block is Anthropic.TextBlock => block.type === "text",
+        )
+        .map((block) => block.text)
+        .join("\n");
+
+      return {
+        text: textContent,
+        usage: totalUsage,
+        model: finalResponse.model,
+        stopReason: finalResponse.stop_reason ?? "unknown",
+      };
+    },
+  };
+}

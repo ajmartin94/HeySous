@@ -142,6 +142,12 @@ Recent decisions affecting current work:
 - [08-01]: mutedUntil sentinel flag pattern since null is a valid value (unmute)
 - [08-01]: CHECK constraints on type and status columns in raw SQL for data integrity
 - [08-01]: UNIQUE on chat_id in reminder_settings for one-settings-per-chat upsert
+- [08-02]: localTimeToUtc uses Intl.DateTimeFormat for IANA timezone UTC offset resolution
+- [08-02]: 1-minute dedup window for hasPendingReminder checks during regeneration
+- [08-02]: update_reminder_settings auto-regenerates reminders after settings change
+- [08-02]: REMINDER_PROMPT always included in system prompt (matches MEAL_PLANNING_PROMPT pattern)
+- [08-02]: buildSystemPrompt reminderContext is optional 4th param for backward compat
+- [08-02]: Empty string muted_until in tool input means unmute (null)
 - [08-03]: Minimal interface types for sender deps (BotApi, ClaudeClient, RetrievalService) to decouple from grammY/Anthropic types
 - [08-03]: Separate PREP_ALERT_SYSTEM_PROMPT with recipe analysis instructions vs generic REMINDER_SYSTEM_PROMPT
 - [08-03]: Plain-text fallbacks per reminder type when Claude API fails

@@ -1,236 +1,445 @@
-# Stack Research
+# Stack Research: Telegram Mini Apps (TWA) with React
 
-**Domain:** Conversational AI Telegram Bot (Meal Planning Assistant)
-**Researched:** 2026-02-05
+**Domain:** Telegram Mini Apps (TWA) with React frontend for existing Node.js/Express/grammY bot
+**Researched:** 2026-02-09
 **Confidence:** HIGH
+
+This document covers ONLY the stack additions needed for Mini App features. The existing bot stack (Node.js 22, TypeScript/ESM, grammY 1.39.x, better-sqlite3, Drizzle ORM, Anthropic SDK, Express 5, Pino) is validated and unchanged. See the v1.0 STACK.md in git history for that research.
+
+---
 
 ## Recommended Stack
 
-### Core Technologies
+### Core Frontend Technologies
 
-| Technology | Version | Purpose | Why Recommended | Confidence |
-|------------|---------|---------|-----------------|------------|
-| Node.js | 22.x LTS | Runtime | Maintenance LTS until 2027-04. Stable, widely supported. Node 24 (Active LTS) is available but 22 has broader ecosystem compatibility with native modules like better-sqlite3. Choose 22 for stability; upgrade to 24 later is trivial. | HIGH |
-| TypeScript | 5.9.x | Language | Type safety across the entire stack -- from Telegram webhook payloads to Claude API calls to database schemas. grammY, Drizzle, and @anthropic-ai/sdk all provide first-class TypeScript types. Non-negotiable for a project that wires multiple APIs together. | HIGH |
-| grammY | 1.39.x | Telegram Bot Framework | Dominant Node.js Telegram framework with ~1.2M weekly npm downloads (vs Telegraf's ~160K). Built TypeScript-first with clean types. Powerful middleware and plugin system. Excellent webhook support. Active development with latest release days old. | HIGH |
-| @anthropic-ai/sdk | 0.73.x | Claude API Client | Official Anthropic SDK. Native TypeScript. Built-in tool use / function calling support with Zod integration via `betaZodTool`. Structured outputs with `strict: true`. Streaming support. This is the only SDK to use -- no wrappers, no abstraction layers. | HIGH |
-| SQLite via better-sqlite3 | 12.6.x | Database Engine | Single-user personal project -- PostgreSQL is overkill. SQLite is zero-config, zero-server, embedded in the process. WAL mode handles concurrent reads/writes. Stores recipe content, conversation history, preferences, grocery lists. File-based backup is trivial (copy one file). | HIGH |
-| Drizzle ORM | 0.45.x | Database Access Layer | SQL-first ORM that generates transparent, predictable queries. Native better-sqlite3 driver support. Schema defined in TypeScript with full type inference. Prepared statements for performance. Drizzle Kit for migrations. Lightweight -- no heavy abstraction over SQL. | HIGH |
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| React | ^19.2.4 | UI framework for Mini Apps | Current stable. Component model suits 3 distinct Mini App views (grocery, meal plan, recipes). React 19 has improved Suspense, use() hook, and better performance. Massive ecosystem. Best Telegram Mini Apps SDK support of any framework. |
+| Vite | ^7.3.1 | Build tool and dev server | Standard tool for Telegram Mini Apps (all official templates use it). Fast HMR in development, Rollup-based production builds output static files servable from existing Express server. Vite 7 requires Node.js 20.19+ (we use 22, compatible). |
+| @vitejs/plugin-react | ^5.1.3 | Vite React integration | Official Vite plugin for React. Provides Fast Refresh (HMR), JSX transform, and optimized builds. |
+| @tma.js/sdk | ^3.1.4 | Core Telegram Mini Apps SDK | The current recommended package (replaces deprecated `@telegram-apps/sdk` namespace). Exposes components: `backButton`, `mainButton`, `viewport`, `themeParams`, `hapticFeedback`, `closingBehavior`, `miniApp`, `initData`. Signal-based reactivity. |
+| @tma.js/sdk-react | ^3.0.15 | React bindings for Telegram Mini Apps SDK | Provides `useSignal` hook for reactive access to Telegram platform signals (viewport, theme, buttons). Thin wrapper over `@tma.js/sdk` that bridges signals to React state. |
+| react-router | ^7.13.0 | Client-side routing | React Router v7 (simplified from react-router-dom -- single package now). Needed for routing between the 3 Mini App views and deep-linking via Telegram `startParam`. |
 
-### Supporting Libraries
+### UI Components
 
-| Library | Version | Purpose | When to Use |
-|---------|---------|---------|-------------|
-| Zod | 4.3.x | Schema Validation | Validate all external inputs: Telegram webhook payloads, Claude API responses, user-provided recipe data. Integrates with both Drizzle (schema inference) and @anthropic-ai/sdk (tool definitions via `betaZodTool`). The glue that makes TypeScript types runtime-safe. |
-| node-cron | 4.2.x | Job Scheduling | Schedule recurring checks: morning prep reminders, evening feedback prompts, weekly planning nudges. Lightweight, in-process, cron-expression based. No external dependencies (no Redis, no MongoDB). Sufficient for single-user -- if scaling to multi-user, migrate to BullMQ + Redis. |
-| pino | 10.3.x | Structured Logging | JSON logging for production. Fast (low overhead). Structured format makes it searchable. Use with pino-pretty (13.1.x) in development for human-readable output. |
-| dotenv | 17.2.x | Environment Config | Load ANTHROPIC_API_KEY, TELEGRAM_BOT_TOKEN, and other secrets from .env file. Standard pattern. |
-| @grammyjs/conversations | 2.1.x | Multi-step Conversations | Handle multi-turn flows: recipe input, weekly planning dialogue, grocery list review. Manages conversation state across multiple messages without manual state machines. |
-| @grammyjs/runner | 2.0.x | Concurrent Update Processing | Process multiple Telegram updates concurrently. Useful when bot handles multiple message types (text, photos for recipes, callback queries). |
+| Library | Version | Purpose | Why Recommended |
+|---------|---------|---------|-----------------|
+| @telegram-apps/telegram-ui | ^2.1.13 | Telegram-native React UI components | Official component library matching Telegram's look and feel. Provides `AppRoot`, buttons, lists, cells, and other Telegram-styled components. Auto-adapts to iOS/Android platform differences. Handles dark/light theme. Eliminates need to manually match Telegram's UI design. |
+
+### Server-Side Addition
+
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| @tma.js/init-data-node | ^2.0.4 | Validate Telegram initData on backend | Official package for HMAC-SHA256 validation of Telegram Mini App init data. Critical for authentication -- verifies requests actually come from Telegram, not spoofed. Runs as Express middleware in existing server. |
 
 ### Development Tools
 
 | Tool | Version | Purpose | Notes |
 |------|---------|---------|-------|
-| tsx | 4.21.x | TypeScript Runner | Run .ts files directly without compilation step. Powered by esbuild -- fast startup. Use for development (`tsx watch src/index.ts`). Zero config needed. |
-| Vitest | 4.0.x | Test Runner | Native TypeScript/ESM support. Fast. Compatible with the same assertion patterns as Jest but without configuration pain. Use for unit tests of recipe parsing, meal planning logic, reminder scheduling. |
-| drizzle-kit | 0.31.x | Database Migrations | Generate and run SQL migrations from schema changes. Produces readable .sql files you can inspect. Paired with drizzle-orm. |
-| pino-pretty | 13.1.x | Dev Log Formatting | Pretty-print pino JSON logs during development. Do NOT use in production (performance overhead). |
-| TypeScript | 5.9.x | Type Checker | Run `tsc --noEmit` for type checking. tsx does not type-check -- it only transpiles. CI should run both `tsc --noEmit` and `vitest`. |
+| vite-plugin-mkcert | ^3.0.0 | HTTPS for local dev server | Dev only. Telegram requires HTTPS for Mini Apps. Generates local SSL certs via mkcert. **Limitation:** self-signed certs only work in Telegram Desktop -- use tunneling for mobile testing. |
+| Cloudflare Tunnel (cloudflared) | latest | Expose local dev server for mobile testing | Free, stable tunnel for testing Mini Apps on real mobile Telegram clients. Better than ngrok (no connection limits on free tier). |
+
+---
 
 ## Project Structure
 
+The Mini App frontend lives in a `mini-app/` directory at the project root, alongside the existing `src/` (backend). This is NOT a monorepo -- it is a single repo with a frontend subdirectory that builds to static files served by the existing Express server.
+
 ```
-meal-planning-bot/
-  src/
-    index.ts              # Entry point: webhook server + bot setup
-    bot/
-      bot.ts              # grammY bot instance, middleware registration
-      commands/           # Command handlers (/plan, /recipe, /list, /help)
-      conversations/      # Multi-step flows (planning, recipe input)
-      middleware/          # Auth, logging, error handling
-    ai/
-      claude.ts           # Claude API wrapper: send message, tool definitions
-      tools/              # Tool implementations Claude can call
-      prompts/            # System prompts, prompt templates
-    db/
-      schema.ts           # Drizzle schema definitions
-      migrations/         # SQL migration files
-      index.ts            # Database connection, exported queries
-    scheduler/
-      reminders.ts        # Reminder scheduling logic
-      jobs.ts             # Cron job definitions
-    types/                # Shared TypeScript types
-  drizzle.config.ts       # Drizzle Kit configuration
-  tsconfig.json
-  .env
-  data/                   # SQLite database file lives here
-    meal-planner.db
+heysous/
+  src/                     # Existing backend (unchanged)
+    server.ts              # Express -- add static file serving + API routes
+    bot/                   # grammY bot handlers
+    ...
+  mini-app/                # NEW: React frontend
+    package.json           # Separate deps from backend
+    tsconfig.json          # Separate tsconfig (DOM libs, JSX)
+    vite.config.ts
+    index.html
+    src/
+      main.tsx
+      App.tsx
+      init.ts              # @tma.js/sdk initialization
+      pages/
+        GroceryList.tsx
+        MealPlan.tsx
+        RecipeBrowser.tsx
+      components/          # Shared UI components
+      hooks/
+        useTelegram.ts     # Thin wrapper for common SDK patterns
+      api/
+        client.ts          # Fetch wrapper with initData auth header
+  dist/                    # Backend build output (tsc)
+  mini-app/dist/           # Frontend build output (vite) -- served by Express
 ```
+
+### Why a Subdirectory (Not a Monorepo)
+
+For 3 simple Mini Apps sharing a single Express backend, monorepo tooling (Nx, Turborepo) adds complexity without value:
+
+- Separate `npm install` for frontend deps (keeps backend lean -- no React in production server)
+- Separate TypeScript config (frontend needs `"lib": ["DOM", "DOM.Iterable"]`, backend does not)
+- Root `npm run build` orchestrates both builds sequentially
+- Vite outputs to `mini-app/dist/`, Express serves it with `express.static()`
+
+---
+
+## Integration Points with Existing Express Server
+
+### 1. Static File Serving (Production)
+
+The existing `src/server.ts` adds static file serving for the built Mini App:
+
+```typescript
+import path from 'path';
+
+// Serve Mini App static files
+app.use('/app', express.static(path.resolve('mini-app/dist')));
+
+// SPA fallback -- client-side routing needs this
+app.get('/app/*', (_req, res) => {
+  res.sendFile(path.resolve('mini-app/dist/index.html'));
+});
+```
+
+### 2. API Routes for Mini App Data
+
+New routes alongside existing webhook handler. Reuse existing Drizzle queries:
+
+```typescript
+app.get('/api/grocery-list', validateInitData, groceryListHandler);
+app.post('/api/grocery-list/toggle', validateInitData, toggleItemHandler);
+app.get('/api/meal-plan', validateInitData, mealPlanHandler);
+app.get('/api/recipes', validateInitData, recipesHandler);
+```
+
+### 3. InitData Validation Middleware
+
+Every API request from the Mini App includes Telegram's init data. Validate it server-side:
+
+```typescript
+import { validate } from '@tma.js/init-data-node';
+
+function validateInitData(req, res, next) {
+  const initData = req.headers['x-init-data'] as string;
+  if (!initData) {
+    return res.status(401).json({ error: 'Missing init data' });
+  }
+  try {
+    validate(initData, config.botToken);
+    next();
+  } catch {
+    res.status(401).json({ error: 'Invalid init data' });
+  }
+}
+```
+
+### 4. Bot Integration (Opening Mini Apps from Chat)
+
+grammY's InlineKeyboard has a `.webApp()` method for opening Mini Apps:
+
+```typescript
+import { InlineKeyboard } from 'grammy';
+
+const keyboard = new InlineKeyboard()
+  .webApp('Open Grocery List', `${config.webhookUrl}/app/grocery`);
+
+await ctx.reply('Here is your grocery list:', { reply_markup: keyboard });
+```
+
+The Mini App URL must be on the same domain as the webhook URL (both served by the same Express server).
+
+---
+
+## Telegram Mini App SDK Usage Pattern
+
+### Initialization (app entry point)
+
+```typescript
+// mini-app/src/init.ts
+import { init, viewport, miniApp } from '@tma.js/sdk';
+
+export function initTelegramApp() {
+  init();
+
+  // Expand to full viewport height
+  viewport.mount();
+  viewport.expand();
+
+  // Enable closing confirmation to prevent accidental dismissal
+  miniApp.mount();
+}
+```
+
+### Using Signals in React Components
+
+```typescript
+import { useSignal } from '@tma.js/sdk-react';
+import { mainButton, backButton, themeParams } from '@tma.js/sdk';
+
+function GroceryList() {
+  const bgColor = useSignal(themeParams.bgColor);
+
+  useEffect(() => {
+    mainButton.mount();
+    mainButton.setParams({ text: 'Done Shopping', isVisible: true });
+    const off = mainButton.onClick(() => { /* handle */ });
+    return () => { off(); mainButton.hide(); };
+  }, []);
+
+  useEffect(() => {
+    backButton.mount();
+    backButton.show();
+    const off = backButton.onClick(() => navigate(-1));
+    return () => { off(); backButton.hide(); };
+  }, []);
+}
+```
+
+### Getting Launch Params (v3 workaround)
+
+The `useLaunchParams` hook was removed in v3. Use `retrieveLaunchParams` directly:
+
+```typescript
+import { retrieveLaunchParams } from '@tma.js/sdk';
+import { useMemo } from 'react';
+
+function useLaunchParams() {
+  return useMemo(() => retrieveLaunchParams(), []);
+}
+```
+
+### Theming with CSS Variables
+
+The SDK binds Telegram theme params as CSS variables automatically:
+- `var(--tg-theme-bg-color)`
+- `var(--tg-theme-text-color)`
+- `var(--tg-theme-hint-color)`
+- `var(--tg-theme-link-color)`
+- `var(--tg-theme-button-color)`
+- `var(--tg-theme-button-text-color)`
+- `var(--tg-theme-secondary-bg-color)`
+
+Use these in CSS to auto-match the user's Telegram theme. The `@telegram-apps/telegram-ui` library uses these internally.
+
+---
 
 ## Installation
 
+### Frontend (run from mini-app/ directory)
+
 ```bash
-# Core dependencies
-npm install grammy @grammyjs/conversations @grammyjs/runner @anthropic-ai/sdk better-sqlite3 drizzle-orm zod node-cron pino dotenv
+# Initialize mini-app directory
+mkdir -p mini-app && cd mini-app
+npm init -y
 
-# Type definitions for packages that need them
-npm install -D @types/better-sqlite3 @types/node-cron @types/node
+# Core runtime dependencies
+npm install react react-dom react-router @tma.js/sdk @tma.js/sdk-react @telegram-apps/telegram-ui
 
-# Development tools
-npm install -D typescript tsx vitest drizzle-kit pino-pretty
+# Dev dependencies
+npm install -D vite @vitejs/plugin-react typescript @types/react @types/react-dom vite-plugin-mkcert
 ```
 
-## Key Configuration
+### Backend addition (run from project root)
 
-### tsconfig.json essentials
+```bash
+# Server-side init data validation
+npm install @tma.js/init-data-node
+```
+
+### Root package.json script additions
+
+```json
+{
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "dev:app": "cd mini-app && npx vite --host",
+    "build": "tsc && cd mini-app && npx vite build",
+    "build:app": "cd mini-app && npx vite build",
+    "typecheck": "tsc --noEmit && cd mini-app && npx tsc --noEmit"
+  }
+}
+```
+
+---
+
+## Key Configuration Files
+
+### mini-app/vite.config.ts
+
+```typescript
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import mkcert from 'vite-plugin-mkcert';
+
+export default defineConfig({
+  plugins: [react(), mkcert()],
+  base: '/app/',  // Must match Express static mount point
+  build: {
+    outDir: 'dist',
+    emptyDirBeforeWrite: true,
+  },
+  server: {
+    port: 5173,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3000',  // Proxy API calls to Express in dev
+        changeOrigin: true,
+      },
+    },
+  },
+});
+```
+
+**Critical:** `base: '/app/'` must match the Express `app.use('/app', express.static(...))` mount point. Mismatch breaks all asset loading in production.
+
+### mini-app/tsconfig.json
 
 ```json
 {
   "compilerOptions": {
     "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "moduleResolution": "bundler",
+    "jsx": "react-jsx",
     "strict": true,
     "esModuleInterop": true,
-    "outDir": "./dist",
-    "rootDir": "./src",
+    "skipLibCheck": true,
     "noEmit": true,
-    "skipLibCheck": true
+    "outDir": "./dist",
+    "baseUrl": ".",
+    "paths": { "@/*": ["./src/*"] }
   },
-  "include": ["src/**/*"]
+  "include": ["src"]
 }
 ```
 
-### package.json essentials
+### Development Environment Mock
 
-```json
-{
-  "type": "module",
-  "scripts": {
-    "dev": "tsx watch src/index.ts",
-    "start": "node --import tsx src/index.ts",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest",
-    "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
-    "db:studio": "drizzle-kit studio"
+```typescript
+// mini-app/src/mockEnv.ts -- for browser development outside Telegram
+export function mockTelegramEnv() {
+  if (typeof window !== 'undefined' && !window.Telegram) {
+    // Mock minimal WebApp object for development
+    (window as any).Telegram = {
+      WebApp: {
+        initData: '',
+        initDataUnsafe: { user: { id: 12345, first_name: 'Dev' } },
+        version: '7.0',
+        platform: 'web',
+        colorScheme: 'light',
+        themeParams: {
+          bg_color: '#ffffff',
+          text_color: '#000000',
+          hint_color: '#999999',
+          link_color: '#2481cc',
+          button_color: '#2481cc',
+          button_text_color: '#ffffff',
+          secondary_bg_color: '#efeff3',
+        },
+        isExpanded: true,
+        viewportHeight: 600,
+        viewportStableHeight: 600,
+        ready: () => {},
+        expand: () => {},
+        close: () => {},
+      },
+    };
   }
 }
 ```
 
-### SQLite with WAL mode
-
-```typescript
-import Database from 'better-sqlite3';
-const db = new Database('./data/meal-planner.db');
-db.pragma('journal_mode = WAL');
-db.pragma('foreign_keys = ON');
-```
+---
 
 ## Alternatives Considered
 
-| Category | Recommended | Alternative | When to Use Alternative |
-|----------|-------------|-------------|-------------------------|
-| Telegram Framework | grammY | Telegraf 4.x | Only if maintaining an existing Telegraf codebase. For new projects, grammY is strictly better: cleaner types, more downloads, better docs. |
-| Telegram Framework | grammY | node-telegram-bot-api | Never for this project. Low-level, no middleware system, no TypeScript-first design. Only use if you need raw API access without any framework. |
-| Database | SQLite + better-sqlite3 | PostgreSQL | When you need multi-user with concurrent write-heavy workloads, or when you need hosted database as a service (e.g., Supabase, Neon). For single-user, PostgreSQL adds operational complexity for zero benefit. |
-| Database | SQLite + better-sqlite3 | libSQL (Turso) | When you need edge replication or multi-region access. Turso is SQLite-compatible with sync capabilities. Interesting for v2 multi-user, but premature for v1. |
-| ORM | Drizzle | Prisma | When you want a more opinionated, schema-first workflow with auto-generated client. Prisma is heavier, slower cold starts, and the query engine binary adds deployment complexity. Drizzle is lighter and more SQL-transparent. |
-| ORM | Drizzle | Raw better-sqlite3 | When the project is tiny (< 5 tables) and you want zero abstraction. Loses type-safe queries and migration tooling. Not recommended -- the tables here (recipes, plans, reminders, preferences, history) already justify an ORM. |
-| AI SDK | @anthropic-ai/sdk | Vercel AI SDK (@ai-sdk/anthropic) | When building a streaming chat UI in Next.js where Vercel AI SDK's React hooks and streaming primitives add value. For a Telegram bot backend, the official Anthropic SDK is simpler and has no unnecessary abstractions. |
-| Scheduler | node-cron | BullMQ + Redis | When you need persistent job queues that survive restarts, distributed workers, or retry logic. For single-user with a small number of scheduled reminders, node-cron is sufficient. BullMQ is the upgrade path when complexity grows. |
-| Scheduler | node-cron | Bree | When you need worker thread isolation for CPU-heavy scheduled tasks. Reminder scheduling is lightweight -- worker threads add unnecessary complexity. |
-| Logger | pino | winston | When you need transport flexibility (file rotation, external services) built-in. Pino is 5-10x faster for JSON logging. Winston's flexibility comes at performance cost. |
-| Runtime | Node.js 22 | Deno / Bun | When you want built-in TypeScript support (Deno) or faster startup (Bun). Node.js 22 with tsx provides TypeScript execution with the most mature ecosystem. grammY supports Deno natively, but better-sqlite3 does not. Bun has SQLite built-in but ecosystem edge cases remain. |
+| Category | Recommended | Alternative | Why Not Alternative |
+|----------|-------------|-------------|---------------------|
+| **Build tool** | Vite 7 | Webpack 5 | Vite is the standard for Telegram Mini Apps (all official templates use it). Faster dev server, simpler config, smaller output. |
+| **SDK namespace** | @tma.js/* | @telegram-apps/* | @telegram-apps namespace is deprecated. @tma.js is the actively maintained successor with migration guide. |
+| **SDK package** | @tma.js/sdk-react | @twa-dev/sdk | @twa-dev/sdk is a thinner wrapper lacking signal-based reactivity. @tma.js provides component mounting, lifecycle, and React hooks. |
+| **UI library** | @telegram-apps/telegram-ui | Tailwind CSS | For Mini Apps that should look native to Telegram, a Telegram-specific component library is better than custom styling. Tailwind would require manually matching platform-specific iOS/Android differences and theme integration. |
+| **UI library** | @telegram-apps/telegram-ui | No UI library | Re-implementing Telegram's platform-specific look (iOS vs Android differences, theme adaptation, component patterns) is unnecessary work when an official library exists. |
+| **Routing** | react-router v7 | No router | 3 views could use state-based navigation, but react-router handles deep-linking via Telegram `startParam`, clean URL-based navigation, and browser history within the Mini App webview. Minimal overhead. |
+| **State management** | React useState + context | Redux / Zustand | Each Mini App view is independent -- grocery list fetches grocery data, meal plan fetches meal data. No complex cross-view state. Adding a state library is over-engineering for this scope. |
+| **Frontend framework** | React | Solid / Svelte / Vue | React has the best Telegram Mini Apps SDK support (@tma.js/sdk-react), the most templates and examples, and the project team already uses TypeScript which pairs well. |
+| **Project structure** | mini-app/ subdirectory | Monorepo (Nx/Turborepo) | Monorepo tooling is overkill for 1 backend + 1 frontend. A subdirectory with its own package.json achieves clean separation without added complexity. |
+| **API calls** | fetch (built-in) | Axios | React 19 + modern browsers (Telegram webview uses Chrome/Safari engine) have excellent fetch support. 3 simple endpoints don't need Axios's interceptors. Fewer dependencies. |
+| **Dev tunneling** | Cloudflare Tunnel | ngrok | Cloudflare Tunnel is free with no connection limits. ngrok's free tier has monthly connection limits that can interrupt development. Both provide HTTPS. |
+
+---
 
 ## What NOT to Use
 
 | Avoid | Why | Use Instead |
 |-------|-----|-------------|
-| Telegraf 3.x | Unmaintained, no TypeScript support, missing modern Telegram Bot API features | grammY 1.39.x |
-| node-telegram-bot-api | Low-level, callback-based, poor TypeScript support, no middleware system | grammY 1.39.x |
-| Mongoose / MongoDB | Wrong tool for structured relational data like recipes, meal plans, and grocery lists. NoSQL adds schema flexibility you don't need and loses relational queries you do need. | Drizzle + SQLite |
-| Sequelize | Legacy ORM with poor TypeScript support, heavy abstraction, slow updates | Drizzle ORM |
-| TypeORM | Buggy, inconsistent behavior, poor maintenance track record | Drizzle ORM |
-| Express.js (as primary framework) | grammY has its own webhook handling via `webhookCallback()`. Adding Express just for a webhook endpoint is unnecessary complexity. Only add Express if you need additional HTTP endpoints beyond the Telegram webhook. | grammY's built-in webhook adapter (works with Node.js `http` module, or add Hono if you need more routes) |
-| LangChain | Massive abstraction layer over LLM calls. For a project calling one LLM (Claude) with well-defined tools, LangChain adds thousands of lines of dependency for zero value. Call the Anthropic SDK directly. | @anthropic-ai/sdk directly |
-| OpenAI SDK | Wrong provider. Use Anthropic's official SDK for Claude. Do not route through OpenAI-compatible endpoints or adapter layers. | @anthropic-ai/sdk |
-| Agenda (scheduler) | Requires MongoDB as a dependency just for job scheduling. Unnecessary infrastructure for a single-user bot. | node-cron (in-process) |
-| nodemon | Legacy. tsx has built-in watch mode (`tsx watch`). Node.js itself has `--watch` flag. No need for a separate watcher. | `tsx watch` or `node --watch` |
-| ts-node | Complex ESM configuration, slower than tsx, frequent compatibility issues with modern TypeScript settings | tsx 4.21.x |
+| **Next.js / Remix** | SSR framework overhead is unnecessary. Mini Apps are client-side SPAs loaded in Telegram's webview. No SEO needed, no server rendering needed. Adds massive build complexity for zero benefit. | Vite + React (client-side SPA) |
+| **Redux / Zustand / Jotai** | 3 simple views with independent data fetching. No shared complex state. State library adds boilerplate for no benefit at this scope. | React useState + useReducer + Context |
+| **Tailwind CSS** | Redundant with @telegram-apps/telegram-ui which handles all Telegram-native styling, theming, and platform differences. Adding Tailwind means fighting with or overriding the UI library's styles. | @telegram-apps/telegram-ui + Telegram CSS variables |
+| **Styled Components / Emotion** | Extra runtime overhead in a webview. Telegram UI components handle most styling. Minimal custom CSS needed. | CSS Modules or plain CSS files for the few custom styles needed |
+| **@telegram-apps/sdk-react** | **Deprecated namespace.** Actively replaced by @tma.js/sdk-react. Some hooks (like useLaunchParams) were silently removed in v3 without migration docs. Use the current namespace. | @tma.js/sdk-react |
+| **Socket.IO / WebSockets** | Real-time updates are not needed. Grocery lists, meal plans, and recipes are read-heavy with occasional writes. Simple REST calls are sufficient. | REST API endpoints on existing Express server |
+| **Separate API server** | The existing Express server already runs for webhooks. Adding API routes to same server avoids CORS issues, separate deployment, and infrastructure complexity. | API routes on existing Express server (same process) |
+| **vite-express** | Couples Vite and Express tightly at runtime. In production there is no Vite server -- just pre-built static files served by Express. vite-express adds unnecessary abstraction. | `express.static()` serving Vite build output |
+| **React Query / SWR** | Over-engineering for 3 views with simple data fetching. These libraries shine with complex caching, pagination, and real-time invalidation patterns. Our views are simple list displays. | useEffect + fetch (or a thin custom hook) |
+| **CSS-in-JS (any variant)** | Telegram Mini Apps should use the platform's CSS variables for theming. CSS-in-JS adds runtime overhead and fights the platform's theming model. | CSS variables from Telegram + @telegram-apps/telegram-ui |
 
-## Stack Patterns
-
-**For webhook-based deployment (recommended for production):**
-- Use grammY's `webhookCallback()` to create a request handler
-- Deploy behind HTTPS (Railway/Fly.io provide this automatically)
-- Set webhook URL via `bot.api.setWebhook(url)` on startup
-- Telegram pushes updates to your server -- no polling loop needed
-- Lower latency, lower resource usage than long polling
-
-**For local development:**
-- Use grammY's `bot.start()` for long polling
-- No HTTPS or public URL needed
-- Automatically switches between polling (dev) and webhook (prod) based on environment variable
-
-**For Claude API integration:**
-- Define tools using Zod schemas + `betaZodTool`
-- Use `strict: true` on tool definitions for guaranteed schema compliance
-- Keep system prompts in separate files for easy iteration
-- Always include conversation context (recent messages) in each Claude call
-- Claude is stateless -- your backend must manage conversation history
-
-**For database-backed knowledge:**
-- Store recipes as rich text content (not rigid schemas) -- Claude reasons over text
-- Store preferences, history, and metadata in structured columns for querying
-- Use full-text search (SQLite FTS5) for recipe lookup by ingredient/name
-- Keep conversation history for context window management
-
-## Hosting Recommendation
-
-| Platform | Monthly Cost | Why | Confidence |
-|----------|-------------|-----|------------|
-| **Railway** (recommended) | ~$5-10/mo | Built-in cron jobs, persistent volumes, automatic HTTPS, zero-config Node.js deploys, attached SQLite via volume mount. Push to deploy from GitHub. Best DX for a single-developer project. | HIGH |
-| Fly.io (alternative) | ~$5-10/mo | Better for global distribution (edge VMs). Persistent volumes at $0.15/GB/mo. More configuration required than Railway but more flexible. Good if you later need multi-region. | MEDIUM |
-| VPS (Hetzner/DigitalOcean) | ~$4-6/mo | Full control, cheapest long-term. Requires manual setup (systemd, nginx, SSL, backups). Best if you're comfortable with server admin. | MEDIUM |
-| Vercel/Cloudflare Workers | -- | NOT recommended. Serverless functions have cold starts that hurt bot responsiveness. SQLite on disk is incompatible with serverless. Scheduled jobs require workarounds. Wrong model for a stateful bot with a database. | -- |
-
-**Recommended:** Railway for v1. Simple, affordable, has everything needed (persistent volume for SQLite, cron, HTTPS, GitHub deploys). Migrate to Fly.io or VPS if cost or control becomes an issue.
+---
 
 ## Version Compatibility
 
-| Package | Compatible With | Notes |
-|---------|-----------------|-------|
-| better-sqlite3@12.6.x | Node.js 20, 22, 24 | Native addon -- needs node-gyp build. Pre-built binaries available for common platforms. |
-| drizzle-orm@0.45.x | better-sqlite3@12.x | Use `drizzle(db)` where db is a better-sqlite3 Database instance. |
-| drizzle-kit@0.31.x | drizzle-orm@0.45.x | Must keep drizzle-orm and drizzle-kit versions in sync. Always update together. |
-| grammY@1.39.x | Node.js 18+ | Also runs on Deno and Bun, but better-sqlite3 limits us to Node.js. |
-| @anthropic-ai/sdk@0.73.x | Node.js 18+ | Uses native `fetch` -- available in Node.js 18+. |
-| tsx@4.21.x | Node.js 18+ | Uses esbuild under the hood. Do not use with `--experimental-strip-types` (pick one approach). |
-| Zod@4.3.x | TypeScript 5.5+ | Major version bump from Zod 3.x. New API (z.string() unchanged, but some advanced features differ). Ensure @anthropic-ai/sdk supports Zod 4 -- check `betaZodTool` compatibility. |
-| pino@10.3.x | Node.js 20+ | Dropped Node.js 18 support in v10. Using Node.js 22 satisfies this. |
+| Concern | Status | Notes |
+|---------|--------|-------|
+| Node.js 22 + Vite 7 | COMPATIBLE | Vite 7 requires Node.js 20.19+. Node.js 22 is well supported. |
+| React 19 + @tma.js/sdk-react 3.x | COMPATIBLE | sdk-react works with React 18+. React 19 is supported. |
+| React 19 + @telegram-apps/telegram-ui 2.x | COMPATIBLE | TelegramUI supports React 18+. Browser support: Chrome 73+, Safari 12+, Edge 79+, Firefox 78+. |
+| Express 5 + static file serving | COMPATIBLE | Express 5 supports `express.static()` identically to Express 4. |
+| TypeScript 5.9 + Vite 7 | COMPATIBLE | Vite uses esbuild for transformation, not tsc. Separate tsconfig for mini-app/ with DOM libs and JSX. |
+| @tma.js/sdk 3.x + @tma.js/sdk-react 3.x | MUST MATCH MAJOR | Both must be v3.x. sdk-react depends on signals from sdk. |
+| Vitest 4.x (existing) + Vite 7 | COMPATIBLE | Vitest 4 is built on Vite's core. Can test React components if needed. |
 
-**Critical compatibility note:** Zod 4 is a recent major release. The @anthropic-ai/sdk `betaZodTool` helper was originally built for Zod 3. Verify compatibility at project start -- if Zod 4 is incompatible with the SDK's tool helpers, pin Zod at 3.24.x until the SDK updates. This is the single highest-risk version compatibility issue in this stack.
+### Known Issues
+
+1. **useLaunchParams removed in v3:** The `useLaunchParams` hook from v2 was removed in sdk-react v3 without migration documentation. Workaround: `useMemo(() => retrieveLaunchParams(), [])`. Tracked in [GitHub issue #667](https://github.com/Telegram-Mini-Apps/telegram-apps/issues/667).
+
+2. **Self-signed certs on mobile:** `vite-plugin-mkcert` generates certs that are NOT trusted by iOS/Android Telegram. You MUST use Cloudflare Tunnel or ngrok for mobile testing.
+
+3. **Vite base path alignment:** `base` in vite.config.ts must exactly match the Express static mount path. If Express serves at `/app`, Vite base must be `/app/`. Mismatch causes broken asset loading (404s on JS/CSS).
+
+4. **Mini App URL domain:** The URL passed to `.webApp()` in grammY must be on the same domain as the bot's webhook URL. Both are served by the same Express server, so this is naturally satisfied.
+
+---
 
 ## Sources
 
-- [grammY official site](https://grammy.dev/) -- framework documentation, plugin ecosystem, deployment guides (HIGH confidence)
-- [grammY comparison page](https://grammy.dev/resources/comparison) -- grammY vs Telegraf vs others (HIGH confidence)
-- [npm trends: grammy vs telegraf](https://npmtrends.com/grammy-vs-node-telegram-bot-api-vs-telegraf-vs-telegram-bot-api) -- download statistics (HIGH confidence)
-- [@anthropic-ai/sdk on npm](https://www.npmjs.com/package/@anthropic-ai/sdk) -- version 0.73.0 verified via `npm view` (HIGH confidence)
-- [Claude API docs: Tool use](https://platform.claude.com/docs/en/agents-and-tools/tool-use/overview) -- tool use and structured outputs (HIGH confidence)
-- [Claude API docs: Structured outputs](https://platform.claude.com/docs/en/build-with-claude/structured-outputs) -- strict mode for tool definitions (HIGH confidence)
-- [Drizzle ORM: SQLite getting started](https://orm.drizzle.team/docs/get-started-sqlite) -- better-sqlite3 integration (HIGH confidence)
-- [Node.js releases](https://nodejs.org/en/about/previous-releases) -- LTS schedule, Node 22 and 24 status (HIGH confidence)
-- [Railway docs: Cron Jobs](https://docs.railway.com/reference/cron-jobs) -- scheduling capabilities (HIGH confidence)
-- [Railway pricing](https://railway.com/pricing) -- cost estimation (HIGH confidence)
-- [tsx on npm](https://www.npmjs.com/package/tsx) -- TypeScript runner versioning (HIGH confidence)
-- [Zod official site](https://zod.dev/) -- v4 release, API surface (HIGH confidence)
-- [better-sqlite3 on npm](https://www.npmjs.com/package/better-sqlite3) -- version, compatibility (HIGH confidence)
-- [pino on npm](https://www.npmjs.com/package/pino) -- v10 Node.js requirements (HIGH confidence)
-- All package versions verified via `npm view [package] version` on 2026-02-05 (HIGH confidence)
+### HIGH Confidence (Official docs, npm packages, verified GitHub repos)
+- [@tma.js/sdk on npm](https://www.npmjs.com/package/@tma.js/sdk) - v3.1.4 verified, core SDK
+- [@tma.js/sdk-react on npm](https://www.npmjs.com/package/@tma.js/sdk-react) - v3.0.15 verified, React bindings
+- [@tma.js/init-data-node on npm](https://www.npmjs.com/package/@tma.js/init-data-node) - v2.0.4 verified, server validation
+- [@telegram-apps/telegram-ui on GitHub](https://github.com/telegram-mini-apps-dev/TelegramUI) - v2.1.13 verified, UI components
+- [Telegram Mini Apps official docs](https://docs.telegram-mini-apps.com/) - Platform docs, theming, init data, SDK usage
+- [Telegram Bot API - Mini Apps](https://core.telegram.org/bots/webapps) - Official Mini Apps specification
+- [grammY Keyboard plugin](https://grammy.dev/plugins/keyboard) - `.webApp()` method verified for inline keyboards
+- [Vite releases](https://vite.dev/releases) - v7.3.1 verified as current stable
+- [React on npm](https://www.npmjs.com/package/react) - v19.2.4 verified as current stable
+- [react-router on npm](https://www.npmjs.com/package/react-router) - v7.13.0 verified as current stable
+- [@vitejs/plugin-react on npm](https://www.npmjs.com/package/@vitejs/plugin-react) - v5.1.3 verified
+- [Official React template for Telegram Mini Apps](https://github.com/Telegram-Mini-Apps/reactjs-template) - Reference structure, deps
+- [tma.js GitHub monorepo](https://github.com/Telegram-Mini-Apps/telegram-apps) - Source repo for all @tma.js packages
+- [Migration from @telegram-apps to @tma.js](https://docs.telegram-mini-apps.com/packages/tma-js-sdk/migrate-from-telegram-apps) - Namespace deprecation confirmed
+
+### MEDIUM Confidence (Multiple sources agree)
+- [useLaunchParams removal - issue #667](https://github.com/Telegram-Mini-Apps/telegram-apps/issues/667) - v3 breaking change and workaround
+- [Telegram theming docs](https://docs.telegram-mini-apps.com/platform/theming) - CSS variable bindings
+- [vite-plugin-mkcert on npm](https://www.npmjs.com/package/vite-plugin-mkcert) - Local HTTPS for development
+
+### LOW Confidence (Verify during implementation)
+- Exact `@telegram-apps/telegram-ui` peer dependency compatibility with React 19 -- verify at install time
+- Vite proxy configuration with Express 5 -- standard pattern but needs testing
+- `emptyDirBeforeWrite` option name in Vite 7 (was `emptyOutDir` in Vite 6) -- verify in Vite 7 docs
 
 ---
-*Stack research for: Conversational AI Meal Planning Telegram Bot*
-*Researched: 2026-02-05*
+*Stack research for: Telegram Mini Apps (TWA) with React - HeySous v1.1*
+*Researched: 2026-02-09*

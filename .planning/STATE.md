@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Core value:** The recipe brain -- an AI agent that remembers everything about your meals and reasons over that knowledge to help you plan.
-**Current focus:** Phase 8 in progress -- reminders data layer complete, continuing with generator, poller, and wiring.
+**Current focus:** Phase 8 in progress -- reminders data layer, sender, and poller complete. Continuing with generator and wiring.
 
 ## Current Position
 
 Phase: 8 of 9 (Reminders)
-Plan: 1 of 4 in current phase
+Plan: 3 of 4 in current phase
 Status: In progress
-Last activity: 2026-02-09 -- Completed 08-01-PLAN.md
+Last activity: 2026-02-09 -- Completed 08-03-PLAN.md
 
-Progress: [██████████████████████░░░░] 22/26 (85%)
+Progress: [███████████████████████░░░] 24/26 (92%)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 22
-- Average duration: 2.7 min
-- Total execution time: 60 min
+- Total plans completed: 24
+- Average duration: 2.6 min
+- Total execution time: 64 min
 
 **By Phase:**
 
@@ -34,11 +34,11 @@ Progress: [██████████████████████░
 | 5. Preference Learning | 2/2 | 7 min | 3.5 min |
 | 6. Meal Planning | 3/3 | 7 min | 2.3 min |
 | 7. Grocery Lists | 4/4 | 9 min | 2.3 min |
-| 8. Reminders | 1/4 | 2 min | 2.0 min |
+| 8. Reminders | 3/4 | 6 min | 2.0 min |
 
 **Recent Trend:**
-- Last 5 plans: 07-01 (2 min), 07-02 (2 min), 07-03 (2 min), 07-04 (3 min), 08-01 (2 min)
-- Trend: Steady 2-3 min pace
+- Last 5 plans: 07-03 (2 min), 07-04 (3 min), 08-01 (2 min), 08-02 (2 min), 08-03 (2 min)
+- Trend: Steady 2 min pace
 
 *Updated after each plan completion*
 
@@ -142,6 +142,10 @@ Recent decisions affecting current work:
 - [08-01]: mutedUntil sentinel flag pattern since null is a valid value (unmute)
 - [08-01]: CHECK constraints on type and status columns in raw SQL for data integrity
 - [08-01]: UNIQUE on chat_id in reminder_settings for one-settings-per-chat upsert
+- [08-03]: Minimal interface types for sender deps (BotApi, ClaudeClient, RetrievalService) to decouple from grammY/Anthropic types
+- [08-03]: Separate PREP_ALERT_SYSTEM_PROMPT with recipe analysis instructions vs generic REMINDER_SYSTEM_PROMPT
+- [08-03]: Plain-text fallbacks per reminder type when Claude API fails
+- [08-03]: Poller tick() exposed publicly for testing
 
 ### Pending Todos
 
@@ -154,5 +158,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-09
-Stopped at: Completed 08-01-PLAN.md (Reminder data layer)
+Stopped at: Completed 08-03-PLAN.md (Reminder sender and poller)
 Resume file: None

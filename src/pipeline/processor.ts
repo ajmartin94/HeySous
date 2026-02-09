@@ -22,16 +22,18 @@ import { calculateCost } from "../ai/claude-client.js";
 import { sendFormattedMessage } from "../telegram/sender.js";
 import { messages, tokenUsage } from "../db/schema.js";
 import { createToolHandler } from "../ai/tool-handler.js";
-import { KNOWLEDGE_TOOLS, PLAN_TOOLS, GROCERY_TOOLS } from "../ai/tools.js";
+import { KNOWLEDGE_TOOLS, PLAN_TOOLS, GROCERY_TOOLS, REMINDER_TOOLS } from "../ai/tools.js";
 import { buildConversationContext } from "../conversation/context-builder.js";
 import type { ConversationTurn } from "../conversation/types.js";
 import type { createRetrievalService } from "../knowledge/retrieval.js";
 import { createKnowledgeRepository } from "../knowledge/repository.js";
 import type { createPlanRepository } from "../planning/repository.js";
 import type { createGroceryRepository } from "../grocery/repository.js";
+import type { createReminderRepository } from "../reminders/repository.js";
 import { autoMarkCookedMeals, getCookingHistory } from "../planning/history.js";
 import { buildPlanContext } from "../planning/context.js";
 import { buildGroceryContext } from "../grocery/context.js";
+import { buildReminderContext } from "../reminders/context.js";
 import { formatGroceryList } from "../grocery/formatter.js";
 import { buildGroceryKeyboard } from "../grocery/buttons.js";
 import { getPreferenceSummaries } from "../knowledge/preferences.js";
@@ -66,6 +68,8 @@ interface ProcessorDeps {
   planRepository: ReturnType<typeof createPlanRepository>;
   sqlite: BetterSqlite3.Database;
   groceryRepository?: ReturnType<typeof createGroceryRepository>;
+  reminderRepository?: ReturnType<typeof createReminderRepository>;
+  generateRemindersFn?: (chatId: string) => void;
 }
 
 /**
@@ -131,7 +135,7 @@ export function createProcessor(deps: ProcessorDeps) {
         { role: "user" as const, content: userText },
       ];
 
-      // g. Create tool handler for knowledge retrieval, write ops, plan tools, and grocery tools
+      // g. Create tool handler for knowledge retrieval, write ops, plan tools, grocery tools, and reminder tools
       const toolHandler = createToolHandler({
         retrievalService,
         knowledgeRepository,
@@ -140,6 +144,8 @@ export function createProcessor(deps: ProcessorDeps) {
         planRepository,
         sqlite: deps.sqlite,
         groceryRepository: deps.groceryRepository,
+        reminderRepository: deps.reminderRepository,
+        generateRemindersFn: deps.generateRemindersFn,
       });
 
       // g2. Auto-mark past planned meals as cooked before Claude processes
@@ -155,9 +161,14 @@ export function createProcessor(deps: ProcessorDeps) {
         ? buildGroceryContext(deps.sqlite, chatId)
         : "";
 
+      // g5. Load reminder settings context for system prompt injection
+      const reminderContext = deps.reminderRepository
+        ? buildReminderContext(deps.sqlite, chatId)
+        : "";
+
       // h. Load user preferences for system prompt injection
       const preferences = getPreferenceSummaries(deps.sqlite, chatId);
-      const systemPrompt = buildSystemPrompt(preferences, planContext, groceryContext);
+      const systemPrompt = buildSystemPrompt(preferences, planContext, groceryContext, reminderContext);
 
       // i. 30-second timeout warning timer
       let timeoutFired = false;
@@ -176,7 +187,7 @@ export function createProcessor(deps: ProcessorDeps) {
       let response: ClaudeResponse;
       const startTime = Date.now();
 
-      const allTools = [...KNOWLEDGE_TOOLS, ...PLAN_TOOLS, ...GROCERY_TOOLS];
+      const allTools = [...KNOWLEDGE_TOOLS, ...PLAN_TOOLS, ...GROCERY_TOOLS, ...REMINDER_TOOLS];
 
       try {
         response = await claudeClient.sendMessageWithTools(

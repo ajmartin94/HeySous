@@ -25,10 +25,15 @@ import { createDebugHandler } from "./bot/handlers/debug.js";
 import { createPreferencesHandler } from "./bot/handlers/preferences.js";
 import { createPlanHandler } from "./bot/handlers/plan.js";
 import { createGroceryHandler, createGroceryCallbackHandler } from "./bot/handlers/grocery.js";
+import { createRemindersHandler } from "./bot/handlers/reminders.js";
 import { createRetrievalService } from "./knowledge/retrieval.js";
 import { createKnowledgeRepository } from "./knowledge/repository.js";
 import { createPlanRepository } from "./planning/repository.js";
 import { createGroceryRepository } from "./grocery/repository.js";
+import { createReminderRepository } from "./reminders/repository.js";
+import { createReminderPoller } from "./reminders/poller.js";
+import { createReminderSender } from "./reminders/sender.js";
+import { generateReminders } from "./reminders/generator.js";
 import { logger } from "./logger.js";
 
 async function main(): Promise<void> {
@@ -66,6 +71,22 @@ async function main(): Promise<void> {
   const groceryRepository = createGroceryRepository(sqlite);
   logger.info("Grocery repository initialized");
 
+  // Initialize reminder repository for reminder CRUD
+  const reminderRepository = createReminderRepository(sqlite);
+  logger.info("Reminder repository initialized");
+
+  // Helper to regenerate reminders for a given chat (used by tool handler and startup)
+  const regenerateReminders = (chatId: string): void => {
+    const settings = reminderRepository.getOrCreateSettings(chatId);
+    generateReminders({
+      reminderRepository,
+      planRepository,
+      sqlite,
+      chatId,
+      settings,
+    });
+  };
+
   // Create pipeline processor with knowledge augmentation
   const processBatch = createProcessor({
     claudeClient,
@@ -76,6 +97,8 @@ async function main(): Promise<void> {
     planRepository,
     sqlite,
     groceryRepository,
+    reminderRepository,
+    generateRemindersFn: regenerateReminders,
   });
 
   // Create handlers
@@ -85,6 +108,7 @@ async function main(): Promise<void> {
   const planHandler = createPlanHandler(sqlite);
   const groceryHandler = createGroceryHandler(sqlite);
   const groceryCallbackHandler = createGroceryCallbackHandler(sqlite);
+  const remindersHandler = createRemindersHandler(sqlite);
   const messageHandler = createMessageHandler(queue, processBatch);
 
   // Create bot instance with all dependencies
@@ -95,6 +119,7 @@ async function main(): Promise<void> {
     planHandler,
     groceryHandler,
     groceryCallbackHandler,
+    remindersHandler,
     messageHandler,
     db,
   });
@@ -115,9 +140,28 @@ async function main(): Promise<void> {
     });
   }
 
-  // Graceful shutdown
+  // Initialize reminder system: sender, poller, and startup regeneration
+  // Cast bot to sender's minimal BotApi interface (sender is intentionally decoupled from grammY types)
+  const reminderSender = createReminderSender({ bot: bot as Parameters<typeof createReminderSender>[0]["bot"], claudeClient, retrievalService, logger });
+  const reminderPoller = createReminderPoller({ reminderRepository, sender: reminderSender, logger });
+
+  // Regenerate reminders for all active chats on startup (restart-safe)
+  const activeSettings = reminderRepository.getAllActiveSettings();
+  for (const settings of activeSettings) {
+    regenerateReminders(settings.chatId);
+  }
+  if (activeSettings.length > 0) {
+    logger.info({ chatCount: activeSettings.length }, "Reminders regenerated for active chats on startup");
+  }
+
+  // Start poller after bot is ready
+  reminderPoller.start();
+
+  // Graceful shutdown -- poller stops FIRST, then queue, then bot
   const shutdown = () => {
     logger.info("Shutting down...");
+    reminderPoller.stop();
+    logger.info("Reminder poller stopped");
     queue.shutdown();
     logger.info("Message queue cleared");
     bot.stop();

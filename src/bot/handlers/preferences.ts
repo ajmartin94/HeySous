@@ -87,7 +87,7 @@ function formatPreferenceLine(pref: PreferenceSummary): string {
   }
 
   const markerSuffix = markers.length > 0 ? " " + markers.join(" ") : "";
-  return `- ${pref.title}${markerSuffix}`;
+  return `- <b>${pref.title}</b>${markerSuffix}: ${pref.summary}`;
 }
 
 /**

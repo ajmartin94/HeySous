@@ -22,8 +22,13 @@ export function createCostsHandler(db: DrizzleDatabase): Composer<BotContext> {
 
   costsHandler.command("costs", async (ctx) => {
     // Only visible to admin users -- non-admins see nothing
-    const userId = String(ctx.from?.id ?? "");
-    if (!config.adminUserIds.includes(userId)) {
+    // Supports both numeric Telegram user IDs and usernames in ADMIN_USER_IDS
+    const numericId = String(ctx.from?.id ?? "");
+    const username = ctx.from?.username ?? "";
+    const isAdmin = config.adminUserIds.some(
+      (adminId) => adminId === numericId || (username && adminId.toLowerCase() === username.toLowerCase())
+    );
+    if (!isAdmin) {
       return;
     }
 

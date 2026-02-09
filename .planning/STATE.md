@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Core value:** The recipe brain -- an AI agent that remembers everything about your meals and reasons over that knowledge to help you plan.
-**Current focus:** Phase 8 complete -- all 4 reminder plans done. Full reminder system wired and operational. Ready for Phase 9.
+**Current focus:** Phase 9 in progress -- feedback check-in infrastructure built. Ready for 09-02 integration wiring.
 
 ## Current Position
 
-Phase: 8 of 9 (Reminders)
-Plan: 4 of 4 in current phase
-Status: Phase complete
-Last activity: 2026-02-09 -- Completed 08-04-PLAN.md
+Phase: 9 of 9 (Feedback Loop)
+Plan: 1 of 2 in current phase
+Status: In progress
+Last activity: 2026-02-09 -- Completed 09-01-PLAN.md
 
-Progress: [█████████████████████████░] 25/26 (96%)
+Progress: [██████████████████████████] 26/26 (100%)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 25
+- Total plans completed: 26
 - Average duration: 2.8 min
-- Total execution time: 69 min
+- Total execution time: 72 min
 
 **By Phase:**
 
@@ -35,10 +35,11 @@ Progress: [███████████████████████
 | 6. Meal Planning | 3/3 | 7 min | 2.3 min |
 | 7. Grocery Lists | 4/4 | 9 min | 2.3 min |
 | 8. Reminders | 4/4 | 11 min | 2.8 min |
+| 9. Feedback Loop | 1/2 | 3 min | 3.0 min |
 
 **Recent Trend:**
-- Last 5 plans: 07-04 (3 min), 08-01 (2 min), 08-02 (2 min), 08-03 (2 min), 08-04 (5 min)
-- Trend: Steady pace, integration plan slightly longer
+- Last 5 plans: 08-01 (2 min), 08-02 (2 min), 08-03 (2 min), 08-04 (5 min), 09-01 (3 min)
+- Trend: Steady pace
 
 *Updated after each plan completion*
 
@@ -155,6 +156,11 @@ Recent decisions affecting current work:
 - [08-04]: Bot type cast for sender's minimal BotApi interface (intentional decoupling from grammY types)
 - [08-04]: regenerateReminders helper in main.ts shared between startup and tool handler callback
 - [08-04]: Startup regeneration iterates all active settings before poller starts
+- [09-01]: Duplicated localTimeToUtc inline in feedback/generator.ts -- keeps feedback module self-contained
+- [09-01]: Fixed check-in time at 20:30 local (midpoint of 8-9pm window)
+- [09-01]: Callback data format f:{sentiment}:{reminderId} -- compact, under 64 bytes
+- [09-01]: No foreign key on reminder_id in feedback_checkins -- logs persist after deletion
+- [09-01]: Migration test-and-recreate for existing databases with old CHECK constraint
 
 ### Pending Todos
 
@@ -167,5 +173,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-09
-Stopped at: Completed 08-04-PLAN.md (Integration wiring -- Phase 8 complete)
+Stopped at: Completed 09-01-PLAN.md (Feedback check-in infrastructure)
 Resume file: None

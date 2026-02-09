@@ -14,8 +14,10 @@ import type { BotContext } from "../context.js";
 import type { createFeedbackRepository } from "../../feedback/repository.js";
 import type { createKnowledgeRepository } from "../../knowledge/repository.js";
 import type { DrizzleDatabase } from "../../db/index.js";
+import type { Clock } from "../../clock.js";
 import { extractFeedback } from "../../feedback/extractor.js";
 import { knowledgeChangelog } from "../../knowledge/schema.js";
+import { formatIsoDate } from "../../clock.js";
 import type { FeedbackSentiment } from "../../feedback/types.js";
 
 /**
@@ -42,6 +44,7 @@ interface FeedbackTextHandlerDeps {
   knowledgeRepository: ReturnType<typeof createKnowledgeRepository>;
   db: DrizzleDatabase;
   claudeClient: ClaudeClient;
+  clock: Clock;
 }
 
 /**
@@ -79,7 +82,7 @@ function appendFeedbackAnnotation(
 export function createFeedbackTextHandler(
   deps: FeedbackTextHandlerDeps,
 ): Composer<BotContext> {
-  const { feedbackRepository, knowledgeRepository, db, claudeClient } = deps;
+  const { feedbackRepository, knowledgeRepository, db, claudeClient, clock } = deps;
   const handler = new Composer<BotContext>();
 
   handler.on("message:text", async (ctx, next) => {
@@ -100,7 +103,7 @@ export function createFeedbackTextHandler(
     }
 
     // Find a recent check-in (within last 24 hours)
-    const twentyFourHoursAgo = Date.now() - 24 * 60 * 60 * 1000;
+    const twentyFourHoursAgo = clock.now() - 24 * 60 * 60 * 1000;
     const recentCheckin = pendingCheckins.find(
       (c) => c.createdAt.getTime() > twentyFourHoursAgo,
     );
@@ -124,7 +127,7 @@ export function createFeedbackTextHandler(
     );
 
     // Annotate recipe knowledge items
-    const today = new Date().toISOString().split("T")[0];
+    const today = formatIsoDate(clock.date());
     try {
       const meals = JSON.parse(recentCheckin.mealsJson) as Array<{
         mealType: string;

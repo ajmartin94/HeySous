@@ -15,8 +15,10 @@ import type { createFeedbackRepository } from "./repository.js";
 import type { createKnowledgeRepository } from "../knowledge/repository.js";
 import type { FeedbackSentiment } from "./types.js";
 import type { DrizzleDatabase } from "../db/index.js";
+import type { Clock } from "../clock.js";
 import { parseFeedbackCallback } from "./buttons.js";
 import { knowledgeChangelog } from "../knowledge/schema.js";
+import { formatIsoDate } from "../clock.js";
 
 /** Map compact sentiment abbreviation to full FeedbackSentiment. */
 const SENTIMENT_MAP: Record<string, FeedbackSentiment> = {
@@ -39,6 +41,7 @@ interface FeedbackCallbackDeps {
   feedbackRepository: ReturnType<typeof createFeedbackRepository>;
   knowledgeRepository: ReturnType<typeof createKnowledgeRepository>;
   db: DrizzleDatabase;
+  clock: Clock;
 }
 
 /**
@@ -84,7 +87,7 @@ function appendFeedbackAnnotation(
 export function createFeedbackCallbackHandler(
   deps: FeedbackCallbackDeps,
 ): Composer<BotContext> {
-  const { feedbackRepository, knowledgeRepository, db } = deps;
+  const { feedbackRepository, knowledgeRepository, db, clock } = deps;
   const handler = new Composer<BotContext>();
 
   handler.on("callback_query:data", async (ctx, next) => {
@@ -150,7 +153,7 @@ export function createFeedbackCallbackHandler(
         }>;
 
         const chatId = String(ctx.chat?.id ?? checkin.chatId);
-        const today = new Date().toISOString().split("T")[0];
+        const today = formatIsoDate(clock.date());
 
         for (const meal of meals) {
           if (!meal.knowledgeItemId) continue;

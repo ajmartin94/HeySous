@@ -10,6 +10,7 @@
 import { Composer } from "grammy";
 import type BetterSqlite3 from "better-sqlite3";
 import type { BotContext } from "../context.js";
+import type { Clock } from "../../clock.js";
 import { createReminderRepository } from "../../reminders/repository.js";
 
 /**
@@ -20,8 +21,9 @@ import { createReminderRepository } from "../../reminders/repository.js";
  */
 export function createRemindersHandler(
   sqlite: BetterSqlite3.Database,
+  clock: Clock,
 ): Composer<BotContext> {
-  const reminderRepository = createReminderRepository(sqlite);
+  const reminderRepository = createReminderRepository(sqlite, clock);
   const handler = new Composer<BotContext>();
 
   handler.command("reminders", async (ctx) => {
@@ -32,7 +34,7 @@ export function createRemindersHandler(
     const prepStatus = settings.prepAlertsEnabled ? "ON" : "OFF";
 
     let mutedLine = "";
-    if (settings.mutedUntil && settings.mutedUntil.getTime() > Date.now()) {
+    if (settings.mutedUntil && settings.mutedUntil.getTime() > clock.now()) {
       const formatted = settings.mutedUntil.toISOString().split("T")[0];
       mutedLine = `\nMuted until ${formatted}`;
     }

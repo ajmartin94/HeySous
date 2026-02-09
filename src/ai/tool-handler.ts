@@ -5,6 +5,8 @@ import type { createPlanRepository } from "../planning/repository.js";
 import type { PlanEntry, MealType } from "../planning/repository.js";
 import type { createGroceryRepository } from "../grocery/repository.js";
 import type { createReminderRepository } from "../reminders/repository.js";
+import type { Clock } from "../clock.js";
+import { formatIsoDate } from "../clock.js";
 import { logMeal, getCookingHistory } from "../planning/history.js";
 import { getWeekStartDate, DAY_NAMES } from "../planning/date-utils.js";
 import type { DrizzleDatabase } from "../db/index.js";
@@ -29,8 +31,9 @@ export function createToolHandler(deps: {
   groceryRepository?: ReturnType<typeof createGroceryRepository>;
   reminderRepository?: ReturnType<typeof createReminderRepository>;
   generateRemindersFn?: (chatId: string) => void;
+  clock: Clock;
 }) {
-  const { retrievalService, knowledgeRepository, db, chatId, planRepository, sqlite, groceryRepository, reminderRepository, generateRemindersFn } = deps;
+  const { retrievalService, knowledgeRepository, db, chatId, planRepository, sqlite, groceryRepository, reminderRepository, generateRemindersFn, clock } = deps;
 
   return {
     /**
@@ -315,6 +318,7 @@ export function createToolHandler(deps: {
           const history = getCookingHistory(
             sqlite,
             chatId,
+            clock,
             startDate,
             endDate,
           );
@@ -521,7 +525,7 @@ export function createToolHandler(deps: {
           const notes = input.notes as string | undefined;
           const date =
             (input.date as string | undefined) ??
-            new Date().toISOString().split("T")[0];
+            formatIsoDate(clock.date());
 
           if (!knowledgeItemId) {
             return JSON.stringify({

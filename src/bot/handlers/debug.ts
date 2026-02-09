@@ -20,9 +20,10 @@ export function createDebugHandler(
   const debugHandler = new Composer<BotContext>();
 
   debugHandler.command("debug", async (ctx) => {
-    const metrics = retrievalService.getMetrics();
+    const chatId = String(ctx.chat.id);
+    const metrics = retrievalService.getMetrics(chatId);
 
-    // If all zeros, no search has been performed yet
+    // If all zeros, no search has been performed for this chat yet
     if (
       metrics.itemsSearched === 0 &&
       metrics.itemsReturned === 0 &&
@@ -30,7 +31,7 @@ export function createDebugHandler(
       metrics.queryTimeMs === 0
     ) {
       await ctx.reply(
-        "No retrieval stats yet -- send a message first!",
+        "No retrieval stats for this chat yet. Send a message that triggers a knowledge search (ask about your recipes, preferences, or meal plans) and check again!",
       );
       return;
     }

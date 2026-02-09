@@ -32,12 +32,7 @@ export function createRetrievalService(deps: {
 }) {
   const { sqlite, logger } = deps;
 
-  let lastMetrics: RetrievalMetrics = {
-    itemsSearched: 0,
-    itemsReturned: 0,
-    tokensUsed: 0,
-    queryTimeMs: 0,
-  };
+  const metricsPerChat = new Map<string, RetrievalMetrics>();
 
   return {
     /**
@@ -93,12 +88,12 @@ export function createRetrievalService(deps: {
 
       const queryTimeMs = Math.round(performance.now() - startTime);
 
-      lastMetrics = {
+      metricsPerChat.set(chatId, {
         itemsSearched,
         itemsReturned: budgetedResults.length,
         tokensUsed,
         queryTimeMs,
-      };
+      });
 
       logger.info(
         {
@@ -112,7 +107,7 @@ export function createRetrievalService(deps: {
         "Knowledge search completed",
       );
 
-      return { results: budgetedResults, metrics: { ...lastMetrics } };
+      return { results: budgetedResults, metrics: { ...metricsPerChat.get(chatId)! } };
     },
 
     /**
@@ -124,11 +119,21 @@ export function createRetrievalService(deps: {
     },
 
     /**
-     * Get metrics from the most recent search call.
+     * Get metrics from the most recent search call for a specific chat.
      * Used by /debug command to surface retrieval performance.
+     * Returns zeroes if no search has occurred for the given chat (or no chatId provided).
      */
-    getMetrics(): RetrievalMetrics {
-      return { ...lastMetrics };
+    getMetrics(chatId?: string): RetrievalMetrics {
+      if (chatId) {
+        const metrics = metricsPerChat.get(chatId);
+        if (metrics) return { ...metrics };
+      }
+      return {
+        itemsSearched: 0,
+        itemsReturned: 0,
+        tokensUsed: 0,
+        queryTimeMs: 0,
+      };
     },
   };
 }

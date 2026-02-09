@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Core value:** The recipe brain -- an AI agent that remembers everything about your meals and reasons over that knowledge to help you plan.
-**Current focus:** Phase 9 in progress -- feedback check-in infrastructure built. Ready for 09-02 integration wiring.
+**Current focus:** All 9 phases complete. Full feedback loop wired end-to-end.
 
 ## Current Position
 
 Phase: 9 of 9 (Feedback Loop)
-Plan: 1 of 2 in current phase
-Status: In progress
-Last activity: 2026-02-09 -- Completed 09-01-PLAN.md
+Plan: 2 of 2 in current phase
+Status: Phase complete
+Last activity: 2026-02-09 -- Completed 09-02-PLAN.md
 
-Progress: [██████████████████████████] 26/26 (100%)
+Progress: [████████████████████████████] 28/28 (100%)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 26
-- Average duration: 2.8 min
-- Total execution time: 72 min
+- Total plans completed: 28
+- Average duration: 2.9 min
+- Total execution time: 79 min
 
 **By Phase:**
 
@@ -35,11 +35,11 @@ Progress: [███████████████████████
 | 6. Meal Planning | 3/3 | 7 min | 2.3 min |
 | 7. Grocery Lists | 4/4 | 9 min | 2.3 min |
 | 8. Reminders | 4/4 | 11 min | 2.8 min |
-| 9. Feedback Loop | 1/2 | 3 min | 3.0 min |
+| 9. Feedback Loop | 2/2 | 10 min | 5.0 min |
 
 **Recent Trend:**
-- Last 5 plans: 08-01 (2 min), 08-02 (2 min), 08-03 (2 min), 08-04 (5 min), 09-01 (3 min)
-- Trend: Steady pace
+- Last 5 plans: 08-03 (2 min), 08-04 (5 min), 09-01 (3 min), 09-02 (7 min)
+- Trend: Final plan took longer due to extensive wiring across 13 files
 
 *Updated after each plan completion*
 
@@ -161,17 +161,23 @@ Recent decisions affecting current work:
 - [09-01]: Callback data format f:{sentiment}:{reminderId} -- compact, under 64 bytes
 - [09-01]: No foreign key on reminder_id in feedback_checkins -- logs persist after deletion
 - [09-01]: Migration test-and-recreate for existing databases with old CHECK constraint
+- [09-02]: Feedback annotation appended to recipe content with "Feedback:" section format
+- [09-02]: FEEDBACK_PROMPT always included in system prompt (matches REMINDER_PROMPT pattern)
+- [09-02]: FeedbackCheckin type imported directly in poller (not redefined as minimal interface)
+- [09-02]: Free-text feedback handler registered before catch-all messageHandler
+- [09-02]: Deprioritization threshold: net score -2 (positive=+1, negative=-1)
+- [09-02]: feedbackContext injected after reminderContext in system prompt template
 
 ### Pending Todos
 
-None yet.
+None -- all phases complete.
 
 ### Blockers/Concerns
 
-- [Research]: Zod 4 compatibility with @anthropic-ai/sdk's betaZodTool -- verify at project start, pin Zod 3.24.x if incompatible
+None -- project complete.
 
 ## Session Continuity
 
 Last session: 2026-02-09
-Stopped at: Completed 09-01-PLAN.md (Feedback check-in infrastructure)
+Stopped at: Completed 09-02-PLAN.md (Feedback loop integration -- final plan)
 Resume file: None

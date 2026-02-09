@@ -15,8 +15,9 @@
  * 8. preferencesHandler (/preferences user preferences)
  * 9. planHandler (/plan meal plan display)
  * 10. groceryHandler (/grocery grocery list display)
- * 11. messageHandler (catch-all message:text -- MUST be last)
- * 12. error boundary
+ * 11. remindersHandler (/reminders reminder settings display)
+ * 12. messageHandler (catch-all message:text -- MUST be last)
+ * 13. error boundary
  */
 
 import { Bot, type Composer } from "grammy";
@@ -34,6 +35,7 @@ interface CreateBotOptions {
   planHandler: Composer<BotContext>;
   groceryHandler: Composer<BotContext>;
   groceryCallbackHandler: Composer<BotContext>;
+  remindersHandler: Composer<BotContext>;
   messageHandler: Composer<BotContext>;
   db: DrizzleDatabase;
 }
@@ -42,7 +44,7 @@ export function createBot(
   token: string,
   options: CreateBotOptions,
 ): Bot<BotContext> {
-  const { costsHandler, debugHandler, preferencesHandler, planHandler, groceryHandler, groceryCallbackHandler, messageHandler, db } = options;
+  const { costsHandler, debugHandler, preferencesHandler, planHandler, groceryHandler, groceryCallbackHandler, remindersHandler, messageHandler, db } = options;
   const bot = new Bot<BotContext>(token);
 
   // Set default parse mode for all API calls
@@ -65,6 +67,7 @@ export function createBot(
   bot.use(preferencesHandler); // /preferences command -- user preferences
   bot.use(planHandler); // /plan command -- meal plan display
   bot.use(groceryHandler); // /grocery command -- grocery list display
+  bot.use(remindersHandler); // /reminders command -- reminder settings display
   bot.use(messageHandler); // catch-all message:text -- MUST be last
 
   // Set up error boundary

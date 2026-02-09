@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Core value:** The recipe brain -- an AI agent that remembers everything about your meals and reasons over that knowledge to help you plan.
-**Current focus:** Phase 8 in progress -- reminders data layer, sender, and poller complete. Continuing with generator and wiring.
+**Current focus:** Phase 8 complete -- all 4 reminder plans done. Full reminder system wired and operational. Ready for Phase 9.
 
 ## Current Position
 
 Phase: 8 of 9 (Reminders)
-Plan: 3 of 4 in current phase
-Status: In progress
-Last activity: 2026-02-09 -- Completed 08-03-PLAN.md
+Plan: 4 of 4 in current phase
+Status: Phase complete
+Last activity: 2026-02-09 -- Completed 08-04-PLAN.md
 
-Progress: [███████████████████████░░░] 24/26 (92%)
+Progress: [█████████████████████████░] 25/26 (96%)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 24
-- Average duration: 2.6 min
-- Total execution time: 64 min
+- Total plans completed: 25
+- Average duration: 2.8 min
+- Total execution time: 69 min
 
 **By Phase:**
 
@@ -34,11 +34,11 @@ Progress: [███████████████████████
 | 5. Preference Learning | 2/2 | 7 min | 3.5 min |
 | 6. Meal Planning | 3/3 | 7 min | 2.3 min |
 | 7. Grocery Lists | 4/4 | 9 min | 2.3 min |
-| 8. Reminders | 3/4 | 6 min | 2.0 min |
+| 8. Reminders | 4/4 | 11 min | 2.8 min |
 
 **Recent Trend:**
-- Last 5 plans: 07-03 (2 min), 07-04 (3 min), 08-01 (2 min), 08-02 (2 min), 08-03 (2 min)
-- Trend: Steady 2 min pace
+- Last 5 plans: 07-04 (3 min), 08-01 (2 min), 08-02 (2 min), 08-03 (2 min), 08-04 (5 min)
+- Trend: Steady pace, integration plan slightly longer
 
 *Updated after each plan completion*
 
@@ -152,6 +152,9 @@ Recent decisions affecting current work:
 - [08-03]: Separate PREP_ALERT_SYSTEM_PROMPT with recipe analysis instructions vs generic REMINDER_SYSTEM_PROMPT
 - [08-03]: Plain-text fallbacks per reminder type when Claude API fails
 - [08-03]: Poller tick() exposed publicly for testing
+- [08-04]: Bot type cast for sender's minimal BotApi interface (intentional decoupling from grammY types)
+- [08-04]: regenerateReminders helper in main.ts shared between startup and tool handler callback
+- [08-04]: Startup regeneration iterates all active settings before poller starts
 
 ### Pending Todos
 
@@ -164,5 +167,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-09
-Stopped at: Completed 08-03-PLAN.md (Reminder sender and poller)
+Stopped at: Completed 08-04-PLAN.md (Integration wiring -- Phase 8 complete)
 Resume file: None

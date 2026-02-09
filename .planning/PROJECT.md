@@ -40,11 +40,16 @@ The LLM is the product. It reasons, decides what to look up, and acts on what it
 
 ### Active
 
-(None -- v1.0 shipped. Define new requirements with `/gsd:new-milestone`.)
+See REQUIREMENTS.md for v1.1 detailed requirements.
+
+- Telegram Mini App infrastructure (auth, API layer, shared React components)
+- Grocery list Mini App (checkable list, store sections, real-time sync with bot)
+- Weekly meal plan Mini App (calendar view, recipe details, meal swapping)
+- Recipe browser Mini App (search, recipe cards, full recipe view)
 
 ### Out of Scope
 
-- Mini Apps (Telegram rich UI) -- deferring to keep v1 simple, bot-only interface first
+- ~~Mini Apps (Telegram rich UI)~~ — **Promoted to v1.1 Active scope**
 - URL recipe import -- conversational entry sufficient for v1
 - Photo/image recipe capture -- requires vision pipeline, defer
 - Multi-user / partner access -- solo user first, shared household later
@@ -64,7 +69,9 @@ The LLM is the product. It reasons, decides what to look up, and acts on what it
 - **Shopping:** Kroger (primary), Costco (bulk)
 - **Devices:** Apple ecosystem (iPhone, iPad) -- Telegram works cross-platform
 - **First-run flow:** User seeds 10-15 rotating recipes before planning first week
-- **Next step:** Production testing with live Telegram bot and Anthropic API key
+- **Next step:** v1.1 Mini Apps milestone — add visual UI layer to existing bot
+- **Mini App model:** Hybrid — bot stays primary, Mini Apps open from chat buttons for visual tasks
+- **Frontend:** React inside Telegram Web Apps (TWA), served by existing Express server
 
 ## Constraints
 
@@ -74,7 +81,7 @@ The LLM is the product. It reasons, decides what to look up, and acts on what it
 - **Language/Framework**: Node.js 22 + TypeScript + grammY (Telegram) + @anthropic-ai/sdk (Claude)
 - **Hosting**: Railway (webhook handling, persistent volume for SQLite, cron jobs)
 - **Knowledge storage**: SQLite via better-sqlite3 + Drizzle ORM -- agent retrieves relevant context per request within a token budget (~4K tokens), not full dump
-- **Interface**: Bot conversation only for v1 -- no Mini Apps, no web UI
+- **Interface**: Hybrid -- bot conversation primary, Telegram Mini Apps for visual interactions (v1.1)
 - **Users**: Single user for v1
 
 ## Key Decisions
@@ -97,5 +104,15 @@ The LLM is the product. It reasons, decides what to look up, and acts on what it
 | FTS5 with BM25 ranking for knowledge search | Two-pass search (summaries → full content) within token budget | ✓ Good -- weighted ranking (title 10x, summary 5x) provides relevant results |
 | Tool error resilience (try/catch with is_error) | Tool call exceptions return error to Claude instead of crashing pipeline | ✓ Good -- added in Phase 10, prevents pipeline crashes |
 
+## Current Milestone: v1.1 Mini Apps
+
+**Goal:** Add Telegram Mini App visual UIs for the three key interactions — grocery lists, weekly meal plan, and recipe browser — while keeping the bot as the primary conversational interface.
+
+**Target features:**
+- Mini App infrastructure (TWA auth, API endpoints, React scaffold, shared components)
+- Grocery list Mini App (checkable items, store sections, sync with bot state)
+- Weekly meal plan Mini App (calendar/grid view, recipe details, meal navigation)
+- Recipe browser Mini App (search, recipe cards, full recipe detail view)
+
 ---
-*Last updated: 2026-02-09 after v1.0 milestone*
+*Last updated: 2026-02-09 after v1.1 milestone start*

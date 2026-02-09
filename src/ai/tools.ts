@@ -383,3 +383,78 @@ export const GROCERY_TOOLS: Anthropic.Tool[] = [
     },
   },
 ];
+
+/**
+ * Anthropic tool definitions for reminder management.
+ *
+ * Three tools for reminder settings CRUD:
+ * 1. get_reminder_settings -- Read current reminder settings
+ * 2. update_reminder_settings -- Modify settings (timezone, times, enable/disable, mute)
+ * 3. regenerate_reminders -- Regenerate all pending reminders from meal plans
+ */
+export const REMINDER_TOOLS: Anthropic.Tool[] = [
+  {
+    name: "get_reminder_settings",
+    description:
+      "Get the current reminder settings for this chat. Returns timezone, " +
+      "morning summary time, dinner time, enabled states, and mute status.",
+    input_schema: {
+      type: "object" as const,
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    name: "update_reminder_settings",
+    description:
+      "Update reminder settings. Provide only the fields you want to change. " +
+      "Use this when users say things like 'mute reminders until Monday', " +
+      "'change my morning time to 7am', 'turn off prep alerts', or " +
+      "'set my timezone to Pacific'.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        timezone: {
+          type: "string",
+          description:
+            "IANA timezone identifier (e.g., 'America/New_York', 'America/Los_Angeles')",
+        },
+        morning_time: {
+          type: "string",
+          description: "Morning summary time in HH:MM format (e.g., '07:00')",
+        },
+        dinner_time: {
+          type: "string",
+          description:
+            "Dinner/cooking reminder time in HH:MM format (e.g., '17:30')",
+        },
+        morning_enabled: {
+          type: "boolean",
+          description: "Enable or disable morning summary reminders",
+        },
+        prep_alerts_enabled: {
+          type: "boolean",
+          description: "Enable or disable day-before prep alert reminders",
+        },
+        muted_until: {
+          type: "string",
+          description:
+            "ISO date to mute all reminders until (e.g., '2025-03-10'). " +
+            "Set to empty string to unmute.",
+        },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "regenerate_reminders",
+    description:
+      "Regenerate all pending reminders from the current meal plans. " +
+      "Use after settings changes or when the user asks to refresh reminders.",
+    input_schema: {
+      type: "object" as const,
+      properties: {},
+      required: [],
+    },
+  },
+];

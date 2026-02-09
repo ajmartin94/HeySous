@@ -168,6 +168,49 @@ STORE PREFERENCES:
 - Always check preferences before generating a list
 </grocery_list_management>`;
 
+/**
+ * Always-present instructions teaching Claude how to manage reminder settings
+ * through conversation. Covers reading settings, updating times and timezone,
+ * muting/unmuting, and triggering reminder regeneration.
+ */
+const REMINDER_PROMPT = `
+<reminder_management>
+You help users manage their meal reminder settings through natural conversation.
+
+REMINDER TYPES:
+- Morning summary: Daily overview of planned meals at the user's configured morning time
+- Prep alerts: Day-before notifications for recipes that need preparation
+- Start-cooking nudge: Reminder at dinner time to start cooking
+
+READING SETTINGS:
+- When the user asks about their reminder settings, use get_reminder_settings
+- Present settings naturally: "You have morning summaries at 8am, prep alerts enabled, and dinner reminders at 5:30pm (Eastern time)"
+- If no settings exist yet, they'll be created with defaults on first access
+
+UPDATING SETTINGS:
+- "Change my morning time to 7am" -> update_reminder_settings with morning_time: "07:00"
+- "Turn off prep alerts" -> update_reminder_settings with prep_alerts_enabled: false
+- "Set my timezone to Pacific" -> update_reminder_settings with timezone: "America/Los_Angeles"
+- "Mute reminders until Monday" -> update_reminder_settings with muted_until: "YYYY-MM-DD" (next Monday's date)
+- "Unmute reminders" -> update_reminder_settings with muted_until: "" (empty string to clear)
+- Settings changes automatically regenerate reminders
+
+TIMEZONE HANDLING:
+- Always use IANA timezone identifiers (America/New_York, America/Chicago, America/Denver, America/Los_Angeles, etc.)
+- When user says "Pacific" or "PST", use "America/Los_Angeles"
+- When user says "Eastern" or "EST", use "America/New_York"
+- When user says "Central" or "CST", use "America/Chicago"
+- When user says "Mountain" or "MST", use "America/Denver"
+
+REGENERATING REMINDERS:
+- Use regenerate_reminders when the user says "refresh my reminders" or after plan changes
+- Acknowledge naturally: "Done, I've updated your reminders based on your current meal plan"
+
+ACKNOWLEDGMENT STYLE:
+- Brief and natural: "Got it, morning reminders moved to 7am!"
+- Don't over-explain: if they mute until Monday, just confirm "Reminders muted until Monday"
+</reminder_management>`;
+
 const PREFERENCE_MANAGEMENT_PROMPT = `
 <preference_management>
 You manage user preferences alongside recipes. Preferences are stored as knowledge items tagged "preference".
@@ -232,9 +275,10 @@ INFERRED PREFERENCE RULES:
  * @param preferences - Optional array of user preference summaries to inject
  * @param planContext - Optional meal planning context (active plans + cooking history)
  * @param groceryContext - Optional grocery list context summary
+ * @param reminderContext - Optional reminder settings context summary
  * @returns Complete system prompt string
  */
-export function buildSystemPrompt(preferences?: PreferenceSummary[], planContext?: string, groceryContext?: string): string {
+export function buildSystemPrompt(preferences?: PreferenceSummary[], planContext?: string, groceryContext?: string, reminderContext?: string): string {
   const preferenceContext = preferences
     ? buildPreferenceContext(preferences)
     : "";
@@ -369,5 +413,5 @@ CROSS-RECIPE REASONING:
 - For filtering by attribute, search with relevant keywords (cuisine name, protein, "quick", etc.)
 - When listing multiple recipes, show brief info: name, total time, difficulty
 - Let the user pick one for full details
-</recipe_management>${preferenceContext}${PREFERENCE_MANAGEMENT_PROMPT}${planContext ? "\n" + planContext : ""}${groceryContext ? "\n" + groceryContext : ""}${MEAL_PLANNING_PROMPT}${GROCERY_LIST_PROMPT}`;
+</recipe_management>${preferenceContext}${PREFERENCE_MANAGEMENT_PROMPT}${planContext ? "\n" + planContext : ""}${groceryContext ? "\n" + groceryContext : ""}${reminderContext ? "\n" + reminderContext : ""}${MEAL_PLANNING_PROMPT}${GROCERY_LIST_PROMPT}${REMINDER_PROMPT}`;
 }

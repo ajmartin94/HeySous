@@ -4,6 +4,7 @@ import type { createKnowledgeRepository } from "../knowledge/repository.js";
 import type { createPlanRepository } from "../planning/repository.js";
 import type { PlanEntry, MealType } from "../planning/repository.js";
 import type { createGroceryRepository } from "../grocery/repository.js";
+import type { createReminderRepository } from "../reminders/repository.js";
 import { logMeal, getCookingHistory } from "../planning/history.js";
 import { getWeekStartDate, DAY_NAMES } from "../planning/date-utils.js";
 import type { DrizzleDatabase } from "../db/index.js";
@@ -26,8 +27,10 @@ export function createToolHandler(deps: {
   planRepository?: ReturnType<typeof createPlanRepository>;
   sqlite?: BetterSqlite3.Database;
   groceryRepository?: ReturnType<typeof createGroceryRepository>;
+  reminderRepository?: ReturnType<typeof createReminderRepository>;
+  generateRemindersFn?: (chatId: string) => void;
 }) {
-  const { retrievalService, knowledgeRepository, db, chatId, planRepository, sqlite, groceryRepository } = deps;
+  const { retrievalService, knowledgeRepository, db, chatId, planRepository, sqlite, groceryRepository, reminderRepository, generateRemindersFn } = deps;
 
   return {
     /**
@@ -411,6 +414,88 @@ export function createToolHandler(deps: {
               section: i.section,
               checked: i.checked,
             })),
+          });
+        }
+
+        case "get_reminder_settings": {
+          if (!reminderRepository) {
+            return JSON.stringify({ error: "Reminder tools not available" });
+          }
+
+          const settings = reminderRepository.getOrCreateSettings(chatId);
+
+          return JSON.stringify({
+            timezone: settings.timezone,
+            morningTime: settings.morningTime,
+            dinnerTime: settings.dinnerTime,
+            morningEnabled: settings.morningEnabled,
+            prepAlertsEnabled: settings.prepAlertsEnabled,
+            mutedUntil: settings.mutedUntil
+              ? settings.mutedUntil.toISOString()
+              : null,
+          });
+        }
+
+        case "update_reminder_settings": {
+          if (!reminderRepository) {
+            return JSON.stringify({ error: "Reminder tools not available" });
+          }
+
+          const updates: Record<string, unknown> = {};
+
+          if (input.timezone !== undefined) {
+            updates.timezone = input.timezone as string;
+          }
+          if (input.morning_time !== undefined) {
+            updates.morningTime = input.morning_time as string;
+          }
+          if (input.dinner_time !== undefined) {
+            updates.dinnerTime = input.dinner_time as string;
+          }
+          if (input.morning_enabled !== undefined) {
+            updates.morningEnabled = input.morning_enabled as boolean;
+          }
+          if (input.prep_alerts_enabled !== undefined) {
+            updates.prepAlertsEnabled = input.prep_alerts_enabled as boolean;
+          }
+          if (input.muted_until !== undefined) {
+            const mutedStr = input.muted_until as string;
+            if (mutedStr === "") {
+              updates.mutedUntil = null;
+            } else {
+              updates.mutedUntil = new Date(mutedStr + "T23:59:59Z");
+            }
+          }
+
+          const updated = reminderRepository.upsertSettings(chatId, updates);
+
+          // Regenerate reminders after settings change
+          if (generateRemindersFn) {
+            generateRemindersFn(chatId);
+          }
+
+          return JSON.stringify({
+            message: "Settings updated",
+            timezone: updated.timezone,
+            morningTime: updated.morningTime,
+            dinnerTime: updated.dinnerTime,
+            morningEnabled: updated.morningEnabled,
+            prepAlertsEnabled: updated.prepAlertsEnabled,
+            mutedUntil: updated.mutedUntil
+              ? updated.mutedUntil.toISOString()
+              : null,
+          });
+        }
+
+        case "regenerate_reminders": {
+          if (!reminderRepository || !generateRemindersFn) {
+            return JSON.stringify({ error: "Reminder tools not available" });
+          }
+
+          generateRemindersFn(chatId);
+
+          return JSON.stringify({
+            message: "Reminders regenerated from current meal plans",
           });
         }
 

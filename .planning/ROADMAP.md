@@ -20,7 +20,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 6: Meal Planning** - Users can generate and adjust weekly dinner plans through conversation
 - [x] **Phase 7: Grocery Lists** - Grocery lists generated from meal plans with aggregation and store splitting
 - [x] **Phase 8: Reminders** - Proactive daily prep summaries and time-aware reminders that survive restarts
-- [ ] **Phase 9: Feedback Loop** - Post-meal check-ins that annotate recipes and improve future planning
+- [x] **Phase 9: Feedback Loop** - Post-meal check-ins that annotate recipes and improve future planning
 
 ## Phase Details
 
@@ -169,8 +169,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 09-01-PLAN.md -- Feedback data layer, inline buttons, check-in generator, and sender (scheduling + delivery infrastructure)
-- [ ] 09-02-PLAN.md -- Callback handler, feedback extraction, recipe annotation, system prompt, tools, and full pipeline wiring
+- [x] 09-01-PLAN.md -- Feedback data layer, inline buttons, check-in generator, and sender (scheduling + delivery infrastructure)
+- [x] 09-02-PLAN.md -- Callback handler, feedback extraction, recipe annotation, system prompt, tools, and full pipeline wiring
 
 ## Progress
 
@@ -188,4 +188,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | 6. Meal Planning | 3/3 | Complete | 2026-02-07 |
 | 7. Grocery Lists | 4/4 | Complete | 2026-02-08 |
 | 8. Reminders | 4/4 | Complete | 2026-02-08 |
-| 9. Feedback Loop | 0/2 | Not started | - |
+| 9. Feedback Loop | 2/2 | Complete | 2026-02-09 |

@@ -69,10 +69,10 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Feedback Loop (FEED)
 
-- [ ] **FEED-01**: Bot offers optional post-meal check-in ("How was dinner?")
-- [ ] **FEED-02**: Feedback stored as recipe annotations (actual time, what worked, what to change)
-- [ ] **FEED-03**: Check-ins are low-friction and infrequent -- not every meal, not homework
-- [ ] **FEED-04**: Accumulated feedback influences future planning and recipe suggestions
+- [x] **FEED-01**: Bot offers optional post-meal check-in ("How was dinner?")
+- [x] **FEED-02**: Feedback stored as recipe annotations (actual time, what worked, what to change)
+- [x] **FEED-03**: Check-ins are low-friction and infrequent -- not every meal, not homework
+- [x] **FEED-04**: Accumulated feedback influences future planning and recipe suggestions
 
 ## v2 Requirements
 
@@ -157,10 +157,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PREF-02 | Phase 5: Preference Learning | Complete |
 | PREF-03 | Phase 5: Preference Learning | Complete |
 | PREF-04 | Phase 5: Preference Learning | Complete |
-| FEED-01 | Phase 9: Feedback Loop | Pending |
-| FEED-02 | Phase 9: Feedback Loop | Pending |
-| FEED-03 | Phase 9: Feedback Loop | Pending |
-| FEED-04 | Phase 9: Feedback Loop | Pending |
+| FEED-01 | Phase 9: Feedback Loop | Complete |
+| FEED-02 | Phase 9: Feedback Loop | Complete |
+| FEED-03 | Phase 9: Feedback Loop | Complete |
+| FEED-04 | Phase 9: Feedback Loop | Complete |
 
 **Coverage:**
 - v1 requirements: 41 total
@@ -169,4 +169,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-02-05*
-*Last updated: 2026-02-08 -- Phase 8 requirements marked Complete*
+*Last updated: 2026-02-09 -- Phase 9 requirements marked Complete*

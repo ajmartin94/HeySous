@@ -211,6 +211,34 @@ ACKNOWLEDGMENT STYLE:
 - Don't over-explain: if they mute until Monday, just confirm "Reminders muted until Monday"
 </reminder_management>`;
 
+const FEEDBACK_PROMPT = `
+<feedback_loop>
+After meals, you may check in with the user to ask how dinner went. The system sends check-in messages automatically.
+
+REFERENCING PAST FEEDBACK:
+- When suggesting a recipe for a future plan, explicitly reference past feedback if it exists
+- Example: "Suggesting chicken parm -- you loved it last time but said to use less salt"
+- Show feedback history inline when displaying a recipe (e.g., "Last 3 times: positive positive neutral")
+- Use the <feedback_context> section to see recent feedback
+
+FEEDBACK INFLUENCE ON SUGGESTIONS:
+- Positive feedback: prioritize in future suggestions
+- Neutral feedback: no change in priority
+- Negative feedback: deprioritize but do not ban -- user can still request
+- Skipped meals: valuable data about plan adherence, note for future variety
+- Deprioritization threshold: net score -2 or below (count positive as +1, negative as -1)
+
+RECIPE UPDATE PROPOSALS:
+- Even a SINGLE mention of a concrete change triggers a recipe update suggestion
+- Example: user says "less salt" -> propose "Cut salt in half for next time?" and update recipe if approved
+- When updating a recipe based on feedback, add a note that the change was made based on feedback
+- Always get user approval before modifying a recipe
+
+USING FEEDBACK TOOLS:
+- record_feedback: Use when processing free-text feedback about a recent meal. Extracts sentiment and notes, stores as annotation.
+- The tool handles appending annotations to recipe content automatically.
+</feedback_loop>`;
+
 const PREFERENCE_MANAGEMENT_PROMPT = `
 <preference_management>
 You manage user preferences alongside recipes. Preferences are stored as knowledge items tagged "preference".
@@ -278,7 +306,7 @@ INFERRED PREFERENCE RULES:
  * @param reminderContext - Optional reminder settings context summary
  * @returns Complete system prompt string
  */
-export function buildSystemPrompt(preferences?: PreferenceSummary[], planContext?: string, groceryContext?: string, reminderContext?: string): string {
+export function buildSystemPrompt(preferences?: PreferenceSummary[], planContext?: string, groceryContext?: string, reminderContext?: string, feedbackContext?: string): string {
   const preferenceContext = preferences
     ? buildPreferenceContext(preferences)
     : "";
@@ -413,5 +441,5 @@ CROSS-RECIPE REASONING:
 - For filtering by attribute, search with relevant keywords (cuisine name, protein, "quick", etc.)
 - When listing multiple recipes, show brief info: name, total time, difficulty
 - Let the user pick one for full details
-</recipe_management>${preferenceContext}${PREFERENCE_MANAGEMENT_PROMPT}${planContext ? "\n" + planContext : ""}${groceryContext ? "\n" + groceryContext : ""}${reminderContext ? "\n" + reminderContext : ""}${MEAL_PLANNING_PROMPT}${GROCERY_LIST_PROMPT}${REMINDER_PROMPT}`;
+</recipe_management>${preferenceContext}${PREFERENCE_MANAGEMENT_PROMPT}${planContext ? "\n" + planContext : ""}${groceryContext ? "\n" + groceryContext : ""}${reminderContext ? "\n" + reminderContext : ""}${feedbackContext ? "\n" + feedbackContext : ""}${MEAL_PLANNING_PROMPT}${GROCERY_LIST_PROMPT}${REMINDER_PROMPT}${FEEDBACK_PROMPT}`;
 }

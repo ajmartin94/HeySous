@@ -458,3 +458,49 @@ export const REMINDER_TOOLS: Anthropic.Tool[] = [
     },
   },
 ];
+
+/**
+ * Anthropic tool definitions for feedback recording.
+ *
+ * One tool for recording meal feedback from conversational context:
+ * 1. record_feedback -- Annotate a recipe knowledge item with feedback
+ */
+export const FEEDBACK_TOOLS: Anthropic.Tool[] = [
+  {
+    name: "record_feedback",
+    description:
+      "Record feedback about a recent meal. Use when the user provides free-text feedback " +
+      "about a meal (e.g., 'dinner was great', 'the chicken was dry'). Extracts sentiment " +
+      "and notes, and appends a feedback annotation to the recipe's knowledge item.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        recipe_name: {
+          type: "string",
+          description: "Name of the recipe the feedback is about",
+        },
+        knowledge_item_id: {
+          type: "number",
+          description:
+            "ID of the recipe's knowledge item (from search or plan context)",
+        },
+        sentiment: {
+          type: "string",
+          enum: ["positive", "neutral", "negative"],
+          description: "Overall sentiment of the feedback",
+        },
+        notes: {
+          type: "string",
+          description:
+            "Specific feedback notes (what worked, what to change)",
+        },
+        date: {
+          type: "string",
+          description:
+            "Date the meal was cooked (ISO format YYYY-MM-DD). Defaults to today.",
+        },
+      },
+      required: ["recipe_name", "sentiment"],
+    },
+  },
+];

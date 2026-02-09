@@ -499,6 +499,65 @@ export function createToolHandler(deps: {
           });
         }
 
+        case "record_feedback": {
+          const recipeName = input.recipe_name as string;
+          const knowledgeItemId = input.knowledge_item_id as number | undefined;
+          const sentiment = input.sentiment as string;
+          const notes = input.notes as string | undefined;
+          const date =
+            (input.date as string | undefined) ??
+            new Date().toISOString().split("T")[0];
+
+          if (!knowledgeItemId) {
+            return JSON.stringify({
+              message: `Feedback noted for "${recipeName}" (${sentiment}), but not attached to a stored recipe.`,
+            });
+          }
+
+          const item = knowledgeRepository.getById(knowledgeItemId, chatId);
+          if (!item) {
+            return JSON.stringify({
+              message: `Feedback noted for "${recipeName}" (${sentiment}), but recipe ID ${knowledgeItemId} not found.`,
+            });
+          }
+
+          // Append feedback annotation to content
+          const annotation = notes
+            ? `- ${date} [${sentiment}]: ${notes}`
+            : `- ${date} [${sentiment}]`;
+
+          let updatedContent: string;
+          const feedbackSectionIndex = item.content.indexOf("\nFeedback:\n");
+          if (feedbackSectionIndex !== -1) {
+            // Append to existing Feedback section
+            updatedContent = item.content + "\n" + annotation;
+          } else if (item.content.startsWith("Feedback:\n")) {
+            updatedContent = item.content + "\n" + annotation;
+          } else {
+            // Add new Feedback section
+            updatedContent = item.content + "\n\nFeedback:\n" + annotation;
+          }
+
+          knowledgeRepository.update(knowledgeItemId, chatId, {
+            content: updatedContent,
+          });
+
+          db.insert(knowledgeChangelog)
+            .values({
+              knowledgeItemId,
+              chatId,
+              action: "update",
+              changeDescription: `Feedback annotation added: ${sentiment}`,
+              previousContent: item.content,
+            })
+            .run();
+
+          return JSON.stringify({
+            message: `Feedback recorded for "${recipeName}": ${sentiment}${notes ? ` - ${notes}` : ""}`,
+            knowledgeItemId,
+          });
+        }
+
         default:
           return `Unknown tool: ${name}`;
       }

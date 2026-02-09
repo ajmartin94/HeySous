@@ -149,13 +149,13 @@ Plans:
   3. Reminders persist across process restarts -- no lost reminders on deploy or crash
   4. All reminders respect the user's timezone
   5. User can mute or adjust reminders through conversation
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] 08-01: Reminder data layer (persistent storage, UTC times, timezone handling)
-- [ ] 08-02: Daily prep summary (morning message generation, meal plan integration)
-- [ ] 08-03: Time-aware reminders (recipe analysis for prep timing, reminder scheduling, poller)
-- [ ] 08-04: Reminder management (mute, adjust, snooze through conversation)
+- [ ] 08-01-PLAN.md -- Reminder data layer (schema, init, repository CRUD, types)
+- [ ] 08-02-PLAN.md -- Reminder tools, system prompt, and generator (REMINDER_TOOLS, prompt instructions, meal plan to reminder rows)
+- [ ] 08-03-PLAN.md -- Poller and sender (60s interval poller, Claude text generation, Telegram delivery)
+- [ ] 08-04-PLAN.md -- Pipeline wiring (/reminders command, bot registration, processor integration, main.ts wiring, poller lifecycle)
 
 ### Phase 9: Feedback Loop
 **Goal**: System learns from post-meal check-ins, annotating recipes with real-world data that improves future planning

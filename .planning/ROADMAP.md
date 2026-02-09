@@ -2,7 +2,7 @@
 
 ## Overview
 
-HeySous is a conversational AI meal planning assistant on Telegram, powered by Claude. The roadmap builds from bot infrastructure through foundational knowledge systems to complete user-facing features. Phases 1-3 establish the agent-first architecture (bot transport, LLM reasoning, knowledge retrieval). Phases 4-5 deliver the first real capabilities (recipes and preferences). Phases 6-8 build the full planning workflow (meal plans, grocery lists, reminders). Phase 9 closes the learning loop with post-meal feedback. Each phase delivers an independently verifiable capability.
+HeySous is a conversational AI meal planning assistant on Telegram, powered by Claude. The roadmap builds from bot infrastructure through foundational knowledge systems to complete user-facing features. Phases 1-3 establish the agent-first architecture (bot transport, LLM reasoning, knowledge retrieval). Phases 4-5 deliver the first real capabilities (recipes and preferences). Phases 6-8 build the full planning workflow (meal plans, grocery lists, reminders). Phase 9 closes the learning loop with post-meal feedback. Phase 10 closes gaps found during full milestone UAT. Each phase delivers an independently verifiable capability.
 
 ## Phases
 
@@ -21,6 +21,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 7: Grocery Lists** - Grocery lists generated from meal plans with aggregation and store splitting
 - [x] **Phase 8: Reminders** - Proactive daily prep summaries and time-aware reminders that survive restarts
 - [x] **Phase 9: Feedback Loop** - Post-meal check-ins that annotate recipes and improve future planning
+- [ ] **Phase 10: Milestone Fixes** - Gap closure from full milestone UAT (7 bugs across prompts, admin auth, display, error handling, metrics)
 
 ## Phase Details
 
@@ -172,10 +173,27 @@ Plans:
 - [x] 09-01-PLAN.md -- Feedback data layer, inline buttons, check-in generator, and sender (scheduling + delivery infrastructure)
 - [x] 09-02-PLAN.md -- Callback handler, feedback extraction, recipe annotation, system prompt, tools, and full pipeline wiring
 
+### Phase 10: Milestone Fixes
+**Goal**: Close 7 gaps found during full milestone UAT across system prompts, admin auth, preference display, error handling, and debug metrics
+**Depends on**: Phase 9
+**Success Criteria** (what must be TRUE):
+  1. Bot answers general cooking questions without narrowly redirecting to "dinner"
+  2. /costs command works when ADMIN_USER_IDS contains Telegram usernames
+  3. Tool call exceptions produce is_error results to Claude instead of crashing the pipeline
+  4. /preferences shows preference values (summary text) alongside titles
+  5. Asking for a meal plan results in save_meal_plan being called automatically
+  6. Stating a dinner time preference also syncs reminder settings
+  7. /debug shows per-chat retrieval stats, not global stats
+**Plans**: 2 plans
+
+Plans:
+- [ ] 10-01-PLAN.md -- System prompt fixes (boundaries, save_meal_plan, dinner-time sync) + admin/display fixes (costs auth, preferences display, preferences SQL)
+- [ ] 10-02-PLAN.md -- Error resilience (tool call try/catch with is_error) + per-chat debug metrics
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
+Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 (Phases 4 and 5 can execute in parallel after Phase 3. Phases 7, 8, and 9 can execute in parallel after Phase 6.)
 
 | Phase | Plans Complete | Status | Completed |
@@ -189,3 +207,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | 7. Grocery Lists | 4/4 | Complete | 2026-02-08 |
 | 8. Reminders | 4/4 | Complete | 2026-02-08 |
 | 9. Feedback Loop | 2/2 | Complete | 2026-02-09 |
+| 10. Milestone Fixes | 0/2 | In Progress | - |

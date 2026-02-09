@@ -21,7 +21,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 7: Grocery Lists** - Grocery lists generated from meal plans with aggregation and store splitting
 - [x] **Phase 8: Reminders** - Proactive daily prep summaries and time-aware reminders that survive restarts
 - [x] **Phase 9: Feedback Loop** - Post-meal check-ins that annotate recipes and improve future planning
-- [ ] **Phase 10: Milestone Fixes** - Gap closure from full milestone UAT (7 bugs across prompts, admin auth, display, error handling, metrics)
+- [x] **Phase 10: Milestone Fixes** - Gap closure from full milestone UAT (7 bugs across prompts, admin auth, display, error handling, metrics)
 
 ## Phase Details
 
@@ -187,8 +187,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 10-01-PLAN.md -- System prompt fixes (boundaries, save_meal_plan, dinner-time sync) + admin/display fixes (costs auth, preferences display, preferences SQL)
-- [ ] 10-02-PLAN.md -- Error resilience (tool call try/catch with is_error) + per-chat debug metrics
+- [x] 10-01-PLAN.md -- System prompt fixes (boundaries, save_meal_plan, dinner-time sync) + admin/display fixes (costs auth, preferences display, preferences SQL)
+- [x] 10-02-PLAN.md -- Error resilience (tool call try/catch with is_error) + per-chat debug metrics
 
 ## Progress
 
@@ -207,4 +207,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | 7. Grocery Lists | 4/4 | Complete | 2026-02-08 |
 | 8. Reminders | 4/4 | Complete | 2026-02-08 |
 | 9. Feedback Loop | 2/2 | Complete | 2026-02-09 |
-| 10. Milestone Fixes | 0/2 | In Progress | - |
+| 10. Milestone Fixes | 2/2 | Complete | 2026-02-09 |

@@ -1,7 +1,7 @@
 /**
  * Reminder types for the three reminder categories.
  */
-export type ReminderType = "morning_summary" | "prep_alert" | "start_cooking";
+export type ReminderType = "morning_summary" | "prep_alert" | "start_cooking" | "feedback_checkin";
 
 /**
  * Status of a scheduled reminder.

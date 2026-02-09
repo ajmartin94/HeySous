@@ -9,6 +9,7 @@
  */
 
 import type BetterSqlite3 from "better-sqlite3";
+import type { Clock } from "../clock.js";
 
 /** Raw row shape from the feedback context query. */
 interface FeedbackContextRow {
@@ -26,13 +27,15 @@ interface FeedbackContextRow {
  *
  * @param sqlite - The SQLite database instance
  * @param chatId - The chat ID to look up feedback for
+ * @param clock - Clock instance for time calculations
  * @returns Formatted context string, or empty string if no recent feedback
  */
 export function buildFeedbackContext(
   sqlite: BetterSqlite3.Database,
   chatId: string,
+  clock: Clock,
 ): string {
-  const fourteenDaysAgo = Math.floor(Date.now() / 1000) - 14 * 86400;
+  const fourteenDaysAgo = Math.floor(clock.now() / 1000) - 14 * 86400;
 
   const rows = sqlite
     .prepare(

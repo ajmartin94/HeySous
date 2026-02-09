@@ -1,4 +1,6 @@
 import type BetterSqlite3 from "better-sqlite3";
+import type { Clock } from "../clock.js";
+import { formatIsoDate } from "../clock.js";
 
 /**
  * Cooking history entry returned from queries.
@@ -68,8 +70,9 @@ export function initializePlanning(sqlite: BetterSqlite3.Database): void {
 export function autoMarkCookedMeals(
   sqlite: BetterSqlite3.Database,
   chatId: string,
+  clock: Clock,
 ): number {
-  const today = new Date().toISOString().split("T")[0];
+  const today = formatIsoDate(clock.date());
 
   const result = sqlite
     .prepare(
@@ -149,17 +152,18 @@ export function logMeal(
 export function getCookingHistory(
   sqlite: BetterSqlite3.Database,
   chatId: string,
+  clock: Clock,
   startDate?: string,
   endDate?: string,
 ): CookingHistoryEntry[] {
   // Default to last 21 days if no range provided
-  const end = endDate ?? new Date().toISOString().split("T")[0];
+  const end = endDate ?? formatIsoDate(clock.date());
   const start =
     startDate ??
     (() => {
-      const d = new Date();
+      const d = clock.date();
       d.setDate(d.getDate() - 21);
-      return d.toISOString().split("T")[0];
+      return formatIsoDate(d);
     })();
 
   const rows = sqlite

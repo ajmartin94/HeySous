@@ -30,6 +30,7 @@ import { createKnowledgeRepository } from "../knowledge/repository.js";
 import type { createPlanRepository } from "../planning/repository.js";
 import type { createGroceryRepository } from "../grocery/repository.js";
 import type { createReminderRepository } from "../reminders/repository.js";
+import type { Clock } from "../clock.js";
 import { autoMarkCookedMeals, getCookingHistory } from "../planning/history.js";
 import { buildPlanContext } from "../planning/context.js";
 import { buildGroceryContext } from "../grocery/context.js";
@@ -72,6 +73,7 @@ interface ProcessorDeps {
   reminderRepository?: ReturnType<typeof createReminderRepository>;
   generateRemindersFn?: (chatId: string) => void;
   feedbackRepository?: ReturnType<typeof import("../feedback/repository.js").createFeedbackRepository>;
+  clock: Clock;
 }
 
 /**
@@ -148,14 +150,15 @@ export function createProcessor(deps: ProcessorDeps) {
         groceryRepository: deps.groceryRepository,
         reminderRepository: deps.reminderRepository,
         generateRemindersFn: deps.generateRemindersFn,
+        clock: deps.clock,
       });
 
       // g2. Auto-mark past planned meals as cooked before Claude processes
-      autoMarkCookedMeals(deps.sqlite, chatId);
+      autoMarkCookedMeals(deps.sqlite, chatId, deps.clock);
 
       // g3. Load active plan context for system prompt injection
       const activePlans = planRepository.getActivePlans(chatId);
-      const cookingHistoryEntries = getCookingHistory(deps.sqlite, chatId);
+      const cookingHistoryEntries = getCookingHistory(deps.sqlite, chatId, deps.clock);
       const planContext = buildPlanContext(activePlans, cookingHistoryEntries);
 
       // g4. Load active grocery list context for system prompt injection
@@ -165,11 +168,11 @@ export function createProcessor(deps: ProcessorDeps) {
 
       // g5. Load reminder settings context for system prompt injection
       const reminderContext = deps.reminderRepository
-        ? buildReminderContext(deps.sqlite, chatId)
+        ? buildReminderContext(deps.sqlite, chatId, deps.clock)
         : "";
 
       // g6. Load feedback context for system prompt injection
-      const feedbackContext = buildFeedbackContext(deps.sqlite, chatId);
+      const feedbackContext = buildFeedbackContext(deps.sqlite, chatId, deps.clock);
 
       // h. Load user preferences for system prompt injection
       const preferences = getPreferenceSummaries(deps.sqlite, chatId);

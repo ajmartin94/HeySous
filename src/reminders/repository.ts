@@ -1,4 +1,5 @@
 import type BetterSqlite3 from "better-sqlite3";
+import type { Clock } from "../clock.js";
 import type {
   Reminder,
   ReminderSettings,
@@ -69,7 +70,9 @@ function mapReminder(row: ReminderRow): Reminder {
  * Uses raw SQLite queries via sqlite.prepare() -- same pattern as
  * grocery/repository.ts and planning/history.ts.
  */
-export function createReminderRepository(sqlite: BetterSqlite3.Database) {
+export function createReminderRepository(sqlite: BetterSqlite3.Database, clock?: Clock) {
+  /** Current unix timestamp in seconds, using clock if available. */
+  const nowUnix = () => clock ? Math.floor(clock.now() / 1000) : Math.floor(Date.now() / 1000);
   return {
     // ── Settings methods ──────────────────────────────────────────────
 
@@ -193,9 +196,9 @@ export function createReminderRepository(sqlite: BetterSqlite3.Database) {
         .prepare(
           `SELECT * FROM reminder_settings
            WHERE (morning_enabled = 1 OR prep_alerts_enabled = 1)
-             AND (muted_until IS NULL OR muted_until < unixepoch())`,
+             AND (muted_until IS NULL OR muted_until < ?)`,
         )
-        .all() as ReminderSettingsRow[];
+        .all(nowUnix()) as ReminderSettingsRow[];
 
       return rows.map(mapSettings);
     },
@@ -238,10 +241,10 @@ export function createReminderRepository(sqlite: BetterSqlite3.Database) {
       const rows = sqlite
         .prepare(
           `SELECT * FROM reminders
-           WHERE status = 'pending' AND due_at <= unixepoch()
+           WHERE status = 'pending' AND due_at <= ?
            ORDER BY due_at ASC`,
         )
-        .all() as ReminderRow[];
+        .all(nowUnix()) as ReminderRow[];
 
       return rows.map(mapReminder);
     },
@@ -253,10 +256,10 @@ export function createReminderRepository(sqlite: BetterSqlite3.Database) {
       sqlite
         .prepare(
           `UPDATE reminders
-           SET status = 'sent', sent_at = unixepoch(), generated_text = ?
+           SET status = 'sent', sent_at = ?, generated_text = ?
            WHERE id = ?`,
         )
-        .run(generatedText, id);
+        .run(nowUnix(), generatedText, id);
     },
 
     /**
@@ -276,9 +279,9 @@ export function createReminderRepository(sqlite: BetterSqlite3.Database) {
       sqlite
         .prepare(
           `DELETE FROM reminders
-           WHERE chat_id = ? AND status = 'pending' AND due_at > unixepoch()`,
+           WHERE chat_id = ? AND status = 'pending' AND due_at > ?`,
         )
-        .run(chatId);
+        .run(chatId, nowUnix());
     },
 
     /**

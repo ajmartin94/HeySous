@@ -1,4 +1,5 @@
 import type BetterSqlite3 from "better-sqlite3";
+import type { Clock } from "../clock.js";
 
 /** Raw row shape from the reminder settings query. */
 interface SettingsContextRow {
@@ -21,11 +22,13 @@ interface SettingsContextRow {
  *
  * @param sqlite - The SQLite database instance
  * @param chatId - The chat ID to look up settings for
+ * @param clock - Clock instance for time comparisons
  * @returns Formatted context string, or empty string if no settings
  */
 export function buildReminderContext(
   sqlite: BetterSqlite3.Database,
   chatId: string,
+  clock: Clock,
 ): string {
   const row = sqlite
     .prepare(
@@ -43,7 +46,7 @@ export function buildReminderContext(
   let mutedInfo = "";
   if (row.muted_until != null) {
     const mutedDate = new Date(row.muted_until * 1000);
-    if (mutedDate.getTime() > Date.now()) {
+    if (mutedDate.getTime() > clock.now()) {
       mutedInfo = `, muted until ${mutedDate.toISOString().split("T")[0]}`;
     }
   }

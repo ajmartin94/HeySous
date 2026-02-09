@@ -39,9 +39,16 @@ import { createFeedbackCallbackHandler } from "./feedback/handler.js";
 import { createFeedbackTextHandler } from "./bot/handlers/feedback.js";
 import { createFeedbackSender } from "./feedback/sender.js";
 import { generateFeedbackCheckins } from "./feedback/generator.js";
+import { createClock, createTestClock } from "./clock.js";
 import { logger } from "./logger.js";
 
 async function main(): Promise<void> {
+  // Initialize clock -- test clock in dev mode for /debug time control
+  const clock = config.isDev ? createTestClock() : createClock();
+  if (config.isDev) {
+    logger.info("Using test clock (controllable via /debug time)");
+  }
+
   // Initialize database
   const db = createDatabase(config.dbFileName);
   logger.info({ dbFile: config.dbFileName }, "Database initialized");
@@ -77,7 +84,7 @@ async function main(): Promise<void> {
   logger.info("Grocery repository initialized");
 
   // Initialize reminder repository for reminder CRUD
-  const reminderRepository = createReminderRepository(sqlite);
+  const reminderRepository = createReminderRepository(sqlite, clock);
   logger.info("Reminder repository initialized");
 
   // Initialize feedback repository for feedback check-in CRUD
@@ -93,6 +100,7 @@ async function main(): Promise<void> {
       sqlite,
       chatId,
       settings,
+      clock,
     });
     generateFeedbackCheckins({
       feedbackRepository,
@@ -101,6 +109,7 @@ async function main(): Promise<void> {
       sqlite,
       chatId,
       settings,
+      clock,
     });
   };
 
@@ -117,18 +126,32 @@ async function main(): Promise<void> {
     reminderRepository,
     generateRemindersFn: regenerateReminders,
     feedbackRepository,
+    clock,
   });
+
+  // Late-bound pollerTick -- set after poller is created below
+  let pollerTick: (() => Promise<void>) | undefined;
 
   // Create handlers
   const costsHandler = createCostsHandler(db);
-  const debugHandler = createDebugHandler(retrievalService);
+  const debugHandler = createDebugHandler({
+    retrievalService,
+    reminderRepository,
+    sqlite,
+    clock,
+    isDev: config.isDev,
+    pollerTick: async () => {
+      if (pollerTick) await pollerTick();
+    },
+    regenerateReminders,
+  });
   const preferencesHandler = createPreferencesHandler(sqlite);
   const planHandler = createPlanHandler(sqlite);
   const groceryHandler = createGroceryHandler(sqlite);
   const groceryCallbackHandler = createGroceryCallbackHandler(sqlite);
-  const remindersHandler = createRemindersHandler(sqlite);
-  const feedbackCallbackHandler = createFeedbackCallbackHandler({ sqlite, feedbackRepository, knowledgeRepository, db });
-  const feedbackTextHandler = createFeedbackTextHandler({ sqlite, feedbackRepository, knowledgeRepository, db, claudeClient });
+  const remindersHandler = createRemindersHandler(sqlite, clock);
+  const feedbackCallbackHandler = createFeedbackCallbackHandler({ sqlite, feedbackRepository, knowledgeRepository, db, clock });
+  const feedbackTextHandler = createFeedbackTextHandler({ sqlite, feedbackRepository, knowledgeRepository, db, claudeClient, clock });
   const messageHandler = createMessageHandler(queue, processBatch);
 
   // Create bot instance with all dependencies
@@ -146,27 +169,13 @@ async function main(): Promise<void> {
     db,
   });
 
-  if (config.botMode === "webhook") {
-    // Webhook mode (production)
-    const app = createServer(bot, config.port);
-    app.listen(config.port, () => {
-      logger.info({ port: config.port }, "Webhook server listening");
-    });
-    await bot.api.setWebhook(`${config.webhookUrl}/webhook/${bot.token}`);
-    logger.info({ url: config.webhookUrl }, "Webhook set");
-  } else {
-    // Polling mode (development)
-    await bot.api.deleteWebhook();
-    await bot.start({
-      onStart: () => logger.info("Bot started in polling mode"),
-    });
-  }
-
-  // Initialize reminder system: sender, poller, and startup regeneration
-  // Cast bot to sender's minimal BotApi interface (sender is intentionally decoupled from grammY types)
+  // Initialize reminder system BEFORE bot.start() (which blocks in polling mode)
   const reminderSender = createReminderSender({ bot: bot as Parameters<typeof createReminderSender>[0]["bot"], claudeClient, retrievalService, logger });
   const feedbackSender = createFeedbackSender({ bot: bot as Parameters<typeof createFeedbackSender>[0]["bot"], logger });
   const reminderPoller = createReminderPoller({ reminderRepository, sender: reminderSender, logger, feedbackSender, feedbackRepository });
+
+  // Wire up the late-bound pollerTick for /debug tick
+  pollerTick = () => reminderPoller.tick();
 
   // Expire old feedback check-ins on startup
   feedbackRepository.expireOldCheckins();
@@ -180,7 +189,7 @@ async function main(): Promise<void> {
     logger.info({ chatCount: activeSettings.length }, "Reminders regenerated for active chats on startup");
   }
 
-  // Start poller after bot is ready
+  // Start poller before bot.start() (which blocks in polling mode)
   reminderPoller.start();
 
   // Graceful shutdown -- poller stops FIRST, then queue, then bot
@@ -196,6 +205,22 @@ async function main(): Promise<void> {
 
   process.on("SIGINT", shutdown);
   process.on("SIGTERM", shutdown);
+
+  if (config.botMode === "webhook") {
+    // Webhook mode (production)
+    const app = createServer(bot, config.port);
+    app.listen(config.port, () => {
+      logger.info({ port: config.port }, "Webhook server listening");
+    });
+    await bot.api.setWebhook(`${config.webhookUrl}/webhook/${bot.token}`);
+    logger.info({ url: config.webhookUrl }, "Webhook set");
+  } else {
+    // Polling mode (development) -- bot.start() blocks until bot.stop()
+    await bot.api.deleteWebhook();
+    await bot.start({
+      onStart: () => logger.info("Bot started in polling mode"),
+    });
+  }
 }
 
 main().catch((err) => {

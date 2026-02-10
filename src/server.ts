@@ -35,7 +35,7 @@ export function createServer(
 
   // 6. SPA fallback -- any /app/* request that didn't match a static file
   //    gets index.html so React Router can handle client-side routes
-  app.get("/app/*", (_req, res) => {
+  app.get("/app/*splat", (_req, res) => {
     res.sendFile(resolve(miniAppDist, "index.html"));
   });
 

@@ -248,5 +248,20 @@ export function createGroceryRepository(sqlite: BetterSqlite3.Database) {
 
       return row ? row.list_id : null;
     },
+
+    /**
+     * Mark the active grocery list for a chat as completed.
+     * Returns true if a list was found and completed, false otherwise.
+     */
+    completeList(chatId: string): boolean {
+      const result = sqlite
+        .prepare(
+          `UPDATE grocery_lists SET status = 'completed', updated_at = unixepoch()
+           WHERE chat_id = ? AND status = 'active'`,
+        )
+        .run(chatId);
+
+      return result.changes > 0;
+    },
   };
 }

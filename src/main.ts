@@ -39,6 +39,8 @@ import { createFeedbackCallbackHandler } from "./feedback/handler.js";
 import { createFeedbackTextHandler } from "./bot/handlers/feedback.js";
 import { createFeedbackSender } from "./feedback/sender.js";
 import { generateFeedbackCheckins } from "./feedback/generator.js";
+import { createApiRouter } from "./mini-app/router.js";
+import { setupMenuButton } from "./telegram/menu-button.js";
 import { createClock, createTestClock } from "./clock.js";
 import { logger } from "./logger.js";
 
@@ -169,6 +171,9 @@ async function main(): Promise<void> {
     db,
   });
 
+  // Configure BotFather menu button to open Mini App hub (idempotent, no-op without MINI_APP_URL)
+  await setupMenuButton(bot, config.miniAppUrl);
+
   // Initialize reminder system BEFORE bot.start() (which blocks in polling mode)
   const reminderSender = createReminderSender({ bot: bot as Parameters<typeof createReminderSender>[0]["bot"], claudeClient, retrievalService, logger });
   const feedbackSender = createFeedbackSender({ bot: bot as Parameters<typeof createFeedbackSender>[0]["bot"], logger });
@@ -206,16 +211,24 @@ async function main(): Promise<void> {
   process.on("SIGINT", shutdown);
   process.on("SIGTERM", shutdown);
 
+  // Create API router for Mini App endpoints (used in both modes)
+  const apiRouter = createApiRouter({ sqlite });
+
   if (config.botMode === "webhook") {
     // Webhook mode (production)
-    const app = createServer(bot, config.port);
+    const app = createServer(bot, config.port, { apiRouter, webhookMode: true });
     app.listen(config.port, () => {
       logger.info({ port: config.port }, "Webhook server listening");
     });
     await bot.api.setWebhook(`${config.webhookUrl}/webhook/${bot.token}`);
     logger.info({ url: config.webhookUrl }, "Webhook set");
   } else {
-    // Polling mode (development) -- bot.start() blocks until bot.stop()
+    // Polling mode (development) -- start Express for API/Mini App access
+    const app = createServer(bot, config.port, { apiRouter });
+    app.listen(config.port, () => {
+      logger.info({ port: config.port }, "Express server listening (polling mode)");
+    });
+
     await bot.api.deleteWebhook();
     await bot.start({
       onStart: () => logger.info("Bot started in polling mode"),
@@ -224,6 +237,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((err) => {
-  logger.error({ error: err }, "Failed to start bot");
+  logger.error({ error: err, message: err?.message }, "Failed to start bot");
   process.exit(1);
 });

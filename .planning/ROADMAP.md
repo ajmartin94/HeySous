@@ -19,7 +19,7 @@ See .planning/milestones/v1.0-archive.md for full phase history.
 
 **Milestone Goal:** Add Telegram Mini App visual UIs for grocery lists, recipe browsing, and meal plans while keeping the bot as the primary conversational interface.
 
-- [ ] **Phase 11: Mini App Foundation** - Auth, React scaffold, Express integration, iOS platform fixes
+- [x] **Phase 11: Mini App Foundation** - Auth, React scaffold, Express integration, iOS platform fixes (completed 2026-02-10)
 - [ ] **Phase 12: Grocery List** - Checkable shopping list with store tabs, sections, progress tracking
 - [ ] **Phase 13: Recipe Browser** - Searchable recipe cards with full detail view
 - [ ] **Phase 14: Meal Plan Viewer** - Weekly grid with recipe drill-down
@@ -39,9 +39,9 @@ See .planning/milestones/v1.0-archive.md for full phase history.
 **Plans:** 3 plans
 
 Plans:
-- [ ] 11-01-PLAN.md -- Backend infrastructure: auth middleware, API router, Express static serving
-- [ ] 11-02-PLAN.md -- Frontend SPA: Vite scaffold, SDK init, theme, hub page, routing
-- [ ] 11-03-PLAN.md -- Bot integration: inline keyboard buttons, menu button, build pipeline
+- [x] 11-01-PLAN.md -- Backend infrastructure: auth middleware, API router, Express static serving
+- [x] 11-02-PLAN.md -- Frontend SPA: Vite scaffold, SDK init, theme, hub page, routing
+- [x] 11-03-PLAN.md -- Bot integration: inline keyboard buttons, menu button, build pipeline
 
 ### Phase 12: Grocery List
 **Goal**: User can shop from a visual grocery list that stays in sync with the bot
@@ -96,7 +96,7 @@ Plans:
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 11. Mini App Foundation | v1.1 | 0/3 | Planned | - |
+| 11. Mini App Foundation | v1.1 | 3/3 | Complete | 2026-02-10 |
 | 12. Grocery List | v1.1 | 0/TBD | Not started | - |
 | 13. Recipe Browser | v1.1 | 0/TBD | Not started | - |
 | 14. Meal Plan Viewer | v1.1 | 0/TBD | Not started | - |

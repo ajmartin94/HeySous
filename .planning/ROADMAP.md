@@ -69,11 +69,11 @@ Plans:
   2. User types in the search bar and results filter in real-time via FTS5 full-text search
   3. User taps a recipe card and sees full recipe detail (ingredients, instructions, notes), then taps BackButton to return to the list with scroll position preserved
   4. User taps a tag pill to filter the list to only recipes with that tag
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] 13-01: TBD
-- [ ] 13-02: TBD
+- [ ] 13-01-PLAN.md -- Recipe API endpoints, content parser utility, useRecipes data hook
+- [ ] 13-02-PLAN.md -- Recipe browser UI: card list, search/filter/sort, detail view, BackButton integration
 
 ### Phase 14: Meal Plan Viewer
 **Goal**: User can see the week's meal plan at a glance and drill into any recipe
@@ -98,5 +98,5 @@ Plans:
 |-------|-----------|----------------|--------|-----------|
 | 11. Mini App Foundation | v1.1 | 3/3 | Complete | 2026-02-10 |
 | 12. Grocery List | v1.1 | 3/3 | Complete | 2026-02-10 |
-| 13. Recipe Browser | v1.1 | 0/TBD | Not started | - |
+| 13. Recipe Browser | v1.1 | 0/2 | Not started | - |
 | 14. Meal Plan Viewer | v1.1 | 0/TBD | Not started | - |

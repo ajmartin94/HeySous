@@ -84,11 +84,11 @@ Plans:
   2. User toggles between current week and next week to see both plans
   3. User taps a meal name to see the full recipe detail (reusing RecipeDetail from Phase 13)
   4. Meal types are visually distinguished by color or icon (breakfast/lunch/dinner)
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] 14-01: TBD
-- [ ] 14-02: TBD
+- [ ] 14-01-PLAN.md -- Meal plan API endpoint, useMealPlan data hook, client date utilities
+- [ ] 14-02-PLAN.md -- Weekly grid UI: day rows, meal entries, swipe navigation, RecipeDetail drill-down
 
 ## Progress
 
@@ -99,4 +99,4 @@ Plans:
 | 11. Mini App Foundation | v1.1 | 3/3 | Complete | 2026-02-10 |
 | 12. Grocery List | v1.1 | 3/3 | Complete | 2026-02-10 |
 | 13. Recipe Browser | v1.1 | 2/2 | Complete | 2026-02-10 |
-| 14. Meal Plan Viewer | v1.1 | 0/TBD | Not started | - |
+| 14. Meal Plan Viewer | v1.1 | 0/2 | Not started | - |

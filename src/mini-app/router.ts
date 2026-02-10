@@ -2,6 +2,7 @@ import { Router } from "express";
 import type BetterSqlite3 from "better-sqlite3";
 import { validateInitData } from "./auth-middleware.js";
 import { createSummaryRoute } from "./routes/summary.js";
+import { createGroceryRoutes } from "./routes/grocery.js";
 
 /**
  * Dependencies for the API router.
@@ -27,6 +28,13 @@ export function createApiRouter(deps: ApiRouterDeps): Router {
 
   // Hub dashboard summary
   router.get("/summary", createSummaryRoute(deps.sqlite));
+
+  // Grocery list endpoints
+  const grocery = createGroceryRoutes(deps.sqlite);
+  router.get("/grocery", grocery.getList);
+  router.post("/grocery/toggle", grocery.toggleItem);
+  router.post("/grocery/add", grocery.addItem);
+  router.post("/grocery/complete", grocery.completeList);
 
   return router;
 }

@@ -6,6 +6,7 @@ import { logger } from "./logger.js";
 
 interface ServerDeps {
   apiRouter: Router;
+  webhookMode?: boolean;
 }
 
 export function createServer(
@@ -31,7 +32,11 @@ export function createServer(
   app.use("/api", deps.apiRouter);
 
   // 5. Webhook handler -- bot.token in URL acts as a secret
-  app.use(`/webhook/${bot.token}`, webhookCallback(bot, "express"));
+  //    Only register in webhook mode; in polling mode, registering webhookCallback
+  //    marks the bot as "webhook" which prevents bot.start() (polling) from working.
+  if (deps.webhookMode) {
+    app.use(`/webhook/${bot.token}`, webhookCallback(bot, "express"));
+  }
 
   // 6. SPA fallback -- any /app/* request that didn't match a static file
   //    gets index.html so React Router can handle client-side routes

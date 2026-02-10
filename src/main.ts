@@ -216,7 +216,7 @@ async function main(): Promise<void> {
 
   if (config.botMode === "webhook") {
     // Webhook mode (production)
-    const app = createServer(bot, config.port, { apiRouter });
+    const app = createServer(bot, config.port, { apiRouter, webhookMode: true });
     app.listen(config.port, () => {
       logger.info({ port: config.port }, "Webhook server listening");
     });
@@ -237,6 +237,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((err) => {
-  logger.error({ error: err }, "Failed to start bot");
+  logger.error({ error: err, message: err?.message }, "Failed to start bot");
   process.exit(1);
 });

@@ -3,7 +3,7 @@
 ## Milestones
 
 - [x] **v1.0 MVP** - Phases 1-10 (shipped 2026-02-09)
-- [ ] **v1.1 Mini Apps** - Phases 11-14 (in progress)
+- [x] **v1.1 Mini Apps** - Phases 11-14 (shipped 2026-02-10)
 
 ## Phases
 
@@ -15,14 +15,14 @@ See .planning/milestones/v1.0-archive.md for full phase history.
 
 </details>
 
-### v1.1 Mini Apps (In Progress)
+### v1.1 Mini Apps (Shipped 2026-02-10)
 
 **Milestone Goal:** Add Telegram Mini App visual UIs for grocery lists, recipe browsing, and meal plans while keeping the bot as the primary conversational interface.
 
 - [x] **Phase 11: Mini App Foundation** - Auth, React scaffold, Express integration, iOS platform fixes (completed 2026-02-10)
 - [x] **Phase 12: Grocery List** - Checkable shopping list with store tabs, sections, progress tracking (completed 2026-02-10)
 - [x] **Phase 13: Recipe Browser** - Searchable recipe cards with full detail view (completed 2026-02-10)
-- [ ] **Phase 14: Meal Plan Viewer** - Weekly grid with recipe drill-down
+- [x] **Phase 14: Meal Plan Viewer** - Weekly grid with recipe drill-down (completed 2026-02-10)
 
 ## Phase Details
 
@@ -87,8 +87,8 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 14-01-PLAN.md -- Meal plan API endpoint, useMealPlan data hook, client date utilities
-- [ ] 14-02-PLAN.md -- Weekly grid UI: day rows, meal entries, swipe navigation, RecipeDetail drill-down
+- [x] 14-01-PLAN.md -- Meal plan API endpoint, useMealPlan data hook, client date utilities
+- [x] 14-02-PLAN.md -- Weekly grid UI: day rows, meal entries, swipe navigation, RecipeDetail drill-down
 
 ## Progress
 
@@ -99,4 +99,4 @@ Plans:
 | 11. Mini App Foundation | v1.1 | 3/3 | Complete | 2026-02-10 |
 | 12. Grocery List | v1.1 | 3/3 | Complete | 2026-02-10 |
 | 13. Recipe Browser | v1.1 | 2/2 | Complete | 2026-02-10 |
-| 14. Meal Plan Viewer | v1.1 | 0/2 | Not started | - |
+| 14. Meal Plan Viewer | v1.1 | 2/2 | Complete | 2026-02-10 |

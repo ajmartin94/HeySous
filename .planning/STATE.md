@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-09)
 
 **Core value:** The recipe brain -- an AI agent that remembers everything about your meals and reasons over that knowledge to help you plan.
-**Current focus:** Phase 13 complete — next: Phase 14 Meal Plan Viewer (v1.1 Mini Apps milestone)
+**Current focus:** Phase 14 Meal Plan Viewer -- data layer complete, UI next (v1.1 Mini Apps milestone)
 
 ## Current Position
 
-Phase: 13 of 14 (Recipe Browser)
-Plan: 2 of 2 in current phase (13-02 complete -- phase done)
-Status: Phase 13 Complete
-Last activity: 2026-02-10 -- Phase 13 verified (8/8 must-haves passed)
+Phase: 14 of 14 (Meal Plan Viewer)
+Plan: 1 of 2 in current phase (14-01 complete)
+Status: Executing Phase 14
+Last activity: 2026-02-10 -- 14-01 Meal Plan API & Data Layer complete
 
-Progress: [########░░] 22%
+Progress: [#########░] 24%
 
 ## Performance Metrics
 
@@ -24,9 +24,9 @@ Progress: [########░░] 22%
 - Total execution time: 83 min
 
 **v1.1 Velocity:**
-- Total plans completed: 8
+- Total plans completed: 9
 - Average duration: 6 min
-- Total execution time: 51 min
+- Total execution time: 53 min
 
 | Phase | Plan | Duration | Tasks | Files |
 |-------|------|----------|-------|-------|
@@ -38,6 +38,7 @@ Progress: [########░░] 22%
 | 12-03 | Quick-add, MainButton, Polling | 4 min | 2 | 5 |
 | 13-01 | Recipe API, Parser & Hook | 2 min | 2 | 4 |
 | 13-02 | Recipe Browser UI | 4 min | 2 | 10 |
+| 14-01 | Meal Plan API & Data Layer | 2 min | 2 | 4 |
 
 ## Accumulated Context
 
@@ -74,6 +75,10 @@ v1.1 decisions:
 - RecipeCard filters out redundant 'recipe' tag, shows max 3 with overflow indicator
 - Scroll preservation via useRef + requestAnimationFrame on detail close
 - Sort picker dropdown uses click-outside listener for close behavior
+- Server-side weekStartDate calculation avoids client timezone issues for meal plan API
+- Parallel fetch of both weeks on mount for instant tab switching (useMealPlan)
+- LEFT JOIN knowledge_items detects orphaned recipes via hasRecipe boolean
+- Duplicated date logic client-side per existing no-shared-imports convention
 
 ### Pending Todos
 
@@ -86,6 +91,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-10
-Stopped at: Completed 13-02-PLAN.md (Recipe Browser UI)
+Stopped at: Completed 14-01-PLAN.md (Meal Plan API & Data Layer)
 Resume file: None
-Next action: Phase 13 complete. Plan Phase 14 or verify Phase 13 manually.
+Next action: Execute 14-02-PLAN.md (Meal Plan UI).

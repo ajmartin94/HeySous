@@ -53,12 +53,12 @@ Plans:
   3. User can uncheck a done item (swipe or tap) to restore it to the active list
   4. User taps "Done Shopping" (MainButton) to complete the trip, or BackButton to return to chat
   5. User adds a forgotten item via quick-add form without leaving the Mini App, and items added by the bot appear in the Mini App within seconds
-**Plans**: TBD
+**Plans:** 3 plans
 
 Plans:
-- [ ] 12-01: TBD
-- [ ] 12-02: TBD
-- [ ] 12-03: TBD
+- [ ] 12-01-PLAN.md -- Backend API routes, completeList repository method, section mapping utilities
+- [ ] 12-02-PLAN.md -- Core grocery UI: store tabs, section groups, item check-off, done section, progress
+- [ ] 12-03-PLAN.md -- Quick-add FAB, MainButton "Done Shopping", polling sync, closing behavior
 
 ### Phase 13: Recipe Browser
 **Goal**: User can browse, search, and read their full recipe collection visually
@@ -97,6 +97,6 @@ Plans:
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 11. Mini App Foundation | v1.1 | 3/3 | Complete | 2026-02-10 |
-| 12. Grocery List | v1.1 | 0/TBD | Not started | - |
+| 12. Grocery List | v1.1 | 0/3 | Planned | - |
 | 13. Recipe Browser | v1.1 | 0/TBD | Not started | - |
 | 14. Meal Plan Viewer | v1.1 | 0/TBD | Not started | - |

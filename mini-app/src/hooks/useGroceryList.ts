@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { apiFetch } from '../api.js';
 
 export interface GroceryItem {
@@ -19,14 +19,16 @@ interface GroceryListResponse {
 }
 
 /**
- * Data fetching, optimistic toggle, and state management for grocery items.
+ * Data fetching, optimistic toggle, add item, complete list,
+ * and optional polling sync for grocery items.
  */
-export function useGroceryList() {
+export function useGroceryList(pollInterval: number = 0) {
   const [items, setItems] = useState<GroceryItem[]>([]);
   const [stores, setStores] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hasActiveList, setHasActiveList] = useState(false);
+  const isMountedRef = useRef(true);
 
   const fetchList = useCallback(async () => {
     try {
@@ -35,20 +37,60 @@ export function useGroceryList() {
         throw new Error(`API error: ${res.status}`);
       }
       const data: GroceryListResponse = await res.json();
-      setItems(data.items);
-      setStores(data.stores);
-      setHasActiveList(!!data.listId);
-      setError(null);
+      if (isMountedRef.current) {
+        setItems(data.items);
+        setStores(data.stores);
+        setHasActiveList(!!data.listId);
+        setError(null);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load grocery list');
+      if (isMountedRef.current) {
+        setError(err instanceof Error ? err.message : 'Failed to load grocery list');
+      }
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   }, []);
 
+  // Track mounted state
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  // Initial fetch
   useEffect(() => {
     fetchList();
   }, [fetchList]);
+
+  // Polling: refetch at given interval when pollInterval > 0
+  useEffect(() => {
+    if (pollInterval <= 0) return;
+
+    const id = setInterval(() => {
+      fetchList();
+    }, pollInterval);
+
+    return () => clearInterval(id);
+  }, [pollInterval, fetchList]);
+
+  // Visibility change: refetch when user switches back to Mini App
+  useEffect(() => {
+    if (pollInterval <= 0) return;
+
+    function handleVisibility() {
+      if (document.visibilityState === 'visible') {
+        fetchList();
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [pollInterval, fetchList]);
 
   const toggleItem = useCallback((itemId: number) => {
     // Optimistically flip the checked boolean
@@ -70,9 +112,44 @@ export function useGroceryList() {
         ),
       );
       setError('Failed to toggle item');
-      // Clear error after a brief period
       setTimeout(() => setError(null), 3000);
     });
+  }, []);
+
+  const addItem = useCallback(
+    async (name: string, quantity: string | undefined, store: string): Promise<void> => {
+      const res = await apiFetch('/grocery/add', {
+        method: 'POST',
+        body: JSON.stringify({ name, quantity, store, section: undefined }),
+      });
+      if (!res.ok) {
+        const msg = `Failed to add item: ${res.status}`;
+        setError(msg);
+        setTimeout(() => setError(null), 3000);
+        throw new Error(msg);
+      }
+      const data: { items: GroceryItem[] } = await res.json();
+      if (isMountedRef.current) {
+        setItems(data.items);
+      }
+    },
+    [],
+  );
+
+  const completeList = useCallback(async (): Promise<boolean> => {
+    try {
+      const res = await apiFetch('/grocery/complete', {
+        method: 'POST',
+      });
+      if (!res.ok) {
+        throw new Error(`API error: ${res.status}`);
+      }
+      return true;
+    } catch {
+      setError('Failed to complete list');
+      setTimeout(() => setError(null), 3000);
+      return false;
+    }
   }, []);
 
   const refetch = useCallback(() => {
@@ -88,5 +165,7 @@ export function useGroceryList() {
     toggleItem,
     refetch,
     hasActiveList,
+    addItem,
+    completeList,
   };
 }

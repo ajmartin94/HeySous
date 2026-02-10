@@ -6,10 +6,10 @@
  * No Claude API call -- instant and free.
  */
 
-import { Composer } from "grammy";
+import { Composer, InlineKeyboard } from "grammy";
 import type BetterSqlite3 from "better-sqlite3";
 import type { BotContext } from "../context.js";
-import { sendFormattedMessage } from "../../telegram/sender.js";
+import { config } from "../../config.js";
 import {
   getWeekStartDate,
   DAY_NAMES,
@@ -119,7 +119,19 @@ export function createPlanHandler(
 
     const weekStartDate = getWeekStartDate();
     const message = formatPlanMessage(entries, weekStartDate);
-    await sendFormattedMessage(ctx, message);
+
+    // Build reply options with optional "View Plan" web_app button
+    const replyOptions: { parse_mode: "HTML"; reply_markup?: InlineKeyboard } = {
+      parse_mode: "HTML",
+    };
+    if (config.miniAppUrl) {
+      replyOptions.reply_markup = new InlineKeyboard().webApp(
+        "View Plan",
+        config.miniAppUrl + "/plan",
+      );
+    }
+
+    await ctx.reply(message, replyOptions);
   });
 
   return planHandler;

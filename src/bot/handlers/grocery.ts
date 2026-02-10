@@ -11,6 +11,7 @@
 import { Composer, GrammyError } from "grammy";
 import type BetterSqlite3 from "better-sqlite3";
 import type { BotContext } from "../context.js";
+import { config } from "../../config.js";
 import { createGroceryRepository } from "../../grocery/repository.js";
 import { formatGroceryList } from "../../grocery/formatter.js";
 import {
@@ -44,6 +45,11 @@ export function createGroceryHandler(
     const items = groceryRepository.getListItems(activeList.id);
     const formattedList = formatGroceryList(items);
     const keyboard = buildGroceryKeyboard(items);
+
+    // Add "View List" web_app button to open the Mini App grocery view
+    if (config.miniAppUrl) {
+      keyboard.row().webApp("View List", config.miniAppUrl + "/grocery");
+    }
 
     const sentMessage = await ctx.reply(formattedList, {
       reply_markup: keyboard,
@@ -93,6 +99,11 @@ export function createGroceryCallbackHandler(
       const items = groceryRepository.getListItems(listId);
       const formattedMessage = formatGroceryList(items);
       const keyboard = buildGroceryKeyboard(items);
+
+      // Preserve "View List" web_app button on keyboard rebuild
+      if (config.miniAppUrl) {
+        keyboard.row().webApp("View List", config.miniAppUrl + "/grocery");
+      }
 
       try {
         await ctx.editMessageText(formattedMessage, {

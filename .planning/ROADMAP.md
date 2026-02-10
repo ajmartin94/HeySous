@@ -36,11 +36,12 @@ See .planning/milestones/v1.0-archive.md for full phase history.
   3. Mini App renders at full viewport on iOS without closing when user swipes down at top of page
   4. Mini App colors match Telegram's current theme (light or dark) without manual configuration
   5. BotFather menu button opens the Mini App directly from the chat header
-**Plans**: TBD
+**Plans:** 3 plans
 
 Plans:
-- [ ] 11-01: TBD
-- [ ] 11-02: TBD
+- [ ] 11-01-PLAN.md -- Backend infrastructure: auth middleware, API router, Express static serving
+- [ ] 11-02-PLAN.md -- Frontend SPA: Vite scaffold, SDK init, theme, hub page, routing
+- [ ] 11-03-PLAN.md -- Bot integration: inline keyboard buttons, menu button, build pipeline
 
 ### Phase 12: Grocery List
 **Goal**: User can shop from a visual grocery list that stays in sync with the bot
@@ -95,7 +96,7 @@ Plans:
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 11. Mini App Foundation | v1.1 | 0/TBD | Not started | - |
+| 11. Mini App Foundation | v1.1 | 0/3 | Planned | - |
 | 12. Grocery List | v1.1 | 0/TBD | Not started | - |
 | 13. Recipe Browser | v1.1 | 0/TBD | Not started | - |
 | 14. Meal Plan Viewer | v1.1 | 0/TBD | Not started | - |

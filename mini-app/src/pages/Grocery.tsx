@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { backButton } from '@tma.js/sdk-react';
 import { closingBehavior, miniApp, mainButton } from '@tma.js/sdk-react';
 import { StoreTabs } from '../components/grocery/StoreTabs.js';
 import { SectionGroup } from '../components/grocery/SectionGroup.js';
@@ -15,8 +17,16 @@ import '../components/grocery/grocery.css';
 export function Grocery() {
   const { items, stores, loading, hasActiveList, toggleItem, addItem, completeList, refetch } =
     useGroceryList(hasActiveListFlag() ? 8000 : 0);
+  const navigate = useNavigate();
   const haptic = useHaptic();
   const [activeStore, setActiveStore] = useState('');
+
+  // BackButton: navigate back to hub
+  useEffect(() => {
+    if (!backButton.onClick.isAvailable()) return;
+    const off = backButton.onClick(() => navigate(-1));
+    return () => { off(); };
+  }, [navigate]);
 
   // We need a local piece of state to track hasActiveList for the poll interval.
   // Since hooks cannot be called conditionally, we manage pollInterval via a

@@ -1,12 +1,14 @@
 import { useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { backButton } from '@tma.js/sdk-react';
 
+/**
+ * Manages BackButton visibility only (show/hide based on route).
+ * Pages register their own onClick handlers for custom back behavior.
+ * Pages without custom handlers should register navigate(-1) themselves.
+ */
 export function useBackButton() {
-  const navigate = useNavigate();
   const location = useLocation();
-  // With basename='/app', React Router strips the prefix.
-  // Hub is at pathname '/' within the router context.
   const isHome = location.pathname === '/' || location.pathname === '';
 
   useEffect(() => {
@@ -17,13 +19,5 @@ export function useBackButton() {
     } else {
       backButton.show();
     }
-
-    const off = backButton.onClick(() => {
-      navigate(-1);
-    });
-
-    return () => {
-      off();
-    };
-  }, [isHome, navigate]);
+  }, [isHome]);
 }

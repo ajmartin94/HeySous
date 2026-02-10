@@ -100,20 +100,29 @@ export function createRecipeRoutes(sqlite: BetterSqlite3.Database) {
           }
 
           // Path C or D: FTS5 search (with optional tag filter)
+          // Use CTE to separate FTS5 matching (with bm25) from tag aggregation (GROUP BY),
+          // because bm25() cannot be used in queries that also GROUP BY.
           let sql = `
+            WITH matched AS (
+              SELECT knowledge_fts.rowid AS id,
+                     bm25(knowledge_fts, 10.0, 5.0, 1.0) AS relevance
+              FROM knowledge_fts
+              JOIN knowledge_items ki ON ki.id = knowledge_fts.rowid
+              WHERE knowledge_fts MATCH ?
+                AND ki.chat_id = ?
+                AND ki.id IN (SELECT knowledge_item_id FROM knowledge_tags WHERE tag = 'recipe')
+            )
             SELECT ki.id, ki.title, ki.summary, ki.content, ki.updated_at,
                    GROUP_CONCAT(DISTINCT kt.tag) AS tags,
-                   bm25(knowledge_fts, 10.0, 5.0, 1.0) AS relevance,
+                   m.relevance,
                    (SELECT MAX(ch.cooked_date) FROM cooking_history ch
                     WHERE ch.knowledge_item_id = ki.id AND ch.chat_id = ki.chat_id) AS last_cooked,
                    (SELECT COUNT(*) FROM cooking_history ch
                     WHERE ch.knowledge_item_id = ki.id AND ch.chat_id = ki.chat_id) AS cook_count
-            FROM knowledge_fts
-            JOIN knowledge_items ki ON ki.id = knowledge_fts.rowid
+            FROM matched m
+            JOIN knowledge_items ki ON ki.id = m.id
             JOIN knowledge_tags kt ON kt.knowledge_item_id = ki.id
-            WHERE knowledge_fts MATCH ?
-              AND ki.chat_id = ?
-              AND ki.id IN (SELECT knowledge_item_id FROM knowledge_tags WHERE tag = 'recipe')
+            WHERE 1=1
           `;
           const params: (string | number)[] = [escaped, chatId];
 
@@ -131,7 +140,7 @@ export function createRecipeRoutes(sqlite: BetterSqlite3.Database) {
             sql += `ORDER BY cook_count DESC, ki.title ASC\n`;
           } else {
             // Default: relevance (BM25 lower = better match)
-            sql += `ORDER BY relevance ASC\n`;
+            sql += `ORDER BY m.relevance ASC\n`;
           }
 
           sql += `LIMIT ?`;

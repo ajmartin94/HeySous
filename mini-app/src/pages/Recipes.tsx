@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { backButton } from '@tma.js/sdk-react';
 import { useRecipes } from '../hooks/useRecipes.js';
 import { RecipeList } from '../components/recipes/RecipeList.js';
@@ -26,22 +27,26 @@ export function Recipes() {
     closeDetail,
   } = useRecipes();
 
+  const navigate = useNavigate();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const scrollPositionRef = useRef(0);
 
-  // BackButton override for detail view
+  // BackButton handler: close detail if open, otherwise navigate back
   useEffect(() => {
-    if (selectedRecipeId === null) return;
     if (!backButton.onClick.isAvailable()) return;
 
     const off = backButton.onClick(() => {
-      handleCloseDetail();
+      if (selectedRecipeId !== null) {
+        handleCloseDetail();
+      } else {
+        navigate(-1);
+      }
     });
 
     return () => {
       off();
     };
-  }, [selectedRecipeId]);
+  }, [selectedRecipeId, navigate]);
 
   function handleOpenDetail(id: number) {
     scrollPositionRef.current = window.scrollY;

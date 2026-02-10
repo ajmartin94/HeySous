@@ -14,9 +14,11 @@ export function GroceryItem({ item, onToggle, isChecked }: GroceryItemProps) {
   function handleTap() {
     if (checking) return;
     setChecking(true);
-    onToggle(item.id);
-    // Allow animation to play before item moves to Done section
-    setTimeout(() => setChecking(false), 800);
+    // Delay toggle so animation plays before item moves to Done section
+    setTimeout(() => {
+      onToggle(item.id);
+      setChecking(false);
+    }, 800);
   }
 
   const classNames = [

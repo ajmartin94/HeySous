@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { backButton } from '@tma.js/sdk-react';
 import { useSwipeable } from 'react-swipeable';
 import { useMealPlan } from '../hooks/useMealPlan.js';
@@ -23,23 +24,27 @@ export function MealPlan() {
     closeDetail,
   } = useMealPlan();
 
+  const navigate = useNavigate();
   const scrollPositionRef = useRef(0);
   const todayRef = useRef<HTMLDivElement>(null);
   const [hasAutoScrolled, setHasAutoScrolled] = useState(false);
 
-  // BackButton override for detail view (same pattern as Recipes.tsx)
+  // BackButton handler: close detail if open, otherwise navigate back
   useEffect(() => {
-    if (selectedRecipeId === null) return;
     if (!backButton.onClick.isAvailable()) return;
 
     const off = backButton.onClick(() => {
-      handleCloseDetail();
+      if (selectedRecipeId !== null) {
+        handleCloseDetail();
+      } else {
+        navigate(-1);
+      }
     });
 
     return () => {
       off();
     };
-  }, [selectedRecipeId]);
+  }, [selectedRecipeId, navigate]);
 
   // Auto-scroll to today on initial load
   useEffect(() => {

@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-09)
 ## Current Position
 
 Phase: 13 of 14 (Recipe Browser)
-Plan: 1 of 3 in current phase (13-01 complete)
+Plan: 2 of 3 in current phase (13-02 complete)
 Status: In Progress
-Last activity: 2026-02-10 -- Completed 13-01 Recipe API, Parser & Hook
+Last activity: 2026-02-10 -- Completed 13-02 Recipe Browser UI
 
-Progress: [########░░] 17%
+Progress: [########░░] 22%
 
 ## Performance Metrics
 
@@ -24,9 +24,9 @@ Progress: [########░░] 17%
 - Total execution time: 83 min
 
 **v1.1 Velocity:**
-- Total plans completed: 7
-- Average duration: 7 min
-- Total execution time: 47 min
+- Total plans completed: 8
+- Average duration: 6 min
+- Total execution time: 51 min
 
 | Phase | Plan | Duration | Tasks | Files |
 |-------|------|----------|-------|-------|
@@ -37,6 +37,7 @@ Progress: [########░░] 17%
 | 12-02 | Grocery List React Page | 3 min | 2 | 10 |
 | 12-03 | Quick-add, MainButton, Polling | 4 min | 2 | 5 |
 | 13-01 | Recipe API, Parser & Hook | 2 min | 2 | 4 |
+| 13-02 | Recipe Browser UI | 4 min | 2 | 10 |
 
 ## Accumulated Context
 
@@ -69,6 +70,10 @@ v1.1 decisions:
 - Detail endpoint updates last_accessed_at; list endpoint does not
 - computeRating labels: favorite/liked/mixed/needs work from net sentiment score
 - Tag filter toggle: same tag clears filter (sets null)
+- Server-side extractRating parses Feedback from content to return rating on list items without sending content
+- RecipeCard filters out redundant 'recipe' tag, shows max 3 with overflow indicator
+- Scroll preservation via useRef + requestAnimationFrame on detail close
+- Sort picker dropdown uses click-outside listener for close behavior
 
 ### Pending Todos
 
@@ -81,6 +86,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-10
-Stopped at: Completed 13-01-PLAN.md (Recipe API, Parser & Hook)
+Stopped at: Completed 13-02-PLAN.md (Recipe Browser UI)
 Resume file: None
-Next action: Execute 13-02-PLAN.md (Recipe Browser UI)
+Next action: Execute 13-03-PLAN.md (Recipe Browser Polish)

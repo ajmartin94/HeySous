@@ -40,6 +40,7 @@ import { createFeedbackTextHandler } from "./bot/handlers/feedback.js";
 import { createFeedbackSender } from "./feedback/sender.js";
 import { generateFeedbackCheckins } from "./feedback/generator.js";
 import { createApiRouter } from "./mini-app/router.js";
+import { setupMenuButton } from "./telegram/menu-button.js";
 import { createClock, createTestClock } from "./clock.js";
 import { logger } from "./logger.js";
 
@@ -169,6 +170,9 @@ async function main(): Promise<void> {
     feedbackTextHandler,
     db,
   });
+
+  // Configure BotFather menu button to open Mini App hub (idempotent, no-op without MINI_APP_URL)
+  await setupMenuButton(bot, config.miniAppUrl);
 
   // Initialize reminder system BEFORE bot.start() (which blocks in polling mode)
   const reminderSender = createReminderSender({ bot: bot as Parameters<typeof createReminderSender>[0]["bot"], claudeClient, retrievalService, logger });

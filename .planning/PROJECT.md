@@ -38,18 +38,18 @@ The LLM is the product. It reasons, decides what to look up, and acts on what it
 - ✓ Cooking history and "haven't made lately" -- track what was cooked, surface forgotten favorites during planning — v1.0
 - ✓ General-purpose context retrieval -- agent decides what knowledge to look up per conversation, not feature-specific queries — v1.0
 
+- ✓ Telegram Mini App infrastructure (auth, API layer, React SPA, hub dashboard) — v1.1
+- ✓ Grocery list Mini App (checkable list, store tabs, sections, haptic feedback, quick-add, polling sync) — v1.1
+- ✓ Recipe browser Mini App (FTS5 search, tag filter, sort, recipe detail, scroll preservation) — v1.1
+- ✓ Weekly meal plan Mini App (7-day grid, swipe weeks, today highlight, recipe drill-down) — v1.1
+
 ### Active
 
-See REQUIREMENTS.md for v1.1 detailed requirements.
-
-- Telegram Mini App infrastructure (auth, API layer, shared React components)
-- Grocery list Mini App (checkable list, store sections, real-time sync with bot)
-- Weekly meal plan Mini App (calendar view, recipe details, meal swapping)
-- Recipe browser Mini App (search, recipe cards, full recipe view)
+(None yet — define in next milestone)
 
 ### Out of Scope
 
-- ~~Mini Apps (Telegram rich UI)~~ — **Promoted to v1.1 Active scope**
+- ~~Mini Apps (Telegram rich UI)~~ — **Shipped in v1.1**
 - URL recipe import -- conversational entry sufficient for v1
 - Photo/image recipe capture -- requires vision pipeline, defer
 - Multi-user / partner access -- solo user first, shared household later
@@ -61,17 +61,17 @@ See REQUIREMENTS.md for v1.1 detailed requirements.
 
 ## Context
 
-- **Current state:** v1.0 shipped with 8,263 LOC TypeScript across 10 phases and 30 plans in 5 days
-- **Tech stack:** Node.js 22, TypeScript (ESM), grammY, better-sqlite3/Drizzle, Anthropic SDK, Pino, Express
+- **Current state:** v1.1 shipped with 12,726 LOC TypeScript across 14 phases and 40 plans. Mini App UI layer added on top of v1.0 bot.
+- **Tech stack:** Node.js 22, TypeScript (ESM), grammY, better-sqlite3/Drizzle, Anthropic SDK, Pino, Express, React+Vite (Mini App SPA), @telegram-apps SDK
 - **Primary user:** Home cook who loves cooking, time-constrained on weekdays, more flexible weekends
 - **Household:** Partner + 9-month-old. Partner collaboration deferred to v2.
 - **Dinner target:** 6pm daily
 - **Shopping:** Kroger (primary), Costco (bulk)
 - **Devices:** Apple ecosystem (iPhone, iPad) -- Telegram works cross-platform
 - **First-run flow:** User seeds 10-15 rotating recipes before planning first week
-- **Next step:** v1.1 Mini Apps milestone — add visual UI layer to existing bot
 - **Mini App model:** Hybrid — bot stays primary, Mini Apps open from chat buttons for visual tasks
-- **Frontend:** React inside Telegram Web Apps (TWA), served by existing Express server
+- **Frontend:** React+Vite SPA inside Telegram Web Apps, served by existing Express server at /app/*
+- **Next step:** Planning next milestone
 
 ## Constraints
 
@@ -103,16 +103,12 @@ See REQUIREMENTS.md for v1.1 detailed requirements.
 | Factory functions over singletons | All services created via createXxx() factories with dependency injection | ✓ Good -- testable, composable, consistent across all 10 phases |
 | FTS5 with BM25 ranking for knowledge search | Two-pass search (summaries → full content) within token budget | ✓ Good -- weighted ranking (title 10x, summary 5x) provides relevant results |
 | Tool error resilience (try/catch with is_error) | Tool call exceptions return error to Claude instead of crashing pipeline | ✓ Good -- added in Phase 10, prevents pipeline crashes |
-
-## Current Milestone: v1.1 Mini Apps
-
-**Goal:** Add Telegram Mini App visual UIs for the three key interactions — grocery lists, weekly meal plan, and recipe browser — while keeping the bot as the primary conversational interface.
-
-**Target features:**
-- Mini App infrastructure (TWA auth, API endpoints, React scaffold, shared components)
-- Grocery list Mini App (checkable items, store sections, sync with bot state)
-- Weekly meal plan Mini App (calendar/grid view, recipe details, meal navigation)
-- Recipe browser Mini App (search, recipe cards, full recipe detail view)
+| Hybrid bot+Mini App model | Bot stays primary conversation interface, Mini Apps for visual tasks (grocery, recipes, meal plan) | ✓ Good -- natural division: bot for input, Mini App for visual browsing |
+| initData HMAC-SHA256 auth | Telegram's standard auth for Mini Apps, validated server-side with 1-hour expiry | ✓ Good -- secure, standard pattern |
+| React+Vite SPA served from Express | Single server serves both API and static Mini App files, no separate frontend deploy | ✓ Good -- simplified deployment, single process |
+| Polling sync (8s) over WebSockets | Simpler than WebSocket for Telegram WebView context, acceptable latency for grocery list | ✓ Good -- avoids WebSocket complexity, 8s acceptable for shopping |
+| FTS5 two-step query (bm25 + GROUP BY) | SQLite bm25() incompatible with GROUP BY in any context; separate matching from aggregation | ✓ Good -- solved after CTE approach failed, clean separation |
+| Duplicated constants across server/client | No shared imports across Vite/Node build boundary; duplicate SECTION_ORDER, date utils | ⚠️ Revisit -- tech debt, consider shared package if more constants emerge |
 
 ---
-*Last updated: 2026-02-09 after v1.1 milestone start*
+*Last updated: 2026-02-10 after v1.1 milestone completion*

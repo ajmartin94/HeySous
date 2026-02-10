@@ -3,20 +3,18 @@ status: complete
 phase: v1.1-mini-apps (Phases 11-14)
 source: 11-01-SUMMARY.md, 11-02-SUMMARY.md, 11-03-SUMMARY.md, 12-01-SUMMARY.md, 12-02-SUMMARY.md, 12-03-SUMMARY.md, 13-01-SUMMARY.md, 13-02-SUMMARY.md, 14-01-SUMMARY.md, 14-02-SUMMARY.md
 started: 2026-02-10T15:00:00Z
-updated: 2026-02-10T18:30:00Z
+updated: 2026-02-10T11:55:00Z
 ---
 
 ## Current Test
 
-[testing complete]
+[testing complete — all issues resolved]
 
 ## Tests
 
 ### 1. Open Mini App from bot
 expected: Tap the menu button in the chat header or an inline webApp button from a bot response. A Mini App opens in Telegram's WebView showing the HeySous hub page with chef hat icon, branded header, and 3 dashboard cards (grocery, recipes, meal plan) with live counts.
-result: issue
-reported: "failed to start bot with error"
-severity: blocker
+result: pass (re-verified)
 fix: Express 5 named splat + webhook/polling conflict. Fixed in commits 98b7856, be01cc7.
 
 ### 2. Hub dashboard shows live data
@@ -37,9 +35,8 @@ result: pass
 
 ### 6. Grocery list — check off items
 expected: Tap an item to check it off. You should feel haptic feedback. The item animates briefly (check effect), then moves to a collapsed "Done" section at the bottom. The progress count updates (e.g., "12/28 items"). Expand "Done" to see checked items.
-result: issue
-reported: "there is a haptic, there is no animation or pause of any kind. immediately moves to done, which works correctly"
-severity: minor
+result: pass (re-verified)
+fix: Delayed onToggle callback by 800ms so animation completes before parent state change. Fixed in commit b0693ae.
 
 ### 7. Grocery list — uncheck item
 expected: Expand the "Done" section and tap a checked item. It returns to its original section in the active list. Progress counter decrements.
@@ -63,9 +60,8 @@ result: pass
 
 ### 12. Recipe browser — search
 expected: Tap the search icon at the top. A search bar expands. Type a keyword and results filter in real-time as you type (with slight debounce). Results are ranked by relevance (FTS5 full-text search).
-result: issue
-reported: "the search bar does pop up, and the search appears to be happening (shows 'no results' when i'm halfway through a word) but as soon as a word matches something, it seems to pull the entire library, not filtering at all."
-severity: major
+result: pass (re-verified)
+fix: Split FTS5 search into two-step query — bm25() matching without GROUP BY, then tag aggregation on matched IDs only. bm25() cannot coexist with GROUP BY in any SQLite query context including CTEs.
 
 ### 13. Recipe browser — tag filter
 expected: Tap a tag pill on any recipe card. The list filters to only recipes with that tag. A chip appears below the header showing the active filter with an "x" to remove. Tap the same tag again to clear the filter.
@@ -77,9 +73,8 @@ result: pass
 
 ### 15. Recipe browser — recipe detail and back
 expected: Tap a recipe card to see the full recipe detail (ingredients, instructions, notes, metadata). Tap the Telegram BackButton to return to the recipe list. Your scroll position is preserved — you're back where you left off, not scrolled to the top.
-result: issue
-reported: "back takes me to the home screen"
-severity: major
+result: pass (re-verified)
+fix: Removed global navigate(-1) handler from Layout; pages register their own BackButton onClick handlers. Fixed in commit b0693ae.
 
 ### 16. Meal plan — weekly grid
 expected: Opening the meal plan page shows a 7-day vertical stack (Monday through Sunday). Each day has a header like "Monday, Feb 10". Meal entries show an icon (sunrise=breakfast, sun=lunch, moon=dinner) + type label + recipe name. Days with no meals show "No meals planned" in gray italic.
@@ -99,56 +94,17 @@ result: pass
 
 ### 20. Meal plan — recipe drill-down
 expected: Tap a meal entry that has a linked recipe. The full recipe detail appears (same RecipeDetail from the recipe browser). Tap BackButton to return to the meal plan with scroll position preserved. Meals without a linked recipe show "(no recipe)" and are not tappable.
-result: issue
-reported: "everything passes, except the back button goes back to the hub"
-severity: major
+result: pass (re-verified)
+fix: Same BackButton fix as test 15 — Layout no longer overrides page-level handlers. Fixed in commit b0693ae.
 
 ## Summary
 
 total: 20
-passed: 16
-issues: 4
+passed: 20
+issues: 0
 pending: 0
 skipped: 0
 
 ## Gaps
 
-- truth: "Item animates briefly (check effect) with 800ms delay before moving to Done section"
-  status: failed
-  reason: "User reported: there is a haptic, there is no animation or pause of any kind. immediately moves to done"
-  severity: minor
-  test: 6
-  root_cause: ""
-  artifacts: []
-  missing: []
-  debug_session: ""
-
-- truth: "Search bar filters results to matching recipes only"
-  status: failed
-  reason: "User reported: search returns entire library when a word matches instead of filtering"
-  severity: major
-  test: 12
-  root_cause: ""
-  artifacts: []
-  missing: []
-  debug_session: ""
-
-- truth: "BackButton returns from recipe detail to recipe list (not hub)"
-  status: failed
-  reason: "User reported: back takes me to the home screen"
-  severity: major
-  test: 15
-  root_cause: ""
-  artifacts: []
-  missing: []
-  debug_session: ""
-
-- truth: "BackButton returns from meal plan recipe detail to meal plan grid (not hub)"
-  status: failed
-  reason: "User reported: everything passes, except the back button goes back to the hub"
-  severity: major
-  test: 20
-  root_cause: ""
-  artifacts: []
-  missing: []
-  debug_session: ""
+[all resolved]

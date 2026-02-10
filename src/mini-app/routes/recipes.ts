@@ -99,32 +99,46 @@ export function createRecipeRoutes(sqlite: BetterSqlite3.Database) {
             return;
           }
 
-          // Path C or D: FTS5 search (with optional tag filter)
-          // Use CTE to separate FTS5 matching (with bm25) from tag aggregation (GROUP BY),
-          // because bm25() cannot be used in queries that also GROUP BY.
-          let sql = `
-            WITH matched AS (
-              SELECT knowledge_fts.rowid AS id,
-                     bm25(knowledge_fts, 10.0, 5.0, 1.0) AS relevance
-              FROM knowledge_fts
-              JOIN knowledge_items ki ON ki.id = knowledge_fts.rowid
-              WHERE knowledge_fts MATCH ?
-                AND ki.chat_id = ?
-                AND ki.id IN (SELECT knowledge_item_id FROM knowledge_tags WHERE tag = 'recipe')
+          // Step 1: Get matching IDs + relevance from FTS5.
+          // bm25() cannot coexist with GROUP BY in any query context (even CTEs),
+          // so we run a separate query for FTS matching, then a second for tag aggregation.
+          const matchRows = sqlite
+            .prepare(
+              `SELECT rowid AS id, bm25(knowledge_fts, 10.0, 5.0, 1.0) AS relevance
+               FROM knowledge_fts
+               WHERE knowledge_fts MATCH ?`
             )
+            .all(escaped) as Array<{ id: number; relevance: number }>;
+
+
+          if (matchRows.length === 0) {
+            res.json({ recipes: [] });
+            return;
+          }
+
+          const relevanceMap = new Map(
+            matchRows.map((r) => [r.id, r.relevance])
+          );
+          const placeholders = matchRows.map(() => "?").join(",");
+
+          // Step 2: Fetch recipe data with tag aggregation for matched IDs only
+          let sql = `
             SELECT ki.id, ki.title, ki.summary, ki.content, ki.updated_at,
                    GROUP_CONCAT(DISTINCT kt.tag) AS tags,
-                   m.relevance,
                    (SELECT MAX(ch.cooked_date) FROM cooking_history ch
                     WHERE ch.knowledge_item_id = ki.id AND ch.chat_id = ki.chat_id) AS last_cooked,
                    (SELECT COUNT(*) FROM cooking_history ch
                     WHERE ch.knowledge_item_id = ki.id AND ch.chat_id = ki.chat_id) AS cook_count
-            FROM matched m
-            JOIN knowledge_items ki ON ki.id = m.id
+            FROM knowledge_items ki
             JOIN knowledge_tags kt ON kt.knowledge_item_id = ki.id
-            WHERE 1=1
+            WHERE ki.chat_id = ?
+              AND ki.id IN (${placeholders})
+              AND ki.id IN (SELECT knowledge_item_id FROM knowledge_tags WHERE tag = 'recipe')
           `;
-          const params: (string | number)[] = [escaped, chatId];
+          const params: (string | number)[] = [
+            chatId,
+            ...matchRows.map((r) => r.id),
+          ];
 
           if (hasTag) {
             sql += `  AND ki.id IN (SELECT knowledge_item_id FROM knowledge_tags WHERE tag = ?)\n`;
@@ -133,20 +147,28 @@ export function createRecipeRoutes(sqlite: BetterSqlite3.Database) {
 
           sql += `GROUP BY ki.id\n`;
 
-          // When FTS active, default to relevance sort unless explicitly overridden
           if (sortBy === "alphabetical") {
             sql += `ORDER BY ki.title ASC\n`;
           } else if (sortBy === "most_cooked") {
             sql += `ORDER BY cook_count DESC, ki.title ASC\n`;
           } else {
-            // Default: relevance (BM25 lower = better match)
-            sql += `ORDER BY m.relevance ASC\n`;
+            // Relevance sort applied in JS after query (bm25 not available here)
+            sql += `ORDER BY ki.updated_at DESC\n`;
           }
 
           sql += `LIMIT ?`;
           params.push(maxResults);
 
           rows = sqlite.prepare(sql).all(...params) as typeof rows;
+
+          // Attach relevance scores and sort by relevance if needed
+          rows.forEach((r) => {
+            r.relevance = relevanceMap.get(r.id) ?? 0;
+          });
+          if (sortBy !== "alphabetical" && sortBy !== "most_cooked") {
+            rows.sort((a, b) => (a.relevance ?? 0) - (b.relevance ?? 0));
+          }
+
         } else {
           // Path A or B: No search (with optional tag filter)
           let sql = `

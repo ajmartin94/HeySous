@@ -5,7 +5,7 @@ import { retrieveRawInitData } from '@tma.js/sdk-react';
 // so raw init data must be retrieved before routing initializes.
 let initDataRaw: string | undefined;
 try {
-  initDataRaw = retrieveRawInitData();
+  initDataRaw = retrieveRawInitData() as string | undefined;
 } catch {
   // Not running inside Telegram -- initDataRaw stays undefined
 }

@@ -3,6 +3,7 @@ import type BetterSqlite3 from "better-sqlite3";
 import { validateInitData } from "./auth-middleware.js";
 import { createSummaryRoute } from "./routes/summary.js";
 import { createGroceryRoutes } from "./routes/grocery.js";
+import { createRecipeRoutes } from "./routes/recipes.js";
 
 /**
  * Dependencies for the API router.
@@ -35,6 +36,11 @@ export function createApiRouter(deps: ApiRouterDeps): Router {
   router.post("/grocery/toggle", grocery.toggleItem);
   router.post("/grocery/add", grocery.addItem);
   router.post("/grocery/complete", grocery.completeList);
+
+  // Recipe browsing endpoints
+  const recipes = createRecipeRoutes(deps.sqlite);
+  router.get("/recipes", recipes.getList);
+  router.get("/recipes/:id", recipes.getDetail);
 
   return router;
 }

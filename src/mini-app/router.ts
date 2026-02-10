@@ -4,6 +4,7 @@ import { validateInitData } from "./auth-middleware.js";
 import { createSummaryRoute } from "./routes/summary.js";
 import { createGroceryRoutes } from "./routes/grocery.js";
 import { createRecipeRoutes } from "./routes/recipes.js";
+import { createMealPlanRoutes } from "./routes/meal-plan.js";
 
 /**
  * Dependencies for the API router.
@@ -41,6 +42,10 @@ export function createApiRouter(deps: ApiRouterDeps): Router {
   const recipes = createRecipeRoutes(deps.sqlite);
   router.get("/recipes", recipes.getList);
   router.get("/recipes/:id", recipes.getDetail);
+
+  // Meal plan endpoints
+  const mealPlan = createMealPlanRoutes(deps.sqlite);
+  router.get("/meal-plan", mealPlan.getPlan);
 
   return router;
 }

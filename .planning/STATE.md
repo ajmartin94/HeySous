@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-09)
 
 **Core value:** The recipe brain -- an AI agent that remembers everything about your meals and reasons over that knowledge to help you plan.
-**Current focus:** Phase 14 Meal Plan Viewer -- data layer complete, UI next (v1.1 Mini Apps milestone)
+**Current focus:** Phase 14 Meal Plan Viewer complete -- v1.1 Mini Apps milestone done
 
 ## Current Position
 
 Phase: 14 of 14 (Meal Plan Viewer)
-Plan: 1 of 2 in current phase (14-01 complete)
-Status: Executing Phase 14
-Last activity: 2026-02-10 -- 14-01 Meal Plan API & Data Layer complete
+Plan: 2 of 2 in current phase (14-02 complete)
+Status: Phase 14 Complete -- v1.1 Mini Apps milestone done
+Last activity: 2026-02-10 -- 14-02 Meal Plan Viewer UI complete
 
-Progress: [#########░] 24%
+Progress: [##########] 100%
 
 ## Performance Metrics
 
@@ -24,9 +24,9 @@ Progress: [#########░] 24%
 - Total execution time: 83 min
 
 **v1.1 Velocity:**
-- Total plans completed: 9
+- Total plans completed: 10
 - Average duration: 6 min
-- Total execution time: 53 min
+- Total execution time: 55 min
 
 | Phase | Plan | Duration | Tasks | Files |
 |-------|------|----------|-------|-------|
@@ -39,6 +39,7 @@ Progress: [#########░] 24%
 | 13-01 | Recipe API, Parser & Hook | 2 min | 2 | 4 |
 | 13-02 | Recipe Browser UI | 4 min | 2 | 10 |
 | 14-01 | Meal Plan API & Data Layer | 2 min | 2 | 4 |
+| 14-02 | Meal Plan Viewer UI | 2 min | 2 | 6 |
 
 ## Accumulated Context
 
@@ -79,6 +80,8 @@ v1.1 decisions:
 - Parallel fetch of both weeks on mount for instant tab switching (useMealPlan)
 - LEFT JOIN knowledge_items detects orphaned recipes via hasRecipe boolean
 - Duplicated date logic client-side per existing no-shared-imports convention
+- hasAutoScrolled state guard prevents repeated auto-scroll to today on re-renders
+- react-swipeable installed with --legacy-peer-deps (same React 19 peer dep convention)
 
 ### Pending Todos
 
@@ -91,6 +94,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-10
-Stopped at: Completed 14-01-PLAN.md (Meal Plan API & Data Layer)
+Stopped at: Completed 14-02-PLAN.md (Meal Plan Viewer UI) -- Phase 14 and v1.1 complete
 Resume file: None
-Next action: Execute 14-02-PLAN.md (Meal Plan UI).
+Next action: All phases complete.

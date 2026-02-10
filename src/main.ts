@@ -39,6 +39,7 @@ import { createFeedbackCallbackHandler } from "./feedback/handler.js";
 import { createFeedbackTextHandler } from "./bot/handlers/feedback.js";
 import { createFeedbackSender } from "./feedback/sender.js";
 import { generateFeedbackCheckins } from "./feedback/generator.js";
+import { createApiRouter } from "./mini-app/router.js";
 import { createClock, createTestClock } from "./clock.js";
 import { logger } from "./logger.js";
 
@@ -206,16 +207,24 @@ async function main(): Promise<void> {
   process.on("SIGINT", shutdown);
   process.on("SIGTERM", shutdown);
 
+  // Create API router for Mini App endpoints (used in both modes)
+  const apiRouter = createApiRouter({ sqlite });
+
   if (config.botMode === "webhook") {
     // Webhook mode (production)
-    const app = createServer(bot, config.port);
+    const app = createServer(bot, config.port, { apiRouter });
     app.listen(config.port, () => {
       logger.info({ port: config.port }, "Webhook server listening");
     });
     await bot.api.setWebhook(`${config.webhookUrl}/webhook/${bot.token}`);
     logger.info({ url: config.webhookUrl }, "Webhook set");
   } else {
-    // Polling mode (development) -- bot.start() blocks until bot.stop()
+    // Polling mode (development) -- start Express for API/Mini App access
+    const app = createServer(bot, config.port, { apiRouter });
+    app.listen(config.port, () => {
+      logger.info({ port: config.port }, "Express server listening (polling mode)");
+    });
+
     await bot.api.deleteWebhook();
     await bot.start({
       onStart: () => logger.info("Bot started in polling mode"),

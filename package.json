@@ -14,6 +14,8 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "typecheck": "tsc --noEmit",
+    "build:app": "cd mini-app && npm run build",
+    "build:all": "npm run build && npm run build:app",
     "test": "vitest run",
     "test:watch": "vitest"
   },

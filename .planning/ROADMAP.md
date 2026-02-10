@@ -21,7 +21,7 @@ See .planning/milestones/v1.0-archive.md for full phase history.
 
 - [x] **Phase 11: Mini App Foundation** - Auth, React scaffold, Express integration, iOS platform fixes (completed 2026-02-10)
 - [x] **Phase 12: Grocery List** - Checkable shopping list with store tabs, sections, progress tracking (completed 2026-02-10)
-- [ ] **Phase 13: Recipe Browser** - Searchable recipe cards with full detail view
+- [x] **Phase 13: Recipe Browser** - Searchable recipe cards with full detail view (completed 2026-02-10)
 - [ ] **Phase 14: Meal Plan Viewer** - Weekly grid with recipe drill-down
 
 ## Phase Details
@@ -72,8 +72,8 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 13-01-PLAN.md -- Recipe API endpoints, content parser utility, useRecipes data hook
-- [ ] 13-02-PLAN.md -- Recipe browser UI: card list, search/filter/sort, detail view, BackButton integration
+- [x] 13-01-PLAN.md -- Recipe API endpoints, content parser utility, useRecipes data hook
+- [x] 13-02-PLAN.md -- Recipe browser UI: card list, search/filter/sort, detail view, BackButton integration
 
 ### Phase 14: Meal Plan Viewer
 **Goal**: User can see the week's meal plan at a glance and drill into any recipe
@@ -98,5 +98,5 @@ Plans:
 |-------|-----------|----------------|--------|-----------|
 | 11. Mini App Foundation | v1.1 | 3/3 | Complete | 2026-02-10 |
 | 12. Grocery List | v1.1 | 3/3 | Complete | 2026-02-10 |
-| 13. Recipe Browser | v1.1 | 0/2 | Not started | - |
+| 13. Recipe Browser | v1.1 | 2/2 | Complete | 2026-02-10 |
 | 14. Meal Plan Viewer | v1.1 | 0/TBD | Not started | - |

@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-09)
 
 **Core value:** The recipe brain -- an AI agent that remembers everything about your meals and reasons over that knowledge to help you plan.
-**Current focus:** Phase 12 - Grocery List Mini App (v1.1 Mini Apps milestone)
+**Current focus:** Phase 13 - Recipe Browser Mini App (v1.1 Mini Apps milestone)
 
 ## Current Position
 
-Phase: 12 of 14 (Grocery List)
-Plan: 3 of 3 in current phase (12-03 complete -- phase done)
-Status: Phase 12 Complete
-Last activity: 2026-02-10 -- Completed 12-03 Quick-add, MainButton, Polling
+Phase: 13 of 14 (Recipe Browser)
+Plan: 1 of 3 in current phase (13-01 complete)
+Status: In Progress
+Last activity: 2026-02-10 -- Completed 13-01 Recipe API, Parser & Hook
 
-Progress: [########░░] 14%
+Progress: [########░░] 17%
 
 ## Performance Metrics
 
@@ -24,9 +24,9 @@ Progress: [########░░] 14%
 - Total execution time: 83 min
 
 **v1.1 Velocity:**
-- Total plans completed: 6
-- Average duration: 8 min
-- Total execution time: 45 min
+- Total plans completed: 7
+- Average duration: 7 min
+- Total execution time: 47 min
 
 | Phase | Plan | Duration | Tasks | Files |
 |-------|------|----------|-------|-------|
@@ -36,6 +36,7 @@ Progress: [########░░] 14%
 | 12-01 | Grocery API & Section Utilities | 2 min | 2 | 5 |
 | 12-02 | Grocery List React Page | 3 min | 2 | 10 |
 | 12-03 | Quick-add, MainButton, Polling | 4 min | 2 | 5 |
+| 13-01 | Recipe API, Parser & Hook | 2 min | 2 | 4 |
 
 ## Accumulated Context
 
@@ -63,6 +64,11 @@ v1.1 decisions:
 - mainButton.setParams called directly in handler for loader (avoids useCallback dep cycle)
 - QuickAddFab form stays open after add for rapid multi-item entry
 - FAB positioned at safe-area + 80px to sit above native MainButton
+- FTS5 recipe search defaults to BM25 relevance sort unless explicitly overridden
+- GROUP_CONCAT(DISTINCT kt.tag) aggregates tags in single query (avoids N+1)
+- Detail endpoint updates last_accessed_at; list endpoint does not
+- computeRating labels: favorite/liked/mixed/needs work from net sentiment score
+- Tag filter toggle: same tag clears filter (sets null)
 
 ### Pending Todos
 
@@ -75,6 +81,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-10
-Stopped at: Completed 12-03-PLAN.md (Quick-add, MainButton, Polling)
+Stopped at: Completed 13-01-PLAN.md (Recipe API, Parser & Hook)
 Resume file: None
-Next action: Phase 12 complete. Plan Phase 13 or verify Phase 12.
+Next action: Execute 13-02-PLAN.md (Recipe Browser UI)

@@ -5,7 +5,7 @@
 See: .planning/PROJECT.md (updated 2026-02-09)
 
 **Core value:** The recipe brain -- an AI agent that remembers everything about your meals and reasons over that knowledge to help you plan.
-**Current focus:** Phase 14 Meal Plan Viewer complete -- v1.1 Mini Apps milestone done
+**Current focus:** v1.1 UAT -- 1 remaining bug: recipe FTS5 search returns all results instead of filtering
 
 ## Current Position
 
@@ -85,7 +85,7 @@ v1.1 decisions:
 
 ### Pending Todos
 
-None.
+- Fix recipe FTS5 search bug (UAT test 12)
 
 ### Blockers/Concerns
 
@@ -94,6 +94,22 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-10
-Stopped at: Completed 14-02-PLAN.md (Meal Plan Viewer UI) -- Phase 14 and v1.1 complete
-Resume file: None
-Next action: All phases complete.
+Stopped at: v1.1 UAT complete, 19/20 pass, 1 remaining bug
+Resume file: .planning/phases/milestone-v1.1-UAT.md
+Next action: Debug and fix recipe search -- FTS5 query returns all results instead of filtering.
+
+### Bug Context: Recipe Search (UAT Test 12)
+
+**Symptom:** User types a search keyword. "No results" shows for partial words (correct). When a full word matches, the ENTIRE recipe library is returned instead of just matching recipes.
+
+**What was tried (failed):** Restructured FTS5 query to use CTE to separate bm25() from GROUP BY. The bm25/GROUP BY incompatibility was confirmed, but the CTE fix did not resolve the user-visible bug. The catch block fallback (lines 190-236 of src/mini-app/routes/recipes.ts) returns all recipes unfiltered and may still be triggering.
+
+**Key files:**
+- `src/mini-app/routes/recipes.ts` -- Server-side recipe API (FTS5 search query at lines 95-140, catch fallback at 190-236)
+- `mini-app/src/hooks/useRecipes.ts` -- Client-side hook (search state, API calls)
+- `src/knowledge/fts.ts` -- escapeForFts5 utility
+
+**Debug approach:** Add console.log to the search path to confirm whether the CTE query executes or the catch block triggers. Test the CTE query directly against SQLite. Check if escapeForFts5 is producing valid FTS5 syntax.
+
+**Branch:** gsd/phase-14-meal-plan-viewer
+**Tunnel:** cloudflared running on port 3000 (URL in .env MINI_APP_URL -- will need restart)

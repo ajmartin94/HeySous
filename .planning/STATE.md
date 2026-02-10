@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-09)
 ## Current Position
 
 Phase: 11 of 14 (Mini App Foundation)
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase
 Status: Executing
-Last activity: 2026-02-10 -- Completed 11-01 API & Auth Infrastructure
+Last activity: 2026-02-10 -- Completed 11-02 Frontend SPA
 
-Progress: [###░░░░░░░] 3%
+Progress: [######░░░░] 6%
 
 ## Performance Metrics
 
@@ -24,13 +24,14 @@ Progress: [###░░░░░░░] 3%
 - Total execution time: 83 min
 
 **v1.1 Velocity:**
-- Total plans completed: 1
-- Average duration: 8 min
-- Total execution time: 8 min
+- Total plans completed: 2
+- Average duration: 15 min
+- Total execution time: 29 min
 
 | Phase | Plan | Duration | Tasks | Files |
 |-------|------|----------|-------|-------|
 | 11-01 | API & Auth Infrastructure | 8 min | 2 | 7 |
+| 11-02 | Frontend SPA | 21 min | 2 | 19 |
 
 ## Accumulated Context
 
@@ -43,6 +44,9 @@ v1.1 decisions:
 - Recipes counted via knowledge_tags (tag='recipe') since knowledge_items has no type column
 - API router created in both webhook and polling modes for dev testing
 - Express route order: static -> API -> webhook -> SPA fallback
+- Used retrieveRawInitData() instead of retrieveLaunchParams().initDataRaw (SDK v3 API)
+- Used --legacy-peer-deps for React 19 + @telegram-apps/telegram-ui peer dep conflict
+- BackButton uses isAvailable() guard for graceful non-Telegram env handling
 
 ### Pending Todos
 
@@ -55,6 +59,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-10
-Stopped at: Completed 11-01-PLAN.md (API & Auth Infrastructure)
+Stopped at: Completed 11-02-PLAN.md (Frontend SPA)
 Resume file: None
-Next action: Execute 11-02-PLAN.md (Frontend SPA)
+Next action: Execute 11-03-PLAN.md

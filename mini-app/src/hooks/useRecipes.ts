@@ -8,6 +8,7 @@ export interface RecipeCard {
   tags: string[];
   lastCooked: string | null;
   cookCount: number;
+  rating?: { label: string } | null;
 }
 
 export interface RecipeDetailData {

@@ -3,6 +3,59 @@ import type BetterSqlite3 from "better-sqlite3";
 import { escapeForFts5 } from "../../knowledge/fts.js";
 
 /**
+ * Extract a rating label from recipe content's Feedback section.
+ * Parses feedback lines server-side so the list API can return ratings
+ * without sending full content to the client.
+ */
+function extractRating(
+  content: string | null
+): { label: string } | null {
+  if (!content) return null;
+
+  const lines = content.split("\n");
+  let inFeedback = false;
+  let positive = 0;
+  let negative = 0;
+  let total = 0;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (/^feedback:/i.test(trimmed)) {
+      inFeedback = true;
+      continue;
+    }
+    // A new section header ends the feedback section
+    if (
+      inFeedback &&
+      /^(ingredients|steps|notes|prep time|cook time|total time|servings):/i.test(
+        trimmed
+      )
+    ) {
+      break;
+    }
+    if (!inFeedback) continue;
+
+    const match = trimmed.match(/^-\s*\d{4}-\d{2}-\d{2}\s*\[(\w+)\]/);
+    if (match) {
+      total++;
+      const sentiment = match[1].toLowerCase();
+      if (sentiment === "positive") positive++;
+      if (sentiment === "negative") negative++;
+    }
+  }
+
+  if (total === 0) return null;
+
+  const net = positive - negative;
+  if (total >= 2 && net >= 2) return { label: "favorite" };
+  if (net > 0) return { label: "liked" };
+  if (net === 0 && total > 0) return { label: "mixed" };
+  if (net < 0) return { label: "needs work" };
+
+  return null;
+}
+
+/**
  * Factory function for recipe browsing API route handlers.
  * Returns an object with two handlers: getList and getDetail.
  *
@@ -31,6 +84,7 @@ export function createRecipeRoutes(sqlite: BetterSqlite3.Database) {
           id: number;
           title: string;
           summary: string;
+          content: string;
           updated_at: number;
           tags: string | null;
           last_cooked: string | null;
@@ -47,7 +101,7 @@ export function createRecipeRoutes(sqlite: BetterSqlite3.Database) {
 
           // Path C or D: FTS5 search (with optional tag filter)
           let sql = `
-            SELECT ki.id, ki.title, ki.summary, ki.updated_at,
+            SELECT ki.id, ki.title, ki.summary, ki.content, ki.updated_at,
                    GROUP_CONCAT(DISTINCT kt.tag) AS tags,
                    bm25(knowledge_fts, 10.0, 5.0, 1.0) AS relevance,
                    (SELECT MAX(ch.cooked_date) FROM cooking_history ch
@@ -87,7 +141,7 @@ export function createRecipeRoutes(sqlite: BetterSqlite3.Database) {
         } else {
           // Path A or B: No search (with optional tag filter)
           let sql = `
-            SELECT ki.id, ki.title, ki.summary, ki.updated_at,
+            SELECT ki.id, ki.title, ki.summary, ki.content, ki.updated_at,
                    GROUP_CONCAT(DISTINCT kt.tag) AS tags,
                    (SELECT MAX(ch.cooked_date) FROM cooking_history ch
                     WHERE ch.knowledge_item_id = ki.id AND ch.chat_id = ki.chat_id) AS last_cooked,
@@ -129,13 +183,14 @@ export function createRecipeRoutes(sqlite: BetterSqlite3.Database) {
           tags: row.tags ? row.tags.split(",") : [],
           lastCooked: row.last_cooked || null,
           cookCount: row.cook_count || 0,
+          rating: extractRating(row.content),
         }));
 
         res.json({ recipes });
       } catch {
         // FTS5 parse error -- fall back to non-search query
         let sql = `
-          SELECT ki.id, ki.title, ki.summary, ki.updated_at,
+          SELECT ki.id, ki.title, ki.summary, ki.content, ki.updated_at,
                  GROUP_CONCAT(DISTINCT kt.tag) AS tags,
                  (SELECT MAX(ch.cooked_date) FROM cooking_history ch
                   WHERE ch.knowledge_item_id = ki.id AND ch.chat_id = ki.chat_id) AS last_cooked,
@@ -160,6 +215,7 @@ export function createRecipeRoutes(sqlite: BetterSqlite3.Database) {
           id: number;
           title: string;
           summary: string;
+          content: string;
           updated_at: number;
           tags: string | null;
           last_cooked: string | null;
@@ -173,6 +229,7 @@ export function createRecipeRoutes(sqlite: BetterSqlite3.Database) {
           tags: row.tags ? row.tags.split(",") : [],
           lastCooked: row.last_cooked || null,
           cookCount: row.cook_count || 0,
+          rating: extractRating(row.content),
         }));
 
         res.json({ recipes });

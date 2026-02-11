@@ -1,9 +1,9 @@
 ---
-status: diagnosed
+status: complete
 phase: 15-users-households-invites
 source: [15-01-SUMMARY.md, 15-02-SUMMARY.md]
 started: 2026-02-11T14:30:00Z
-updated: 2026-02-11T14:45:00Z
+updated: 2026-02-11T15:00:00Z
 ---
 
 ## Current Test
@@ -30,9 +30,7 @@ result: pass
 
 ### 5. New user redeems valid invite
 expected: Have someone (or a second account) click a valid invite link. They should be registered, greeted with a warm welcome message mentioning their name and what HeySous can do. You (admin) should receive a notification that they joined your household.
-result: issue
-reported: "admin account did not get a message saying the invited user was added and there's an error on the server"
-severity: major
+result: pass (after fix)
 
 ### 6. Invalid or expired invite is rejected
 expected: A new user clicking an already-used or expired invite link sees "This invite link is no longer valid. Ask for a new one!" and cannot use the bot.
@@ -45,25 +43,11 @@ result: pass
 ## Summary
 
 total: 7
-passed: 6
-issues: 1
+passed: 7
+issues: 0
 pending: 0
 skipped: 0
 
 ## Gaps
 
-- truth: "Admin receives notification when invited user joins their household"
-  status: failed
-  reason: "User reported: admin account did not get a message saying the invited user was added and there's an error on the server"
-  severity: major
-  test: 5
-  root_cause: "Two issues: (1) admin.telegramId is a string but ctx.api.sendMessage needs a number for private chats, (2) global HTML parse mode chokes on unescaped display names"
-  artifacts:
-    - path: "src/bot/handlers/start.ts"
-      issue: "Lines 76-87: notification uses string chat_id and no HTML safety"
-    - path: "src/bot/index.ts"
-      issue: "Line 74: global HTML parse mode transformer affects all sendMessage calls"
-  missing:
-    - "Convert admin.telegramId to Number() before sendMessage"
-    - "Override parse_mode to undefined for plain-text notification"
-  debug_session: ".planning/debug/admin-notification-invite-join.md"
+[all resolved]

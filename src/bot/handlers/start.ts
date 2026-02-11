@@ -78,8 +78,9 @@ export function createStartHandler(deps: StartHandlerDeps): Composer<BotContext>
           const admin = getAdmin(deps.sqlite);
           if (admin && admin.telegramId !== telegramId) {
             await ctx.api.sendMessage(
-              admin.telegramId,
+              Number(admin.telegramId),
               `${displayName} just joined your household!`,
+              { parse_mode: undefined },
             );
           }
         } catch (err) {

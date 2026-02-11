@@ -45,14 +45,18 @@ The LLM is the product. It reasons, decides what to look up, and acts on what it
 
 ### Active
 
-(None yet — define in next milestone)
+- [ ] Gated invite system with deep link tokens (no unfiltered access)
+- [ ] Guided onboarding flow (preference Q&A → tour → seed recipes)
+- [ ] Multi-user support with per-user identity
+- [ ] Household sharing (shared recipes, meal plans, grocery lists)
+- [ ] App feedback system (/feedback command, silent detection, hub button, periodic check-in, admin dashboard)
 
 ### Out of Scope
 
 - ~~Mini Apps (Telegram rich UI)~~ — **Shipped in v1.1**
-- URL recipe import -- conversational entry sufficient for v1
+- ~~Multi-user / partner access~~ — **Active in v1.2**
+- URL recipe import -- conversational entry sufficient for now
 - Photo/image recipe capture -- requires vision pipeline, defer
-- Multi-user / partner access -- solo user first, shared household later
 - Voice interaction / cooking mode -- future capability
 - Monetization / paid features -- personal dogfooding first
 - Nutritional tracking / calorie counting -- changes product from cooking partner to diet app
@@ -71,7 +75,18 @@ The LLM is the product. It reasons, decides what to look up, and acts on what it
 - **First-run flow:** User seeds 10-15 rotating recipes before planning first week
 - **Mini App model:** Hybrid — bot stays primary, Mini Apps open from chat buttons for visual tasks
 - **Frontend:** React+Vite SPA inside Telegram Web Apps, served by existing Express server at /app/*
-- **Next step:** Planning next milestone
+- **Next step:** v1.2 Onboarding and Feedback
+
+## Current Milestone: v1.2 Onboarding and Feedback
+
+**Goal:** Enable multi-user access with gated invitations, guided onboarding for new users, full household sharing, and an app feedback system.
+
+**Target features:**
+- Invite-gated access via Telegram deep links (single-use tokens)
+- Guided first-run flow: preference Q&A → capability tour → seed recipes
+- Per-user identity model (Telegram user ID) with household grouping
+- Full household sharing: recipes, meal plans, and grocery lists shared between members
+- App feedback: /feedback command, silent sentiment detection, hub button, periodic check-in, admin dashboard
 
 ## Constraints
 
@@ -82,7 +97,7 @@ The LLM is the product. It reasons, decides what to look up, and acts on what it
 - **Hosting**: Railway (webhook handling, persistent volume for SQLite, cron jobs)
 - **Knowledge storage**: SQLite via better-sqlite3 + Drizzle ORM -- agent retrieves relevant context per request within a token budget (~4K tokens), not full dump
 - **Interface**: Hybrid -- bot conversation primary, Telegram Mini Apps for visual interactions (v1.1)
-- **Users**: Single user for v1
+- **Users**: Multi-user with household sharing (v1.2)
 
 ## Key Decisions
 
@@ -111,4 +126,4 @@ The LLM is the product. It reasons, decides what to look up, and acts on what it
 | Duplicated constants across server/client | No shared imports across Vite/Node build boundary; duplicate SECTION_ORDER, date utils | ⚠️ Revisit -- tech debt, consider shared package if more constants emerge |
 
 ---
-*Last updated: 2026-02-10 after v1.1 milestone completion*
+*Last updated: 2026-02-10 after v1.2 milestone start*

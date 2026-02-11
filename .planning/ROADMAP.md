@@ -61,12 +61,11 @@ Plans:
   3. Any household member can view and check off grocery list items, and changes are visible to all members
   4. Claude's system prompt includes the current user's name and household context, referencing shared cooking history as "we"
   5. Existing single-user data is fully preserved -- zero recipes, plans, or grocery items lost after migration
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 16-01: TBD
-- [ ] 16-02: TBD
-- [ ] 16-03: TBD
+- [ ] 16-01-PLAN.md -- Database migration + data layer rename (schema, types, repositories, context builders)
+- [ ] 16-02-PLAN.md -- Handler + pipeline + delivery + mini-app migration (handlers, senders, system prompt, mini-app)
 
 ### Phase 17: Guided Onboarding
 **Goal**: New users are guided through a conversational first-run experience that captures preferences, demonstrates capabilities, and seeds initial recipes
@@ -113,6 +112,6 @@ Plans:
 | 13. Recipe Browser | v1.1 | 2/2 | Complete | 2026-02-10 |
 | 14. Meal Plan Viewer | v1.1 | 2/2 | Complete | 2026-02-10 |
 | 15. Users, Households, and Invites | v1.2 | 2/2 | Complete | 2026-02-11 |
-| 16. Household Data Migration | v1.2 | 0/TBD | Not started | - |
+| 16. Household Data Migration | v1.2 | 0/2 | Planned | - |
 | 17. Guided Onboarding | v1.2 | 0/TBD | Not started | - |
 | 18. App Feedback | v1.2 | 0/TBD | Not started | - |

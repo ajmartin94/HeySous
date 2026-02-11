@@ -99,6 +99,15 @@ Plans:
 - [x] 18-01-PLAN.md -- App feedback data layer, /feedback command, Claude tool for implicit detection, proactive prompt mechanism
 - [x] 18-02-PLAN.md -- Mini App feedback form page and Hub card with server-side API endpoint
 
+### Phase 19: User Help Functionality
+**Goal:** Users can discover all bot features and commands through a /help command, Mini App help page, and Hub card, with Claude proactively suggesting help when it detects confusion
+**Depends on:** Phase 18
+**Plans:** 2 plans
+
+Plans:
+- [ ] 19-01-PLAN.md -- /help command handler, system prompt HELP block, bot wiring
+- [ ] 19-02-PLAN.md -- Mini App help page with admin detection, Hub card, /api/me endpoint
+
 ## Progress
 
 **Execution Order:** 1 -> 10 (v1.0) -> 11 -> 14 (v1.1) -> 15 -> 18 (v1.2)
@@ -114,3 +123,4 @@ Plans:
 | 16. Household Data Migration | v1.2 | 2/2 | Complete | 2026-02-11 |
 | 17. Guided Onboarding | v1.2 | 2/2 | Complete | 2026-02-11 |
 | 18. App Feedback | v1.2 | 2/2 | Complete | 2026-02-11 |
+| 19. User Help Functionality | -- | 0/2 | Planning | -- |

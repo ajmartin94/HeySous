@@ -59,7 +59,7 @@ Plans:
   1. A second household member can search and view all recipes added by the first member, and add new recipes visible to both
   2. Any household member can create or modify the weekly meal plan, and all members see the same plan
   3. Any household member can view and check off grocery list items, and changes are visible to all members
-  4. Claude's system prompt includes the current user's name and household context, referencing shared cooking history as "we"
+  4. Claude's system prompt includes the current user's first name naturally, addressing them by name (no "we" framing, no household context per user decision)
   5. Existing single-user data is fully preserved -- zero recipes, plans, or grocery items lost after migration
 **Plans**: 2 plans
 

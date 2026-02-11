@@ -22,7 +22,7 @@ import { calculateCost } from "../ai/claude-client.js";
 import { sendFormattedMessage } from "../telegram/sender.js";
 import { messages, tokenUsage } from "../db/schema.js";
 import { createToolHandler } from "../ai/tool-handler.js";
-import { KNOWLEDGE_TOOLS, PLAN_TOOLS, GROCERY_TOOLS, REMINDER_TOOLS, FEEDBACK_TOOLS } from "../ai/tools.js";
+import { KNOWLEDGE_TOOLS, PLAN_TOOLS, GROCERY_TOOLS, REMINDER_TOOLS, FEEDBACK_TOOLS, APP_FEEDBACK_TOOLS } from "../ai/tools.js";
 import { buildConversationContext } from "../conversation/context-builder.js";
 import type { ConversationTurn } from "../conversation/types.js";
 import type { createRetrievalService } from "../knowledge/retrieval.js";
@@ -36,6 +36,7 @@ import { buildPlanContext } from "../planning/context.js";
 import { buildGroceryContext } from "../grocery/context.js";
 import { buildReminderContext } from "../reminders/context.js";
 import { buildFeedbackContext } from "../feedback/context.js";
+import type { createAppFeedbackRepository } from "../app-feedback/repository.js";
 import { formatGroceryList } from "../grocery/formatter.js";
 import { buildGroceryKeyboard } from "../grocery/buttons.js";
 import { getPreferenceSummaries } from "../knowledge/preferences.js";
@@ -77,6 +78,7 @@ interface ProcessorDeps {
   reminderRepository?: ReturnType<typeof createReminderRepository>;
   generateRemindersFn?: (householdId: string) => void;
   feedbackRepository?: ReturnType<typeof import("../feedback/repository.js").createFeedbackRepository>;
+  appFeedbackRepository?: ReturnType<typeof createAppFeedbackRepository>;
   clock: Clock;
   refreshUserCache?: (user: User) => void;
 }
@@ -156,6 +158,7 @@ export function createProcessor(deps: ProcessorDeps) {
         groceryRepository: deps.groceryRepository,
         reminderRepository: deps.reminderRepository,
         generateRemindersFn: deps.generateRemindersFn,
+        appFeedbackRepository: deps.appFeedbackRepository,
         clock: deps.clock,
       });
 
@@ -189,7 +192,18 @@ export function createProcessor(deps: ProcessorDeps) {
         ? buildOnboardingPrompt(ctx.user.onboardingState)
         : "";
 
-      const systemPrompt = buildSystemPrompt(preferences, planContext, groceryContext, reminderContext, feedbackContext, userName, onboardingContext);
+      // h3. Proactive app feedback prompt injection
+      const PROACTIVE_FEEDBACK_THRESHOLD = 50;
+      let appFeedbackContext = "";
+      if (deps.appFeedbackRepository) {
+        const messagesSinceLastPrompt = deps.appFeedbackRepository.getMessageCountSinceLastPrompt(householdId);
+        if (messagesSinceLastPrompt >= PROACTIVE_FEEDBACK_THRESHOLD) {
+          appFeedbackContext = "<request_feedback/>";
+          deps.appFeedbackRepository.recordProactivePromptShown(householdId);
+        }
+      }
+
+      const systemPrompt = buildSystemPrompt(preferences, planContext, groceryContext, reminderContext, feedbackContext, userName, onboardingContext, appFeedbackContext);
 
       // i. 30-second timeout warning timer
       let timeoutFired = false;
@@ -208,7 +222,7 @@ export function createProcessor(deps: ProcessorDeps) {
       let response: ClaudeResponse;
       const startTime = Date.now();
 
-      const allTools = [...KNOWLEDGE_TOOLS, ...PLAN_TOOLS, ...GROCERY_TOOLS, ...REMINDER_TOOLS, ...FEEDBACK_TOOLS];
+      const allTools = [...KNOWLEDGE_TOOLS, ...PLAN_TOOLS, ...GROCERY_TOOLS, ...REMINDER_TOOLS, ...FEEDBACK_TOOLS, ...APP_FEEDBACK_TOOLS];
 
       try {
         response = await claudeClient.sendMessageWithTools(

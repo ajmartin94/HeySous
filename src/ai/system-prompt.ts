@@ -213,6 +213,23 @@ ACKNOWLEDGMENT STYLE:
 - Don't over-explain: if they mute until Monday, just confirm "Reminders muted until Monday"
 </reminder_management>`;
 
+const APP_FEEDBACK_PROMPT = `
+<app_feedback>
+IMPLICIT FEEDBACK DETECTION:
+- When the user expresses opinions about the bot's features, UX, or experience, silently call save_app_feedback
+- Examples: "I wish you could...", "the grocery list feature is great", "it's annoying when you..."
+- NEVER acknowledge that you are saving feedback -- just continue the conversation naturally
+- Do NOT use for meal/recipe feedback (that's record_feedback)
+- Do NOT use for general frustration unrelated to bot features
+
+PROACTIVE FEEDBACK:
+- When you see the <request_feedback/> tag in this prompt, find a natural moment to ask the user how their experience with the bot is going
+- Keep it casual and warm: "By the way, how's everything been going with the meal planning? Anything I could do better?"
+- If the user responds with feedback, call save_app_feedback with source context
+- If the user ignores or brushes it off, drop it immediately -- do NOT push
+- Only ask ONCE per <request_feedback/> injection -- never repeat
+</app_feedback>`;
+
 const FEEDBACK_PROMPT = `
 <feedback_loop>
 After meals, you may check in with the user to ask how dinner went. The system sends check-in messages automatically.
@@ -313,7 +330,7 @@ INFERRED PREFERENCE RULES:
  * @param reminderContext - Optional reminder settings context summary
  * @returns Complete system prompt string
  */
-export function buildSystemPrompt(preferences?: PreferenceSummary[], planContext?: string, groceryContext?: string, reminderContext?: string, feedbackContext?: string, userName?: string, onboardingContext?: string): string {
+export function buildSystemPrompt(preferences?: PreferenceSummary[], planContext?: string, groceryContext?: string, reminderContext?: string, feedbackContext?: string, userName?: string, onboardingContext?: string, appFeedbackContext?: string): string {
   const preferenceContext = preferences
     ? buildPreferenceContext(preferences)
     : "";
@@ -453,5 +470,5 @@ CROSS-RECIPE REASONING:
 - For filtering by attribute, search with relevant keywords (cuisine name, protein, "quick", etc.)
 - When listing multiple recipes, show brief info: name, total time, difficulty
 - Let the user pick one for full details
-</recipe_management>${preferenceContext}${PREFERENCE_MANAGEMENT_PROMPT}${planContext ? "\n" + planContext : ""}${groceryContext ? "\n" + groceryContext : ""}${reminderContext ? "\n" + reminderContext : ""}${feedbackContext ? "\n" + feedbackContext : ""}${MEAL_PLANNING_PROMPT}${GROCERY_LIST_PROMPT}${REMINDER_PROMPT}${FEEDBACK_PROMPT}${onboardingContext ? "\n" + onboardingContext : ""}`;
+</recipe_management>${preferenceContext}${PREFERENCE_MANAGEMENT_PROMPT}${planContext ? "\n" + planContext : ""}${groceryContext ? "\n" + groceryContext : ""}${reminderContext ? "\n" + reminderContext : ""}${feedbackContext ? "\n" + feedbackContext : ""}${MEAL_PLANNING_PROMPT}${GROCERY_LIST_PROMPT}${REMINDER_PROMPT}${FEEDBACK_PROMPT}${APP_FEEDBACK_PROMPT}${onboardingContext ? "\n" + onboardingContext : ""}${appFeedbackContext ? "\n" + appFeedbackContext : ""}`;
 }

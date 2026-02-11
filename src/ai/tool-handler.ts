@@ -5,6 +5,7 @@ import type { createPlanRepository } from "../planning/repository.js";
 import type { PlanEntry, MealType } from "../planning/repository.js";
 import type { createGroceryRepository } from "../grocery/repository.js";
 import type { createReminderRepository } from "../reminders/repository.js";
+import type { createAppFeedbackRepository } from "../app-feedback/repository.js";
 import type { Clock } from "../clock.js";
 import { formatIsoDate } from "../clock.js";
 import { logMeal, getCookingHistory } from "../planning/history.js";
@@ -31,9 +32,10 @@ export function createToolHandler(deps: {
   groceryRepository?: ReturnType<typeof createGroceryRepository>;
   reminderRepository?: ReturnType<typeof createReminderRepository>;
   generateRemindersFn?: (householdId: string) => void;
+  appFeedbackRepository?: ReturnType<typeof createAppFeedbackRepository>;
   clock: Clock;
 }) {
-  const { retrievalService, knowledgeRepository, db, householdId, planRepository, sqlite, groceryRepository, reminderRepository, generateRemindersFn, clock } = deps;
+  const { retrievalService, knowledgeRepository, db, householdId, planRepository, sqlite, groceryRepository, reminderRepository, generateRemindersFn, appFeedbackRepository, clock } = deps;
 
   return {
     /**
@@ -575,6 +577,22 @@ export function createToolHandler(deps: {
             message: `Feedback recorded for "${recipeName}": ${sentiment}${notes ? ` - ${notes}` : ""}`,
             knowledgeItemId,
           });
+        }
+
+        case "save_app_feedback": {
+          if (!appFeedbackRepository) {
+            return JSON.stringify({ error: "App feedback tools not available" });
+          }
+
+          const text = input.text as string;
+          appFeedbackRepository.saveFeedback({
+            householdId,
+            userId: householdId,
+            text,
+            source: "implicit",
+          });
+
+          return JSON.stringify({ saved: true });
         }
 
         default:

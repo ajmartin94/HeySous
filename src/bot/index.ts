@@ -18,10 +18,11 @@
  * 11. preferencesHandler (/preferences user preferences)
  * 12. planHandler (/plan meal plan display)
  * 13. groceryHandler (/grocery grocery list display)
- * 14. remindersHandler (/reminders reminder settings display)
- * 15. feedbackTextHandler (free-text feedback replies -- before catch-all)
- * 16. messageHandler (catch-all message:text -- MUST be last)
- * 17. error boundary
+ * 14. appFeedbackHandler (/feedback app feedback submission)
+ * 15. remindersHandler (/reminders reminder settings display)
+ * 16. feedbackTextHandler (free-text feedback replies -- before catch-all)
+ * 17. messageHandler (catch-all message:text -- MUST be last)
+ * 18. error boundary
  */
 
 import { Bot, type Composer, type MiddlewareFn } from "grammy";
@@ -42,6 +43,7 @@ interface CreateBotOptions {
   groceryHandler: Composer<BotContext>;
   groceryCallbackHandler: Composer<BotContext>;
   feedbackCallbackHandler: Composer<BotContext>;
+  appFeedbackHandler: Composer<BotContext>;
   remindersHandler: Composer<BotContext>;
   messageHandler: Composer<BotContext>;
   feedbackTextHandler?: Composer<BotContext>;
@@ -63,6 +65,7 @@ export function createBot(
     groceryHandler,
     groceryCallbackHandler,
     feedbackCallbackHandler,
+    appFeedbackHandler,
     remindersHandler,
     messageHandler,
     feedbackTextHandler,
@@ -95,6 +98,7 @@ export function createBot(
   bot.use(preferencesHandler); // /preferences command -- user preferences
   bot.use(planHandler); // /plan command -- meal plan display
   bot.use(groceryHandler); // /grocery command -- grocery list display
+  bot.use(appFeedbackHandler); // /feedback command -- app feedback submission
   bot.use(remindersHandler); // /reminders command -- reminder settings display
   if (feedbackTextHandler) {
     bot.use(feedbackTextHandler); // free-text feedback replies -- must be before catch-all

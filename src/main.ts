@@ -38,6 +38,8 @@ import { generateReminders } from "./reminders/generator.js";
 import { createFeedbackRepository } from "./feedback/repository.js";
 import { createFeedbackCallbackHandler } from "./feedback/handler.js";
 import { createFeedbackTextHandler } from "./bot/handlers/feedback.js";
+import { createAppFeedbackRepository } from "./app-feedback/repository.js";
+import { createAppFeedbackHandler } from "./bot/handlers/app-feedback.js";
 import { createFeedbackSender } from "./feedback/sender.js";
 import { generateFeedbackCheckins } from "./feedback/generator.js";
 import { createApiRouter } from "./mini-app/router.js";
@@ -108,6 +110,10 @@ async function main(): Promise<void> {
   const feedbackRepository = createFeedbackRepository(sqlite);
   logger.info("Feedback repository initialized");
 
+  // Initialize app feedback repository for app-level feedback CRUD
+  const appFeedbackRepository = createAppFeedbackRepository(sqlite);
+  logger.info("App feedback repository initialized");
+
   // Helper to regenerate reminders for a given household (used by tool handler and startup)
   const regenerateReminders = (householdId: string): void => {
     const settings = reminderRepository.getOrCreateSettings(householdId);
@@ -143,6 +149,7 @@ async function main(): Promise<void> {
     reminderRepository,
     generateRemindersFn: regenerateReminders,
     feedbackRepository,
+    appFeedbackRepository,
     clock,
     refreshUserCache,
   });
@@ -170,6 +177,7 @@ async function main(): Promise<void> {
   const remindersHandler = createRemindersHandler(sqlite, clock);
   const feedbackCallbackHandler = createFeedbackCallbackHandler({ sqlite, feedbackRepository, knowledgeRepository, db, clock });
   const feedbackTextHandler = createFeedbackTextHandler({ sqlite, feedbackRepository, knowledgeRepository, db, claudeClient, clock });
+  const appFeedbackHandler = createAppFeedbackHandler(sqlite);
   const messageHandler = createMessageHandler(queue, processBatch);
 
   // Create bot instance with all dependencies
@@ -184,6 +192,7 @@ async function main(): Promise<void> {
     groceryHandler,
     groceryCallbackHandler,
     feedbackCallbackHandler,
+    appFeedbackHandler,
     remindersHandler,
     messageHandler,
     feedbackTextHandler,

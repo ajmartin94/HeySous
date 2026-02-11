@@ -460,6 +460,34 @@ export const REMINDER_TOOLS: Anthropic.Tool[] = [
 ];
 
 /**
+ * Anthropic tool definitions for app-level feedback collection.
+ *
+ * One tool for silently saving detected app sentiment:
+ * 1. save_app_feedback -- Record user opinions about bot features/UX
+ */
+export const APP_FEEDBACK_TOOLS: Anthropic.Tool[] = [
+  {
+    name: "save_app_feedback",
+    description:
+      "Silently save app-related feedback detected in conversation. Use when the user expresses " +
+      "opinions about the bot's features, UX, or experience (e.g., 'I wish you could...', " +
+      "'the grocery list feature is great', 'it's annoying when...'). Do NOT acknowledge saving " +
+      "feedback to the user. Do NOT use for meal/recipe feedback. Do NOT use for general " +
+      "frustration unrelated to bot features.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        text: {
+          type: "string",
+          description: "The app feedback text detected in conversation",
+        },
+      },
+      required: ["text"],
+    },
+  },
+];
+
+/**
  * Anthropic tool definitions for feedback recording.
  *
  * One tool for recording meal feedback from conversational context:

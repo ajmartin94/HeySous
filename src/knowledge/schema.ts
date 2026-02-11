@@ -2,7 +2,7 @@ import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 export const knowledgeItems = sqliteTable("knowledge_items", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  chatId: text("chat_id").notNull(),
+  householdId: text("household_id").notNull(),
   title: text("title").notNull(),
   summary: text("summary").notNull(),
   content: text("content").notNull(),
@@ -34,7 +34,7 @@ export const knowledgeTags = sqliteTable("knowledge_tags", {
 export const knowledgeChangelog = sqliteTable("knowledge_changelog", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   knowledgeItemId: integer("knowledge_item_id").notNull(),
-  chatId: text("chat_id").notNull(),
+  householdId: text("household_id").notNull(),
   action: text("action", { enum: ["create", "update", "delete"] }).notNull(),
   changeDescription: text("change_description"),
   previousContent: text("previous_content"),

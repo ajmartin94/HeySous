@@ -19,13 +19,13 @@ export interface PreferenceSummary {
  * accessed first.
  *
  * @param sqlite - Raw better-sqlite3 database instance
- * @param chatId - Chat ID for per-user isolation
+ * @param householdId - Household ID for per-household isolation
  * @param limit - Maximum preferences to return (default 30)
  * @returns Array of PreferenceSummary objects
  */
 export function getPreferenceSummaries(
   sqlite: BetterSqlite3.Database,
-  chatId: string,
+  householdId: string,
   limit: number = 30,
 ): PreferenceSummary[] {
   const rows = sqlite
@@ -34,12 +34,12 @@ export function getPreferenceSummaries(
       SELECT DISTINCT ki.id, ki.title, ki.summary
       FROM knowledge_items ki
       JOIN knowledge_tags kt ON kt.knowledge_item_id = ki.id
-      WHERE ki.chat_id = ? AND (kt.tag = 'preference' OR kt.tag LIKE 'pref:%' OR kt.tag LIKE 'severity:%')
+      WHERE ki.household_id = ? AND (kt.tag = 'preference' OR kt.tag LIKE 'pref:%' OR kt.tag LIKE 'severity:%')
       ORDER BY ki.last_accessed_at DESC
       LIMIT ?
       `,
     )
-    .all(chatId, limit) as Array<{
+    .all(householdId, limit) as Array<{
     id: number;
     title: string;
     summary: string;

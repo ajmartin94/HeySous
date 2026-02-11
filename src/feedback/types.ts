@@ -7,7 +7,7 @@ export type FeedbackCheckinStatus = "pending" | "sent" | "responded" | "expired"
 /** A feedback check-in tracking record. */
 export interface FeedbackCheckin {
   id: number;
-  chatId: string;
+  householdId: string;
   reminderId: number;
   /** Meals included in this check-in (JSON array) */
   mealsJson: string;

@@ -21,7 +21,7 @@ interface UpdateKnowledgeInput {
 
 /**
  * Factory function for knowledge CRUD operations.
- * All operations filter by chatId for per-user knowledge isolation.
+ * All operations filter by householdId for per-household knowledge isolation.
  */
 export function createKnowledgeRepository(db: DrizzleDatabase) {
   function buildKnowledgeItem(
@@ -30,7 +30,7 @@ export function createKnowledgeRepository(db: DrizzleDatabase) {
   ): KnowledgeItem {
     return {
       id: item.id,
-      chatId: item.chatId,
+      householdId: item.householdId,
       title: item.title,
       summary: item.summary,
       content: item.content,
@@ -46,11 +46,11 @@ export function createKnowledgeRepository(db: DrizzleDatabase) {
     /**
      * Create a new knowledge item with tags.
      */
-    create(chatId: string, input: CreateKnowledgeInput): KnowledgeItem {
+    create(householdId: string, input: CreateKnowledgeInput): KnowledgeItem {
       const inserted = db
         .insert(knowledgeItems)
         .values({
-          chatId,
+          householdId,
           title: input.title,
           summary: input.summary,
           content: input.content,
@@ -79,14 +79,14 @@ export function createKnowledgeRepository(db: DrizzleDatabase) {
     },
 
     /**
-     * Get a knowledge item by ID, filtered by chatId for security.
+     * Get a knowledge item by ID, filtered by householdId for security.
      */
-    getById(id: number, chatId: string): KnowledgeItem | null {
+    getById(id: number, householdId: string): KnowledgeItem | null {
       const item = db
         .select()
         .from(knowledgeItems)
         .where(
-          and(eq(knowledgeItems.id, id), eq(knowledgeItems.chatId, chatId))
+          and(eq(knowledgeItems.id, id), eq(knowledgeItems.householdId, householdId))
         )
         .get();
 
@@ -107,15 +107,15 @@ export function createKnowledgeRepository(db: DrizzleDatabase) {
      */
     update(
       id: number,
-      chatId: string,
+      householdId: string,
       changes: UpdateKnowledgeInput
     ): KnowledgeItem | null {
-      // Verify item exists and belongs to chatId
+      // Verify item exists and belongs to householdId
       const existing = db
         .select()
         .from(knowledgeItems)
         .where(
-          and(eq(knowledgeItems.id, id), eq(knowledgeItems.chatId, chatId))
+          and(eq(knowledgeItems.id, id), eq(knowledgeItems.householdId, householdId))
         )
         .get();
 
@@ -133,7 +133,7 @@ export function createKnowledgeRepository(db: DrizzleDatabase) {
       db.update(knowledgeItems)
         .set(updateValues)
         .where(
-          and(eq(knowledgeItems.id, id), eq(knowledgeItems.chatId, chatId))
+          and(eq(knowledgeItems.id, id), eq(knowledgeItems.householdId, householdId))
         )
         .run();
 
@@ -156,18 +156,18 @@ export function createKnowledgeRepository(db: DrizzleDatabase) {
       }
 
       // Return updated item
-      return this.getById(id, chatId);
+      return this.getById(id, householdId);
     },
 
     /**
      * Delete a knowledge item. Cascade deletes tags.
      * Returns true if item was deleted.
      */
-    delete(id: number, chatId: string): boolean {
+    delete(id: number, householdId: string): boolean {
       const result = db
         .delete(knowledgeItems)
         .where(
-          and(eq(knowledgeItems.id, id), eq(knowledgeItems.chatId, chatId))
+          and(eq(knowledgeItems.id, id), eq(knowledgeItems.householdId, householdId))
         )
         .run();
 
@@ -175,14 +175,14 @@ export function createKnowledgeRepository(db: DrizzleDatabase) {
     },
 
     /**
-     * List all knowledge items for a chat, ordered by lastAccessedAt desc.
+     * List all knowledge items for a household, ordered by lastAccessedAt desc.
      * Default limit 50.
      */
-    listByChatId(chatId: string, limit: number = 50): KnowledgeItem[] {
+    listByHouseholdId(householdId: string, limit: number = 50): KnowledgeItem[] {
       const items = db
         .select()
         .from(knowledgeItems)
-        .where(eq(knowledgeItems.chatId, chatId))
+        .where(eq(knowledgeItems.householdId, householdId))
         .orderBy(desc(knowledgeItems.lastAccessedAt))
         .limit(limit)
         .all();

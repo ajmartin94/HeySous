@@ -8,7 +8,7 @@ import type {
 /** Raw row shape for feedback_checkins from SQLite. */
 interface FeedbackCheckinRow {
   id: number;
-  chat_id: string;
+  household_id: string;
   reminder_id: number;
   meals_json: string;
   status: string;
@@ -22,7 +22,7 @@ interface FeedbackCheckinRow {
 function mapCheckin(row: FeedbackCheckinRow): FeedbackCheckin {
   return {
     id: row.id,
-    chatId: row.chat_id,
+    householdId: row.household_id,
     reminderId: row.reminder_id,
     mealsJson: row.meals_json,
     status: row.status as FeedbackCheckinStatus,
@@ -45,16 +45,16 @@ export function createFeedbackRepository(sqlite: BetterSqlite3.Database) {
      * Create a new feedback check-in tracking record.
      */
     createCheckin(params: {
-      chatId: string;
+      householdId: string;
       reminderId: number;
       mealsJson: string;
     }): FeedbackCheckin {
       const result = sqlite
         .prepare(
-          `INSERT INTO feedback_checkins (chat_id, reminder_id, meals_json)
+          `INSERT INTO feedback_checkins (household_id, reminder_id, meals_json)
            VALUES (?, ?, ?)`,
         )
-        .run(params.chatId, params.reminderId, params.mealsJson);
+        .run(params.householdId, params.reminderId, params.mealsJson);
 
       const row = sqlite
         .prepare(`SELECT * FROM feedback_checkins WHERE id = ?`)
@@ -79,14 +79,14 @@ export function createFeedbackRepository(sqlite: BetterSqlite3.Database) {
      * Get sent but not responded check-ins for a chat.
      * Used for free-text response matching.
      */
-    getPendingSentCheckins(chatId: string): FeedbackCheckin[] {
+    getPendingSentCheckins(householdId: string): FeedbackCheckin[] {
       const rows = sqlite
         .prepare(
           `SELECT * FROM feedback_checkins
-           WHERE chat_id = ? AND status = 'sent'
+           WHERE household_id = ? AND status = 'sent'
            ORDER BY created_at DESC`,
         )
-        .all(chatId) as FeedbackCheckinRow[];
+        .all(householdId) as FeedbackCheckinRow[];
 
       return rows.map(mapCheckin);
     },
@@ -127,15 +127,15 @@ export function createFeedbackRepository(sqlite: BetterSqlite3.Database) {
      * Get recent feedback for a chat (for context injection).
      * Defaults to last 10 responded check-ins.
      */
-    getRecentFeedback(chatId: string, limit: number = 10): FeedbackCheckin[] {
+    getRecentFeedback(householdId: string, limit: number = 10): FeedbackCheckin[] {
       const rows = sqlite
         .prepare(
           `SELECT * FROM feedback_checkins
-           WHERE chat_id = ? AND status = 'responded'
+           WHERE household_id = ? AND status = 'responded'
            ORDER BY responded_at DESC
            LIMIT ?`,
         )
-        .all(chatId, limit) as FeedbackCheckinRow[];
+        .all(householdId, limit) as FeedbackCheckinRow[];
 
       return rows.map(mapCheckin);
     },

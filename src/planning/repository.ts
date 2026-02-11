@@ -44,11 +44,11 @@ export function createPlanRepository(db: DrizzleDatabase) {
   return {
     /**
      * Save a meal plan for a specific week.
-     * Find-or-create: if plan exists for this chatId + weekStartDate,
+     * Find-or-create: if plan exists for this householdId + weekStartDate,
      * delete all entries and replace with new ones.
      */
     savePlan(
-      chatId: string,
+      householdId: string,
       weekStartDate: string,
       entries: PlanEntry[],
     ): SavedPlan {
@@ -58,7 +58,7 @@ export function createPlanRepository(db: DrizzleDatabase) {
         .from(mealPlans)
         .where(
           and(
-            eq(mealPlans.chatId, chatId),
+            eq(mealPlans.householdId, householdId),
             eq(mealPlans.weekStartDate, weekStartDate),
           ),
         )
@@ -84,7 +84,7 @@ export function createPlanRepository(db: DrizzleDatabase) {
         const inserted = db
           .insert(mealPlans)
           .values({
-            chatId,
+            householdId,
             weekStartDate,
           })
           .returning()
@@ -128,13 +128,13 @@ export function createPlanRepository(db: DrizzleDatabase) {
      * Get a plan for a specific week.
      * Returns null if no plan exists.
      */
-    getPlan(chatId: string, weekStartDate: string): SavedPlan | null {
+    getPlan(householdId: string, weekStartDate: string): SavedPlan | null {
       const plan = db
         .select()
         .from(mealPlans)
         .where(
           and(
-            eq(mealPlans.chatId, chatId),
+            eq(mealPlans.householdId, householdId),
             eq(mealPlans.weekStartDate, weekStartDate),
           ),
         )
@@ -165,16 +165,16 @@ export function createPlanRepository(db: DrizzleDatabase) {
     /**
      * Get active plans: current week and next week (if they exist).
      */
-    getActivePlans(chatId: string): SavedPlan[] {
+    getActivePlans(householdId: string): SavedPlan[] {
       const currentWeek = getWeekStartDate();
       const nextWeek = addDays(currentWeek, 7);
 
       const plans: SavedPlan[] = [];
 
-      const currentPlan = this.getPlan(chatId, currentWeek);
+      const currentPlan = this.getPlan(householdId, currentWeek);
       if (currentPlan) plans.push(currentPlan);
 
-      const nextPlan = this.getPlan(chatId, nextWeek);
+      const nextPlan = this.getPlan(householdId, nextWeek);
       if (nextPlan) plans.push(nextPlan);
 
       return plans;

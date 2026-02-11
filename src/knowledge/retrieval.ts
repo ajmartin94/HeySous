@@ -40,7 +40,7 @@ export function createRetrievalService(deps: {
      * Results are BM25-ranked with recency as tiebreaker.
      */
     search(
-      chatId: string,
+      householdId: string,
       query: string,
       limit: number = 5,
     ): { results: SearchResult[]; metrics: RetrievalMetrics } {
@@ -48,12 +48,12 @@ export function createRetrievalService(deps: {
 
       let results: SearchResult[];
       try {
-        results = searchFts(sqlite, query, chatId, limit);
+        results = searchFts(sqlite, query, householdId, limit);
       } catch (error) {
         // Defensive: searchFts has its own try/catch with LIKE fallback,
         // but handle unexpected errors gracefully
         logger.warn(
-          { error, query, chatId },
+          { error, query, householdId },
           "Unexpected error during knowledge search",
         );
         results = [];
@@ -88,7 +88,7 @@ export function createRetrievalService(deps: {
 
       const queryTimeMs = Math.round(performance.now() - startTime);
 
-      metricsPerChat.set(chatId, {
+      metricsPerChat.set(householdId, {
         itemsSearched,
         itemsReturned: budgetedResults.length,
         tokensUsed,
@@ -97,7 +97,7 @@ export function createRetrievalService(deps: {
 
       logger.info(
         {
-          chatId,
+          householdId,
           query,
           itemsSearched,
           itemsReturned: budgetedResults.length,
@@ -107,25 +107,25 @@ export function createRetrievalService(deps: {
         "Knowledge search completed",
       );
 
-      return { results: budgetedResults, metrics: { ...metricsPerChat.get(chatId)! } };
+      return { results: budgetedResults, metrics: { ...metricsPerChat.get(householdId)! } };
     },
 
     /**
      * Pass 2: Get full content for a specific knowledge item by ID.
      * Updates last_accessed_at for recency tracking.
      */
-    getItem(id: number, chatId: string): KnowledgeItem | null {
-      return getFullItem(sqlite, id, chatId);
+    getItem(id: number, householdId: string): KnowledgeItem | null {
+      return getFullItem(sqlite, id, householdId);
     },
 
     /**
-     * Get metrics from the most recent search call for a specific chat.
+     * Get metrics from the most recent search call for a specific household.
      * Used by /debug command to surface retrieval performance.
-     * Returns zeroes if no search has occurred for the given chat (or no chatId provided).
+     * Returns zeroes if no search has occurred for the given household.
      */
-    getMetrics(chatId?: string): RetrievalMetrics {
-      if (chatId) {
-        const metrics = metricsPerChat.get(chatId);
+    getMetrics(householdId?: string): RetrievalMetrics {
+      if (householdId) {
+        const metrics = metricsPerChat.get(householdId);
         if (metrics) return { ...metrics };
       }
       return {

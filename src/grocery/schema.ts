@@ -7,7 +7,7 @@ import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
  */
 export const groceryLists = sqliteTable("grocery_lists", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  chatId: text("chat_id").notNull(),
+  householdId: text("household_id").notNull(),
   planId: integer("plan_id"),
   messageId: integer("message_id"),
   status: text("status", { enum: ["draft", "active", "completed"] })

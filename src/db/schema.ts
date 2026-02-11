@@ -13,7 +13,7 @@ export const messages = sqliteTable("messages", {
 
 export const tokenUsage = sqliteTable("token_usage", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  chatId: text("chat_id").notNull(),
+  householdId: text("household_id").notNull(),
   userId: text("user_id").notNull(),
   model: text("model").notNull(),
   conversationType: text("conversation_type").notNull(),

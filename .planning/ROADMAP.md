@@ -28,7 +28,7 @@ See .planning/milestones/v1.1-ROADMAP.md for full phase history.
 
 **Milestone Goal:** Enable multi-user access with gated invitations, guided onboarding for new users, full household sharing, and an app feedback system.
 
-- [ ] **Phase 15: Users, Households, and Invites** - Multi-user identity with invite-gated access
+- [x] **Phase 15: Users, Households, and Invites** - Multi-user identity with invite-gated access (completed 2026-02-11)
 - [ ] **Phase 16: Household Data Migration** - Migrate all data paths from chatId to householdId for shared data
 - [ ] **Phase 17: Guided Onboarding** - Claude-driven first-run experience for new users
 - [ ] **Phase 18: App Feedback** - Feedback collection, sentiment scoring, and admin dashboard
@@ -48,8 +48,8 @@ See .planning/milestones/v1.1-ROADMAP.md for full phase history.
 **Plans**: 2 plans
 
 Plans:
-- [ ] 15-01-PLAN.md -- Data foundation: users, households, invites modules with types, schemas, init, and repositories
-- [ ] 15-02-PLAN.md -- Bot integration: access gate, /start deep link handling, /invite command, wiring
+- [x] 15-01-PLAN.md -- Data foundation: users, households, invites modules with types, schemas, init, and repositories
+- [x] 15-02-PLAN.md -- Bot integration: access gate, /start deep link handling, /invite command, wiring
 
 ### Phase 16: Household Data Migration
 **Goal**: All household members share the same recipes, meal plans, grocery lists, and cooking history -- and Claude knows who it is talking to
@@ -112,7 +112,7 @@ Plans:
 | 12. Grocery List | v1.1 | 3/3 | Complete | 2026-02-10 |
 | 13. Recipe Browser | v1.1 | 2/2 | Complete | 2026-02-10 |
 | 14. Meal Plan Viewer | v1.1 | 2/2 | Complete | 2026-02-10 |
-| 15. Users, Households, and Invites | v1.2 | 0/2 | Planned | - |
+| 15. Users, Households, and Invites | v1.2 | 2/2 | Complete | 2026-02-11 |
 | 16. Household Data Migration | v1.2 | 0/TBD | Not started | - |
 | 17. Guided Onboarding | v1.2 | 0/TBD | Not started | - |
 | 18. App Feedback | v1.2 | 0/TBD | Not started | - |

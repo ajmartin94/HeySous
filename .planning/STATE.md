@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-10)
 
 **Core value:** The recipe brain -- an AI agent that remembers everything about your meals and reasons over that knowledge to help you plan.
-**Current focus:** v1.2 Onboarding and Feedback -- Phase 18 in progress
+**Current focus:** v1.2 Onboarding and Feedback -- Phase 18 complete
 
 ## Current Position
 
 Phase: 18 of 18 (App Feedback)
-Plan: 1 of 2 complete
-Status: Executing
-Last activity: 2026-02-11 -- Completed 18-01 App Feedback Data Layer and Bot Integration
+Plan: 2 of 2 complete
+Status: Phase Complete
+Last activity: 2026-02-11 -- Completed 18-02 Mini App Feedback
 
-Progress: [████████░░] 75% (v1.2)
+Progress: [██████████] 100% (v1.2)
 
 ## Performance Metrics
 
@@ -36,6 +36,7 @@ Progress: [████████░░] 75% (v1.2)
 - 17-01: 4 min (2 tasks, 6 files)
 - 17-02: 12 min (2 tasks, 5 files)
 - 18-01: 4 min (2 tasks, 11 files)
+- 18-02: 3 min (2 tasks, 5 files)
 
 ## Accumulated Context
 
@@ -82,6 +83,10 @@ All v1.0 and v1.1 decisions documented with outcomes.
 - Implicit detection uses householdId as userId (conversation-level, not per-user)
 - APP_FEEDBACK_PROMPT positioned after FEEDBACK_PROMPT to keep meal/app feedback separate
 
+**Phase 18-02:**
+- Plain HTML textarea for multi-line feedback (not telegram-ui Input)
+- No category picker, emoji rating, or sentiment scoring (all deferred per user decision)
+
 ### Key Research Findings (v1.2)
 
 - Zero new npm dependencies needed for v1.2
@@ -102,5 +107,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-11
-Stopped at: Completed 18-01-PLAN.md (App Feedback Data Layer and Bot Integration)
-Next action: Execute 18-02-PLAN.md (Mini App Feedback)
+Stopped at: Completed 18-02-PLAN.md (Mini App Feedback)
+Next action: Phase 18 complete -- all v1.2 phases done, ready for milestone transition

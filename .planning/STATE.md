@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-10)
 
 **Core value:** The recipe brain -- an AI agent that remembers everything about your meals and reasons over that knowledge to help you plan.
-**Current focus:** v1.2 Onboarding and Feedback -- Phase 18 complete
+**Current focus:** Phase 19 -- User Help Functionality
 
 ## Current Position
 
-Phase: 18 of 18 (App Feedback)
-Plan: 2 of 2 complete
-Status: Phase Complete
-Last activity: 2026-02-11 -- Completed 18-02 Mini App Feedback
+Phase: 19 of 19 (User Help Functionality)
+Plan: 1 of 2 complete
+Status: In Progress
+Last activity: 2026-02-11 -- Completed 19-01 Help Command and System Prompt
 
-Progress: [██████████] 100% (v1.2)
+Progress: [█████████░] 95%
 
 ## Performance Metrics
 
@@ -37,6 +37,7 @@ Progress: [██████████] 100% (v1.2)
 - 17-02: 12 min (2 tasks, 5 files)
 - 18-01: 4 min (2 tasks, 11 files)
 - 18-02: 3 min (2 tasks, 5 files)
+- 19-01: 2 min (2 tasks, 4 files)
 
 ## Accumulated Context
 
@@ -87,6 +88,10 @@ All v1.0 and v1.1 decisions documented with outcomes.
 - Plain HTML textarea for multi-line feedback (not telegram-ui Input)
 - No category picker, emoji rating, or sentiment scoring (all deferred per user decision)
 
+**Phase 19-01:**
+- Help handler has no DB dependencies -- uses only config.miniAppUrl for webApp button
+- HELP_PROMPT positioned after APP_FEEDBACK_PROMPT and before onboarding/appFeedback context injections
+
 ### Key Research Findings (v1.2)
 
 - Zero new npm dependencies needed for v1.2
@@ -100,6 +105,10 @@ All v1.0 and v1.1 decisions documented with outcomes.
 
 1. Fix start_cooking reminder to account for prep time (reminders) — `.planning/todos/pending/2026-02-11-fix-start-cooking-reminder-to-account-for-prep-time.md`
 
+### Roadmap Evolution
+
+- Phase 19 added: user help functionality
+
 ### Blockers/Concerns
 
 None.
@@ -107,5 +116,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-11
-Stopped at: Completed 18-02-PLAN.md (Mini App Feedback)
-Next action: Phase 18 complete -- all v1.2 phases done, ready for milestone transition
+Stopped at: Completed 19-01-PLAN.md (Help Command and System Prompt)
+Next action: Execute 19-02-PLAN.md

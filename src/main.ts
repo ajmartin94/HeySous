@@ -12,6 +12,7 @@
  */
 
 import type BetterSqlite3 from "better-sqlite3";
+import { Api } from "grammy";
 import { config } from "./config.js";
 import { createBot } from "./bot/index.js";
 import { createServer } from "./server.js";
@@ -41,6 +42,9 @@ import { createFeedbackSender } from "./feedback/sender.js";
 import { generateFeedbackCheckins } from "./feedback/generator.js";
 import { createApiRouter } from "./mini-app/router.js";
 import { setupMenuButton } from "./telegram/menu-button.js";
+import { createAccessGate } from "./bot/middlewares/access-gate.js";
+import { createStartHandler } from "./bot/handlers/start.js";
+import { createInviteHandler } from "./bot/handlers/invite.js";
 import { createClock, createTestClock } from "./clock.js";
 import { logger } from "./logger.js";
 
@@ -58,6 +62,17 @@ async function main(): Promise<void> {
   // Get raw better-sqlite3 instance for direct FTS5 access
   // Drizzle exposes the underlying driver via $client (not in public type defs)
   const sqlite = (db as unknown as { $client: BetterSqlite3.Database }).$client;
+
+  // Get bot info for username (needed for invite deep links)
+  const api = new Api(config.botToken);
+  const me = await api.getMe();
+  const botUsername = me.username;
+  logger.info({ botUsername }, "Bot info fetched");
+
+  // Initialize access gate and identity handlers
+  const { middleware: accessGate, addToCache } = createAccessGate({ sqlite });
+  const startHandler = createStartHandler({ sqlite, addToCache });
+  const inviteHandler = createInviteHandler({ sqlite, botUsername });
 
   // Initialize Claude client
   const claudeClient = createClaudeClient(
@@ -158,6 +173,9 @@ async function main(): Promise<void> {
 
   // Create bot instance with all dependencies
   const bot = createBot(config.botToken, {
+    accessGate,
+    startHandler,
+    inviteHandler,
     costsHandler,
     debugHandler,
     preferencesHandler,

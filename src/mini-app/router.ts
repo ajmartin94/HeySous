@@ -5,6 +5,7 @@ import { createSummaryRoute } from "./routes/summary.js";
 import { createGroceryRoutes } from "./routes/grocery.js";
 import { createRecipeRoutes } from "./routes/recipes.js";
 import { createMealPlanRoutes } from "./routes/meal-plan.js";
+import { createAppFeedbackRoutes } from "./routes/app-feedback.js";
 
 /**
  * Dependencies for the API router.
@@ -46,6 +47,10 @@ export function createApiRouter(deps: ApiRouterDeps): Router {
   // Meal plan endpoints
   const mealPlan = createMealPlanRoutes(deps.sqlite);
   router.get("/meal-plan", mealPlan.getPlan);
+
+  // App feedback endpoint
+  const appFeedback = createAppFeedbackRoutes(deps.sqlite);
+  router.post("/feedback", appFeedback.submit);
 
   return router;
 }

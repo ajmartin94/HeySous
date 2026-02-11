@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-10)
 
 **Core value:** The recipe brain -- an AI agent that remembers everything about your meals and reasons over that knowledge to help you plan.
-**Current focus:** v1.2 Onboarding and Feedback -- Phase 17 complete, Phase 18 next
+**Current focus:** v1.2 Onboarding and Feedback -- Phase 18 in progress
 
 ## Current Position
 
-Phase: 17 of 18 (Guided Onboarding) -- COMPLETE
-Plan: 2 of 2 complete
-Status: Phase complete
-Last activity: 2026-02-11 -- Completed 17-02 Handler and Pipeline Integration
+Phase: 18 of 18 (App Feedback)
+Plan: 1 of 2 complete
+Status: Executing
+Last activity: 2026-02-11 -- Completed 18-01 App Feedback Data Layer and Bot Integration
 
-Progress: [███████░░░] 58% (v1.2)
+Progress: [████████░░] 75% (v1.2)
 
 ## Performance Metrics
 
@@ -35,6 +35,7 @@ Progress: [███████░░░] 58% (v1.2)
 - 16-02: 8 min (2 tasks, 22 files)
 - 17-01: 4 min (2 tasks, 6 files)
 - 17-02: 12 min (2 tasks, 5 files)
+- 18-01: 4 min (2 tasks, 11 files)
 
 ## Accumulated Context
 
@@ -76,6 +77,11 @@ All v1.0 and v1.1 decisions documented with outcomes.
 - refreshUserCache semantic alias for addToCache, wired through main.ts to processor
 - Empty marker-only responses handled gracefully (skip sending empty message)
 
+**Phase 18-01:**
+- Proactive feedback threshold set to 50 inbound messages (~2 weeks moderate use)
+- Implicit detection uses householdId as userId (conversation-level, not per-user)
+- APP_FEEDBACK_PROMPT positioned after FEEDBACK_PROMPT to keep meal/app feedback separate
+
 ### Key Research Findings (v1.2)
 
 - Zero new npm dependencies needed for v1.2
@@ -96,5 +102,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-11
-Stopped at: Completed 17-02-PLAN.md (Handler and Pipeline Integration) -- Phase 17 complete
-Next action: Plan Phase 18 (App Feedback)
+Stopped at: Completed 18-01-PLAN.md (App Feedback Data Layer and Bot Integration)
+Next action: Execute 18-02-PLAN.md (Mini App Feedback)

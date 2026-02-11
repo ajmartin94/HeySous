@@ -3,6 +3,7 @@ import { dirname } from "node:path";
 import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import * as schema from "./schema.js";
+import { migrateToHouseholdId } from "./migrate.js";
 import { initializeFts } from "../knowledge/fts.js";
 import { initializePlanning } from "../planning/history.js";
 import { initializeGrocery } from "../grocery/init.js";
@@ -26,6 +27,9 @@ export function createDatabase(dbPath: string) {
 
   // Enable foreign keys for CASCADE deletes
   sqlite.pragma("foreign_keys = ON");
+
+  // Migrate chat_id -> household_id columns (idempotent, runs before init functions)
+  migrateToHouseholdId(sqlite);
 
   // Initialize FTS5 virtual table and sync triggers for knowledge search
   initializeFts(sqlite);

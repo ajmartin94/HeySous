@@ -14,7 +14,7 @@ export function initializeFts(sqlite: BetterSqlite3.Database): void {
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS knowledge_items (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      chat_id TEXT NOT NULL,
+      household_id TEXT NOT NULL,
       title TEXT NOT NULL,
       summary TEXT NOT NULL,
       content TEXT NOT NULL,
@@ -37,7 +37,7 @@ export function initializeFts(sqlite: BetterSqlite3.Database): void {
     CREATE TABLE IF NOT EXISTS knowledge_changelog (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       knowledge_item_id INTEGER NOT NULL,
-      chat_id TEXT NOT NULL,
+      household_id TEXT NOT NULL,
       action TEXT NOT NULL,
       change_description TEXT,
       previous_content TEXT,

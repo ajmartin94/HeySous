@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Section, Cell } from '@telegram-apps/telegram-ui';
-import { ChefHat, ShoppingCart, CookingPot, CalendarDays } from 'lucide-react';
+import { ChefHat, ShoppingCart, CookingPot, CalendarDays, MessageSquare } from 'lucide-react';
 import { apiFetch } from '../api';
 import { SkeletonCard } from '../components/SkeletonCard';
 import { colors } from '../theme/tokens';
@@ -118,6 +118,14 @@ export function Hub() {
             style={cellStyle}
           >
             Meal Plan
+          </Cell>
+          <Cell
+            before={<MessageSquare size={24} style={iconStyle} />}
+            subtitle="Share your thoughts"
+            onClick={() => navigate('/feedback')}
+            style={cellStyle}
+          >
+            Give Feedback
           </Cell>
         </Section>
       )}

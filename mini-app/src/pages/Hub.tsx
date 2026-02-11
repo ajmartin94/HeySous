@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Section, Cell } from '@telegram-apps/telegram-ui';
-import { ChefHat, ShoppingCart, CookingPot, CalendarDays, MessageSquare } from 'lucide-react';
+import { ChefHat, ShoppingCart, CookingPot, CalendarDays, MessageSquare, HelpCircle } from 'lucide-react';
 import { apiFetch } from '../api';
 import { SkeletonCard } from '../components/SkeletonCard';
 import { colors } from '../theme/tokens';
@@ -126,6 +126,14 @@ export function Hub() {
             style={cellStyle}
           >
             Give Feedback
+          </Cell>
+          <Cell
+            before={<HelpCircle size={24} style={iconStyle} />}
+            subtitle="Learn what I can do"
+            onClick={() => navigate('/help')}
+            style={cellStyle}
+          >
+            Help
           </Cell>
         </Section>
       )}

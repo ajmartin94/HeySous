@@ -4,7 +4,7 @@
 
 - [x] **v1.0 MVP** - Phases 1-10 (shipped 2026-02-09)
 - [x] **v1.1 Mini Apps** - Phases 11-14 (shipped 2026-02-10)
-- [ ] **v1.2 Onboarding and Feedback** - Phases 15-18 (in progress)
+- [x] **v1.2 Onboarding and Feedback** - Phases 15-18 (shipped 2026-02-11)
 
 ## Phases
 
@@ -31,7 +31,7 @@ See .planning/milestones/v1.1-ROADMAP.md for full phase history.
 - [x] **Phase 15: Users, Households, and Invites** - Multi-user identity with invite-gated access (completed 2026-02-11)
 - [x] **Phase 16: Household Data Migration** - Migrate all data paths from chatId to householdId for shared data (completed 2026-02-11)
 - [x] **Phase 17: Guided Onboarding** - Claude-driven first-run experience for new users (completed 2026-02-11)
-- [ ] **Phase 18: App Feedback** - Feedback collection through command, implicit AI detection, Mini App form, and proactive prompting
+- [x] **Phase 18: App Feedback** - Feedback collection through command, implicit AI detection, Mini App form, and proactive prompting (completed 2026-02-11)
 
 ## Phase Details
 
@@ -96,8 +96,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 18-01-PLAN.md -- App feedback data layer, /feedback command, Claude tool for implicit detection, proactive prompt mechanism
-- [ ] 18-02-PLAN.md -- Mini App feedback form page and Hub card with server-side API endpoint
+- [x] 18-01-PLAN.md -- App feedback data layer, /feedback command, Claude tool for implicit detection, proactive prompt mechanism
+- [x] 18-02-PLAN.md -- Mini App feedback form page and Hub card with server-side API endpoint
 
 ## Progress
 
@@ -113,4 +113,4 @@ Plans:
 | 15. Users, Households, and Invites | v1.2 | 2/2 | Complete | 2026-02-11 |
 | 16. Household Data Migration | v1.2 | 2/2 | Complete | 2026-02-11 |
 | 17. Guided Onboarding | v1.2 | 2/2 | Complete | 2026-02-11 |
-| 18. App Feedback | v1.2 | 0/2 | Not started | - |
+| 18. App Feedback | v1.2 | 2/2 | Complete | 2026-02-11 |

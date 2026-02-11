@@ -154,6 +154,26 @@ export function updateHouseholdName(
     .run(name, householdId);
 }
 
+/**
+ * Update a user's onboarding state and return the updated user.
+ *
+ * @returns The updated User, or undefined if no user was found
+ *          with the given telegramId.
+ */
+export function updateOnboardingState(
+  sqlite: BetterSqlite3.Database,
+  telegramId: string,
+  newState: User["onboardingState"],
+): User | undefined {
+  sqlite
+    .prepare(
+      `UPDATE users SET onboarding_state = ?, updated_at = unixepoch() WHERE telegram_id = ?`,
+    )
+    .run(newState, telegramId);
+
+  return getUserByTelegramId(sqlite, telegramId);
+}
+
 /** Get the admin user (first user with role='admin'). */
 export function getAdmin(
   sqlite: BetterSqlite3.Database,

@@ -28,10 +28,10 @@ export const users = sqliteTable("users", {
     .notNull()
     .default("member"),
   onboardingState: text("onboarding_state", {
-    enum: ["registered", "complete"],
+    enum: ["preferences", "tour", "recipes", "tour_only", "complete"],
   })
     .notNull()
-    .default("registered"),
+    .default("complete"),
   createdAt: integer("created_at").notNull(),
   updatedAt: integer("updated_at").notNull(),
 });

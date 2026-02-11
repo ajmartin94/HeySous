@@ -30,12 +30,16 @@ export function initializeUsers(
       username TEXT,
       household_id TEXT NOT NULL REFERENCES households(id),
       role TEXT NOT NULL DEFAULT 'member' CHECK(role IN ('admin', 'member')),
-      onboarding_state TEXT NOT NULL DEFAULT 'registered'
-        CHECK(onboarding_state IN ('registered', 'complete')),
+      onboarding_state TEXT NOT NULL DEFAULT 'complete'
+        CHECK(onboarding_state IN ('preferences', 'tour', 'recipes', 'tour_only', 'complete')),
       created_at INTEGER NOT NULL DEFAULT (unixepoch()),
       updated_at INTEGER NOT NULL DEFAULT (unixepoch())
     )
   `);
+
+  // Migrate existing databases from old CHECK constraint
+  // (registered, complete) to expanded enum.
+  migrateOnboardingEnum(sqlite);
 
   // Seed admin if adminUserId is set and user doesn't exist yet
   if (adminUserId) {
@@ -71,4 +75,69 @@ export function initializeUsers(
       );
     }
   }
+}
+
+/**
+ * Migrate the onboarding_state CHECK constraint from the old enum
+ * ("registered", "complete") to the expanded enum
+ * ("preferences", "tour", "recipes", "tour_only", "complete").
+ *
+ * SQLite does not support ALTER CHECK constraints, so we rebuild
+ * the table if the old constraint is detected.
+ *
+ * Any existing rows with onboarding_state = "registered" are
+ * mapped to "complete" (legacy users who never went through
+ * onboarding should be treated as complete).
+ *
+ * This is a no-op for freshly created databases (CREATE TABLE
+ * already uses the new constraint) or databases that have
+ * already been migrated.
+ */
+function migrateOnboardingEnum(sqlite: BetterSqlite3.Database): void {
+  const tableInfo = sqlite
+    .prepare(`SELECT sql FROM sqlite_master WHERE name = 'users' AND type = 'table'`)
+    .get() as { sql: string } | undefined;
+
+  if (!tableInfo) return;
+
+  // Only migrate if we see the old 'registered' value in the DDL
+  // and the new 'preferences' value is NOT present yet.
+  const needsMigration =
+    tableInfo.sql.includes("'registered'") &&
+    !tableInfo.sql.includes("'preferences'");
+
+  if (!needsMigration) return;
+
+  // Rebuild the table with the expanded CHECK constraint.
+  // Run inside a transaction for atomicity.
+  const migrate = sqlite.transaction(() => {
+    sqlite.exec(`
+      CREATE TABLE users_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        telegram_id TEXT NOT NULL UNIQUE,
+        display_name TEXT NOT NULL,
+        username TEXT,
+        household_id TEXT NOT NULL REFERENCES households(id),
+        role TEXT NOT NULL DEFAULT 'member' CHECK(role IN ('admin', 'member')),
+        onboarding_state TEXT NOT NULL DEFAULT 'complete'
+          CHECK(onboarding_state IN ('preferences', 'tour', 'recipes', 'tour_only', 'complete')),
+        created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+        updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+      )
+    `);
+
+    // Copy data, mapping 'registered' -> 'complete'.
+    sqlite.exec(`
+      INSERT INTO users_new (id, telegram_id, display_name, username, household_id, role, onboarding_state, created_at, updated_at)
+      SELECT id, telegram_id, display_name, username, household_id, role,
+             CASE WHEN onboarding_state = 'registered' THEN 'complete' ELSE onboarding_state END,
+             created_at, updated_at
+      FROM users
+    `);
+
+    sqlite.exec(`DROP TABLE users`);
+    sqlite.exec(`ALTER TABLE users_new RENAME TO users`);
+  });
+
+  migrate();
 }

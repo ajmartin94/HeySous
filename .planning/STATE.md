@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-10)
 
 **Core value:** The recipe brain -- an AI agent that remembers everything about your meals and reasons over that knowledge to help you plan.
-**Current focus:** v1.2 Onboarding and Feedback -- Phase 15 complete, ready for Phase 16
+**Current focus:** v1.2 Onboarding and Feedback -- Phase 16 in progress
 
 ## Current Position
 
-Phase: 15 of 18 (Users, Households, and Invites) -- COMPLETE
-Plan: 2 of 2 complete
-Status: Phase complete
-Last activity: 2026-02-11 -- Completed 15-02 Bot Integration (access gate, /start, /invite)
+Phase: 16 of 18 (Household Data Migration)
+Plan: 1 of 2 complete
+Status: In progress
+Last activity: 2026-02-11 -- Completed 16-01 Data Layer Migration (schemas, types, repos, context builders)
 
-Progress: [██░░░░░░░░] 14% (v1.2)
+Progress: [███░░░░░░░] 28% (v1.2)
 
 ## Performance Metrics
 
@@ -31,6 +31,7 @@ Progress: [██░░░░░░░░] 14% (v1.2)
 **v1.2 Velocity:**
 - 15-01: 4 min (2 tasks, 12 files)
 - 15-02: 3 min (3 tasks, 6 files)
+- 16-01: 10 min (2 tasks, 25 files)
 
 ## Accumulated Context
 
@@ -48,6 +49,12 @@ All v1.0 and v1.1 decisions documented with outcomes.
 - Access gate returns { middleware, addToCache } for shared cache with /start handler
 - Used grammy Api class for botUsername fetch before createBot (avoids chicken-and-egg)
 - /invite admin check uses ctx.user.role from access gate, not config.adminUserIds
+
+**Phase 16-01:**
+- Messages table keeps chat_id -- conversation history is per-Telegram-chat, not per-household
+- Migration idempotency via PRAGMA table_info check (zero-cost on migrated DBs)
+- All 9 column renames in single SQLite transaction for atomicity
+- listByChatId renamed to listByHouseholdId for semantic clarity
 
 ### Key Research Findings (v1.2)
 
@@ -69,5 +76,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-11
-Stopped at: Completed 15-02-PLAN.md (Bot Integration -- access gate, /start, /invite)
-Next action: Plan Phase 16 (chatId -> householdId data migration)
+Stopped at: Completed 16-01-PLAN.md (Data Layer Migration -- schemas, types, repos, context builders)
+Next action: Execute 16-02-PLAN.md (Handler and pipeline layer migration)

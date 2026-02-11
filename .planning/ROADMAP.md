@@ -64,7 +64,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 16-01-PLAN.md -- Database migration + data layer rename (schema, types, repositories, context builders)
+- [x] 16-01-PLAN.md -- Database migration + data layer rename (schema, types, repositories, context builders)
 - [ ] 16-02-PLAN.md -- Handler + pipeline + delivery + mini-app migration (handlers, senders, system prompt, mini-app)
 
 ### Phase 17: Guided Onboarding

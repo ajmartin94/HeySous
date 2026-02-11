@@ -45,12 +45,11 @@ See .planning/milestones/v1.1-ROADMAP.md for full phase history.
   3. A new user clicking an expired or already-used invite link sees a friendly rejection and cannot use the bot
   4. A non-invited user sending any message is blocked from all bot features and told to get an invite
   5. The existing single user is seeded into the users table as admin with a household-of-one, and all current functionality continues to work
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 15-01: TBD
-- [ ] 15-02: TBD
-- [ ] 15-03: TBD
+- [ ] 15-01-PLAN.md -- Data foundation: users, households, invites modules with types, schemas, init, and repositories
+- [ ] 15-02-PLAN.md -- Bot integration: access gate, /start deep link handling, /invite command, wiring
 
 ### Phase 16: Household Data Migration
 **Goal**: All household members share the same recipes, meal plans, grocery lists, and cooking history -- and Claude knows who it is talking to
@@ -113,7 +112,7 @@ Plans:
 | 12. Grocery List | v1.1 | 3/3 | Complete | 2026-02-10 |
 | 13. Recipe Browser | v1.1 | 2/2 | Complete | 2026-02-10 |
 | 14. Meal Plan Viewer | v1.1 | 2/2 | Complete | 2026-02-10 |
-| 15. Users, Households, and Invites | v1.2 | 0/TBD | Not started | - |
+| 15. Users, Households, and Invites | v1.2 | 0/2 | Planned | - |
 | 16. Household Data Migration | v1.2 | 0/TBD | Not started | - |
 | 17. Guided Onboarding | v1.2 | 0/TBD | Not started | - |
 | 18. App Feedback | v1.2 | 0/TBD | Not started | - |

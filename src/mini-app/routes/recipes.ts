@@ -60,7 +60,7 @@ function extractRating(
  * Returns an object with two handlers: getList and getDetail.
  *
  * Follows the same factory pattern as createGroceryRoutes (grocery.ts).
- * All handlers expect res.locals.chatId to be set by auth middleware.
+ * All handlers expect res.locals.householdId to be set by auth middleware.
  */
 export function createRecipeRoutes(sqlite: BetterSqlite3.Database) {
   return {
@@ -70,7 +70,7 @@ export function createRecipeRoutes(sqlite: BetterSqlite3.Database) {
      * cook count, and feedback rating for the authenticated user.
      */
     getList(req: Request, res: Response) {
-      const chatId = res.locals.chatId as string;
+      const householdId = res.locals.householdId as string;
       const { q, tag, sort, limit } = req.query;
 
       const maxResults = Math.min(Number(limit) || 50, 100);
@@ -126,17 +126,17 @@ export function createRecipeRoutes(sqlite: BetterSqlite3.Database) {
             SELECT ki.id, ki.title, ki.summary, ki.content, ki.updated_at,
                    GROUP_CONCAT(DISTINCT kt.tag) AS tags,
                    (SELECT MAX(ch.cooked_date) FROM cooking_history ch
-                    WHERE ch.knowledge_item_id = ki.id AND ch.chat_id = ki.chat_id) AS last_cooked,
+                    WHERE ch.knowledge_item_id = ki.id AND ch.household_id = ki.household_id) AS last_cooked,
                    (SELECT COUNT(*) FROM cooking_history ch
-                    WHERE ch.knowledge_item_id = ki.id AND ch.chat_id = ki.chat_id) AS cook_count
+                    WHERE ch.knowledge_item_id = ki.id AND ch.household_id = ki.household_id) AS cook_count
             FROM knowledge_items ki
             JOIN knowledge_tags kt ON kt.knowledge_item_id = ki.id
-            WHERE ki.chat_id = ?
+            WHERE ki.household_id = ?
               AND ki.id IN (${placeholders})
               AND ki.id IN (SELECT knowledge_item_id FROM knowledge_tags WHERE tag = 'recipe')
           `;
           const params: (string | number)[] = [
-            chatId,
+            householdId,
             ...matchRows.map((r) => r.id),
           ];
 
@@ -175,15 +175,15 @@ export function createRecipeRoutes(sqlite: BetterSqlite3.Database) {
             SELECT ki.id, ki.title, ki.summary, ki.content, ki.updated_at,
                    GROUP_CONCAT(DISTINCT kt.tag) AS tags,
                    (SELECT MAX(ch.cooked_date) FROM cooking_history ch
-                    WHERE ch.knowledge_item_id = ki.id AND ch.chat_id = ki.chat_id) AS last_cooked,
+                    WHERE ch.knowledge_item_id = ki.id AND ch.household_id = ki.household_id) AS last_cooked,
                    (SELECT COUNT(*) FROM cooking_history ch
-                    WHERE ch.knowledge_item_id = ki.id AND ch.chat_id = ki.chat_id) AS cook_count
+                    WHERE ch.knowledge_item_id = ki.id AND ch.household_id = ki.household_id) AS cook_count
             FROM knowledge_items ki
             JOIN knowledge_tags kt ON kt.knowledge_item_id = ki.id
-            WHERE ki.chat_id = ?
+            WHERE ki.household_id = ?
               AND ki.id IN (SELECT knowledge_item_id FROM knowledge_tags WHERE tag = 'recipe')
           `;
-          const params: (string | number)[] = [chatId];
+          const params: (string | number)[] = [householdId];
 
           if (hasTag) {
             sql += `  AND ki.id IN (SELECT knowledge_item_id FROM knowledge_tags WHERE tag = ?)\n`;
@@ -224,15 +224,15 @@ export function createRecipeRoutes(sqlite: BetterSqlite3.Database) {
           SELECT ki.id, ki.title, ki.summary, ki.content, ki.updated_at,
                  GROUP_CONCAT(DISTINCT kt.tag) AS tags,
                  (SELECT MAX(ch.cooked_date) FROM cooking_history ch
-                  WHERE ch.knowledge_item_id = ki.id AND ch.chat_id = ki.chat_id) AS last_cooked,
+                  WHERE ch.knowledge_item_id = ki.id AND ch.household_id = ki.household_id) AS last_cooked,
                  (SELECT COUNT(*) FROM cooking_history ch
-                  WHERE ch.knowledge_item_id = ki.id AND ch.chat_id = ki.chat_id) AS cook_count
+                  WHERE ch.knowledge_item_id = ki.id AND ch.household_id = ki.household_id) AS cook_count
           FROM knowledge_items ki
           JOIN knowledge_tags kt ON kt.knowledge_item_id = ki.id
-          WHERE ki.chat_id = ?
+          WHERE ki.household_id = ?
             AND ki.id IN (SELECT knowledge_item_id FROM knowledge_tags WHERE tag = 'recipe')
         `;
-        const params: (string | number)[] = [chatId];
+        const params: (string | number)[] = [householdId];
 
         if (hasTag) {
           sql += `  AND ki.id IN (SELECT knowledge_item_id FROM knowledge_tags WHERE tag = ?)\n`;
@@ -272,7 +272,7 @@ export function createRecipeRoutes(sqlite: BetterSqlite3.Database) {
      * Returns the full recipe content, tags, last-cooked date, and cook count.
      */
     getDetail(req: Request, res: Response) {
-      const chatId = res.locals.chatId as string;
+      const householdId = res.locals.householdId as string;
       const id = Number(req.params.id);
 
       if (isNaN(id)) {
@@ -286,16 +286,16 @@ export function createRecipeRoutes(sqlite: BetterSqlite3.Database) {
           SELECT ki.id, ki.title, ki.summary, ki.content, ki.updated_at,
                  GROUP_CONCAT(DISTINCT kt.tag) AS tags,
                  (SELECT MAX(ch.cooked_date) FROM cooking_history ch
-                  WHERE ch.knowledge_item_id = ki.id AND ch.chat_id = ki.chat_id) AS last_cooked,
+                  WHERE ch.knowledge_item_id = ki.id AND ch.household_id = ki.household_id) AS last_cooked,
                  (SELECT COUNT(*) FROM cooking_history ch
-                  WHERE ch.knowledge_item_id = ki.id AND ch.chat_id = ki.chat_id) AS cook_count
+                  WHERE ch.knowledge_item_id = ki.id AND ch.household_id = ki.household_id) AS cook_count
           FROM knowledge_items ki
           JOIN knowledge_tags kt ON kt.knowledge_item_id = ki.id
-          WHERE ki.id = ? AND ki.chat_id = ?
+          WHERE ki.id = ? AND ki.household_id = ?
           GROUP BY ki.id
         `
         )
-        .get(id, chatId) as
+        .get(id, householdId) as
         | {
             id: number;
             title: string;
@@ -318,7 +318,7 @@ export function createRecipeRoutes(sqlite: BetterSqlite3.Database) {
         .prepare(
           "UPDATE knowledge_items SET last_accessed_at = ? WHERE id = ? AND chat_id = ?"
         )
-        .run(Math.floor(Date.now() / 1000), id, chatId);
+        .run(Math.floor(Date.now() / 1000), id, householdId);
 
       const recipe = {
         id: row.id,

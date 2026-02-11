@@ -21,17 +21,17 @@ export function generateReminders(deps: {
   reminderRepository: ReturnType<typeof createReminderRepository>;
   planRepository: ReturnType<typeof createPlanRepository>;
   sqlite: BetterSqlite3.Database;
-  chatId: string;
+  householdId: string;
   settings: ReminderSettings;
   clock: Clock;
 }): void {
-  const { reminderRepository, planRepository, chatId, settings, clock } = deps;
+  const { reminderRepository, planRepository, householdId, settings, clock } = deps;
 
-  // 1. Delete existing future pending reminders for this chat
-  reminderRepository.deleteFutureReminders(chatId);
+  // 1. Delete existing future pending reminders for this household
+  reminderRepository.deleteFutureReminders(householdId);
 
   // 2. Get active plans (current week + next week)
-  const plans = planRepository.getActivePlans(chatId);
+  const plans = planRepository.getActivePlans(householdId);
 
   // 3. Build a map of date -> meals from plan entries
   const dateMeals = new Map<
@@ -93,7 +93,7 @@ export function generateReminders(deps: {
 
         if (
           !reminderRepository.hasPendingReminder(
-            chatId,
+            householdId,
             "morning_summary",
             windowStart,
             windowEnd,
@@ -102,7 +102,7 @@ export function generateReminders(deps: {
           if (meals && meals.length > 0) {
             // Day has meals planned
             reminderRepository.createReminder({
-              chatId,
+              householdId,
               type: "morning_summary",
               dueAt,
               contextJson: JSON.stringify({
@@ -116,7 +116,7 @@ export function generateReminders(deps: {
           } else {
             // No meals -- nudge reminder
             reminderRepository.createReminder({
-              chatId,
+              householdId,
               type: "morning_summary",
               dueAt,
               contextJson: JSON.stringify({
@@ -150,14 +150,14 @@ export function generateReminders(deps: {
 
               if (
                 !reminderRepository.hasPendingReminder(
-                  chatId,
+                  householdId,
                   "prep_alert",
                   windowStart,
                   windowEnd,
                 )
               ) {
                 reminderRepository.createReminder({
-                  chatId,
+                  householdId,
                   type: "prep_alert",
                   dueAt,
                   contextJson: JSON.stringify({
@@ -190,14 +190,14 @@ export function generateReminders(deps: {
 
             if (
               !reminderRepository.hasPendingReminder(
-                chatId,
+                householdId,
                 "start_cooking",
                 windowStart,
                 windowEnd,
               )
             ) {
               reminderRepository.createReminder({
-                chatId,
+                householdId,
                 type: "start_cooking",
                 dueAt,
                 contextJson: JSON.stringify({

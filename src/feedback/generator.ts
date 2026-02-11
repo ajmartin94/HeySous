@@ -26,7 +26,7 @@ export function generateFeedbackCheckins(deps: {
   reminderRepository: ReturnType<typeof createReminderRepository>;
   planRepository: ReturnType<typeof createPlanRepository>;
   sqlite: BetterSqlite3.Database;
-  chatId: string;
+  householdId: string;
   settings: ReminderSettings;
   clock: Clock;
 }): void {
@@ -34,13 +34,13 @@ export function generateFeedbackCheckins(deps: {
     feedbackRepository,
     reminderRepository,
     planRepository,
-    chatId,
+    householdId,
     settings,
     clock,
   } = deps;
 
   // 1. Get active plans (current week + next week)
-  const plans = planRepository.getActivePlans(chatId);
+  const plans = planRepository.getActivePlans(householdId);
 
   // 2. Build a map of date -> meals from plan entries
   const dateMeals = new Map<
@@ -98,7 +98,7 @@ export function generateFeedbackCheckins(deps: {
 
         if (
           !reminderRepository.hasPendingReminder(
-            chatId,
+            householdId,
             "feedback_checkin",
             windowStart,
             windowEnd,
@@ -116,7 +116,7 @@ export function generateFeedbackCheckins(deps: {
 
           // Create the reminder
           const reminder = reminderRepository.createReminder({
-            chatId,
+            householdId,
             type: "feedback_checkin",
             dueAt,
             contextJson,
@@ -124,7 +124,7 @@ export function generateFeedbackCheckins(deps: {
 
           // Create the feedback_checkins tracking record
           feedbackRepository.createCheckin({
-            chatId,
+            householdId,
             reminderId: reminder.id,
             mealsJson: JSON.stringify(
               meals.map((m) => ({

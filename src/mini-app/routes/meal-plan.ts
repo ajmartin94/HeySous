@@ -6,7 +6,7 @@ import type BetterSqlite3 from "better-sqlite3";
  * Returns an object with getPlan handler.
  *
  * Follows the same factory pattern as createRecipeRoutes (recipes.ts).
- * All handlers expect res.locals.chatId to be set by auth middleware.
+ * All handlers expect res.locals.householdId to be set by auth middleware.
  */
 export function createMealPlanRoutes(sqlite: BetterSqlite3.Database) {
   return {
@@ -16,7 +16,7 @@ export function createMealPlanRoutes(sqlite: BetterSqlite3.Database) {
      * Entries are ordered by day (Monday-Sunday) then meal type (breakfast/lunch/dinner).
      */
     getPlan(req: Request, res: Response) {
-      const chatId = res.locals.chatId as string;
+      const householdId = res.locals.householdId as string;
       const week = (req.query.week as string) || "current";
 
       try {
@@ -46,13 +46,13 @@ export function createMealPlanRoutes(sqlite: BetterSqlite3.Database) {
             FROM meal_plan_entries mpe
             JOIN meal_plans mp ON mpe.plan_id = mp.id
             LEFT JOIN knowledge_items ki ON mpe.knowledge_item_id = ki.id
-              AND ki.chat_id = mp.chat_id
-            WHERE mp.chat_id = ? AND mp.week_start_date = ?
+              AND ki.household_id = mp.household_id
+            WHERE mp.household_id = ? AND mp.week_start_date = ?
             ORDER BY mpe.day_of_week ASC,
                      CASE mpe.meal_type WHEN 'breakfast' THEN 1 WHEN 'lunch' THEN 2 WHEN 'dinner' THEN 3 END ASC
           `
           )
-          .all(chatId, weekStartDate) as Array<{
+          .all(householdId, weekStartDate) as Array<{
           id: number;
           day_of_week: number;
           meal_type: string;

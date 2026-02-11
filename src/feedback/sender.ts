@@ -1,7 +1,9 @@
+import type BetterSqlite3 from "better-sqlite3";
 import type { Logger } from "pino";
 import type { Reminder } from "../reminders/types.js";
 import type { FeedbackCheckin } from "./types.js";
 import { buildFeedbackKeyboard } from "./buttons.js";
+import { getHouseholdMembers } from "../users/repository.js";
 
 /**
  * Minimal interface for bot API -- keeps sender decoupled from grammY types.
@@ -20,6 +22,7 @@ interface BotApi {
 export interface FeedbackSenderDeps {
   bot: BotApi;
   logger: Logger;
+  sqlite: BetterSqlite3.Database;
 }
 
 /**
@@ -60,7 +63,7 @@ function buildCheckinMessage(
  * Same safety pattern as reminders/sender.ts.
  */
 export function createFeedbackSender(deps: FeedbackSenderDeps) {
-  const { bot, logger } = deps;
+  const { bot, logger, sqlite } = deps;
 
   return {
     /**
@@ -96,39 +99,43 @@ export function createFeedbackSender(deps: FeedbackSenderDeps) {
         // 3. Build inline keyboard
         const keyboard = buildFeedbackKeyboard(reminder.id);
 
-        // 4. Send via Telegram
-        try {
-          await bot.api.sendMessage(reminder.chatId, text, {
-            parse_mode: "HTML",
-            reply_markup: keyboard,
-          });
+        // 4. Send via Telegram to all household members
+        const members = getHouseholdMembers(sqlite, reminder.householdId);
+        let sent = false;
+        for (const member of members) {
+          try {
+            await bot.api.sendMessage(member.telegramId, text, {
+              parse_mode: "HTML",
+              reply_markup: keyboard,
+            });
+            sent = true;
+          } catch (error: unknown) {
+            const err = error as { error_code?: number };
+            if (err.error_code === 403) {
+              logger.warn(
+                { reminderId: reminder.id, telegramId: member.telegramId },
+                "Bot blocked by user (403), skipping feedback check-in",
+              );
+            } else {
+              logger.error(
+                { reminderId: reminder.id, telegramId: member.telegramId, error },
+                "Failed to send feedback check-in to member",
+              );
+            }
+          }
+        }
+        if (sent) {
           logger.info(
             {
               reminderId: reminder.id,
-              chatId: reminder.chatId,
+              householdId: reminder.householdId,
               mealCount: meals.length,
+              memberCount: members.length,
             },
             "Feedback check-in sent",
           );
-          return true;
-        } catch (error: unknown) {
-          const err = error as { description?: string; error_code?: number };
-
-          // Telegram 403: bot was blocked by user
-          if (err.error_code === 403) {
-            logger.warn(
-              { reminderId: reminder.id, chatId: reminder.chatId },
-              "Bot blocked by user (403), skipping feedback check-in",
-            );
-            return false;
-          }
-
-          logger.error(
-            { reminderId: reminder.id, chatId: reminder.chatId, error },
-            "Failed to send feedback check-in via Telegram",
-          );
-          return false;
         }
+        return sent;
       } catch (error) {
         // Outermost catch -- NEVER let sender throw
         logger.error(

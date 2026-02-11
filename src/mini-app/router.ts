@@ -1,6 +1,6 @@
 import { Router } from "express";
 import type BetterSqlite3 from "better-sqlite3";
-import { validateInitData } from "./auth-middleware.js";
+import { createInitDataValidator } from "./auth-middleware.js";
 import { createSummaryRoute } from "./routes/summary.js";
 import { createGroceryRoutes } from "./routes/grocery.js";
 import { createRecipeRoutes } from "./routes/recipes.js";
@@ -26,7 +26,7 @@ export function createApiRouter(deps: ApiRouterDeps): Router {
   const router = Router();
 
   // All API routes require valid Telegram initData
-  router.use(validateInitData);
+  router.use(createInitDataValidator(deps.sqlite));
 
   // Hub dashboard summary
   router.get("/summary", createSummaryRoute(deps.sqlite));

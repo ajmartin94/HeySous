@@ -86,13 +86,13 @@ export function createReminderPoller(deps: ReminderPollerDeps) {
               const success = await feedbackSender.sendCheckin(reminder, checkin);
               if (success) {
                 logger.info(
-                  { reminderId: reminder.id, chatId: reminder.chatId, type: reminder.type },
+                  { reminderId: reminder.id, householdId: reminder.householdId, type: reminder.type },
                   "Feedback check-in delivered",
                 );
               } else {
                 reminderRepository.markFailed(reminder.id);
                 logger.info(
-                  { reminderId: reminder.id, chatId: reminder.chatId, type: reminder.type },
+                  { reminderId: reminder.id, householdId: reminder.householdId, type: reminder.type },
                   "Feedback check-in delivery failed, marked as failed",
                 );
               }
@@ -104,14 +104,14 @@ export function createReminderPoller(deps: ReminderPollerDeps) {
 
           if (success) {
             logger.info(
-              { reminderId: reminder.id, chatId: reminder.chatId, type: reminder.type },
+              { reminderId: reminder.id, householdId: reminder.householdId, type: reminder.type },
               "Reminder delivered",
             );
           } else {
             // Delivery failed -- override status to failed
             reminderRepository.markFailed(reminder.id);
             logger.info(
-              { reminderId: reminder.id, chatId: reminder.chatId, type: reminder.type },
+              { reminderId: reminder.id, householdId: reminder.householdId, type: reminder.type },
               "Reminder delivery failed, marked as failed",
             );
           }

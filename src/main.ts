@@ -193,8 +193,8 @@ async function main(): Promise<void> {
   await setupMenuButton(bot, config.miniAppUrl);
 
   // Initialize reminder system BEFORE bot.start() (which blocks in polling mode)
-  const reminderSender = createReminderSender({ bot: bot as Parameters<typeof createReminderSender>[0]["bot"], claudeClient, retrievalService, logger });
-  const feedbackSender = createFeedbackSender({ bot: bot as Parameters<typeof createFeedbackSender>[0]["bot"], logger });
+  const reminderSender = createReminderSender({ bot: bot as Parameters<typeof createReminderSender>[0]["bot"], claudeClient, retrievalService, logger, sqlite });
+  const feedbackSender = createFeedbackSender({ bot: bot as Parameters<typeof createFeedbackSender>[0]["bot"], logger, sqlite });
   const reminderPoller = createReminderPoller({ reminderRepository, sender: reminderSender, logger, feedbackSender, feedbackRepository });
 
   // Wire up the late-bound pollerTick for /debug tick

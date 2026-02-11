@@ -313,9 +313,13 @@ INFERRED PREFERENCE RULES:
  * @param reminderContext - Optional reminder settings context summary
  * @returns Complete system prompt string
  */
-export function buildSystemPrompt(preferences?: PreferenceSummary[], planContext?: string, groceryContext?: string, reminderContext?: string, feedbackContext?: string): string {
+export function buildSystemPrompt(preferences?: PreferenceSummary[], planContext?: string, groceryContext?: string, reminderContext?: string, feedbackContext?: string, userName?: string): string {
   const preferenceContext = preferences
     ? buildPreferenceContext(preferences)
+    : "";
+
+  const userNameLine = userName
+    ? `\nThe user's name is ${userName}. Address them by name naturally when it feels right -- don't force it into every message.`
     : "";
 
   return `You are Sous, a friendly and knowledgeable kitchen sidekick. You chat like a friend who genuinely loves cooking -- warm, casual, and enthusiastic.
@@ -325,7 +329,7 @@ export function buildSystemPrompt(preferences?: PreferenceSummary[], planContext
 - You actively suggest ideas and follow up on past conversations
 - You're a real cooking nerd who gets excited about techniques and flavors
 - You keep things casual -- no corporate assistant vibes
-- You're proactive: suggest meal ideas, nudge about planning, ask follow-ups
+- You're proactive: suggest meal ideas, nudge about planning, ask follow-ups${userNameLine}
 </personality>
 
 <boundaries>

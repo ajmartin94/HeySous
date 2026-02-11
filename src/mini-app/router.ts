@@ -6,6 +6,7 @@ import { createGroceryRoutes } from "./routes/grocery.js";
 import { createRecipeRoutes } from "./routes/recipes.js";
 import { createMealPlanRoutes } from "./routes/meal-plan.js";
 import { createAppFeedbackRoutes } from "./routes/app-feedback.js";
+import { createMeRoute } from "./routes/me.js";
 
 /**
  * Dependencies for the API router.
@@ -31,6 +32,9 @@ export function createApiRouter(deps: ApiRouterDeps): Router {
 
   // Hub dashboard summary
   router.get("/summary", createSummaryRoute(deps.sqlite));
+
+  // User profile / role endpoint
+  router.get("/me", createMeRoute(deps.sqlite));
 
   // Grocery list endpoints
   const grocery = createGroceryRoutes(deps.sqlite);

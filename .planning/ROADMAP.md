@@ -30,7 +30,7 @@ See .planning/milestones/v1.1-ROADMAP.md for full phase history.
 
 - [x] **Phase 15: Users, Households, and Invites** - Multi-user identity with invite-gated access (completed 2026-02-11)
 - [x] **Phase 16: Household Data Migration** - Migrate all data paths from chatId to householdId for shared data (completed 2026-02-11)
-- [ ] **Phase 17: Guided Onboarding** - Claude-driven first-run experience for new users
+- [x] **Phase 17: Guided Onboarding** - Claude-driven first-run experience for new users (completed 2026-02-11)
 - [ ] **Phase 18: App Feedback** - Feedback collection, sentiment scoring, and admin dashboard
 
 ## Phase Details
@@ -80,8 +80,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 17-01-PLAN.md -- Onboarding module (state machine, prompt builder) and users data layer expansion
-- [ ] 17-02-PLAN.md -- Start handler, pipeline, and system prompt integration with human verification
+- [x] 17-01-PLAN.md -- Onboarding module (state machine, prompt builder) and users data layer expansion
+- [x] 17-02-PLAN.md -- Start handler, pipeline, and system prompt integration with human verification
 
 ### Phase 18: App Feedback
 **Goal**: Users can share feedback about the bot experience, and the admin can review all collected feedback with categorization and sentiment
@@ -112,5 +112,5 @@ Plans:
 | 14. Meal Plan Viewer | v1.1 | 2/2 | Complete | 2026-02-10 |
 | 15. Users, Households, and Invites | v1.2 | 2/2 | Complete | 2026-02-11 |
 | 16. Household Data Migration | v1.2 | 2/2 | Complete | 2026-02-11 |
-| 17. Guided Onboarding | v1.2 | 0/2 | Not started | - |
+| 17. Guided Onboarding | v1.2 | 2/2 | Complete | 2026-02-11 |
 | 18. App Feedback | v1.2 | 0/TBD | Not started | - |

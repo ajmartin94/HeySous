@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-10)
 
 **Core value:** The recipe brain -- an AI agent that remembers everything about your meals and reasons over that knowledge to help you plan.
-**Current focus:** v1.2 Onboarding and Feedback -- Phase 17 in progress
+**Current focus:** v1.2 Onboarding and Feedback -- Phase 17 complete, Phase 18 next
 
 ## Current Position
 
-Phase: 17 of 18 (Guided Onboarding) -- IN PROGRESS
-Plan: 1 of 2 complete
-Status: Executing
-Last activity: 2026-02-11 -- Completed 17-01 Onboarding Module and Data Layer
+Phase: 17 of 18 (Guided Onboarding) -- COMPLETE
+Plan: 2 of 2 complete
+Status: Phase complete
+Last activity: 2026-02-11 -- Completed 17-02 Handler and Pipeline Integration
 
-Progress: [█████░░░░░] 42% (v1.2)
+Progress: [███████░░░] 58% (v1.2)
 
 ## Performance Metrics
 
@@ -34,6 +34,7 @@ Progress: [█████░░░░░] 42% (v1.2)
 - 16-01: 10 min (2 tasks, 25 files)
 - 16-02: 8 min (2 tasks, 22 files)
 - 17-01: 4 min (2 tasks, 6 files)
+- 17-02: 12 min (2 tasks, 5 files)
 
 ## Accumulated Context
 
@@ -69,6 +70,12 @@ All v1.0 and v1.1 decisions documented with outcomes.
 - Default onboarding_state changed from 'registered' to 'complete' as safety fallback
 - Migration maps old 'registered' users to 'complete' via SQLite table rebuild
 
+**Phase 17-02:**
+- Start handler detects isJoiningExisting via getHouseholdMembers before user creation
+- Welcome message saved to messages table for Claude conversation context
+- refreshUserCache semantic alias for addToCache, wired through main.ts to processor
+- Empty marker-only responses handled gracefully (skip sending empty message)
+
 ### Key Research Findings (v1.2)
 
 - Zero new npm dependencies needed for v1.2
@@ -89,5 +96,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-11
-Stopped at: Completed 17-01-PLAN.md (Onboarding Module and Data Layer)
-Next action: Execute 17-02-PLAN.md (Handler and Pipeline Integration)
+Stopped at: Completed 17-02-PLAN.md (Handler and Pipeline Integration) -- Phase 17 complete
+Next action: Plan Phase 18 (App Feedback)

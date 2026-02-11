@@ -105,8 +105,8 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 19-01-PLAN.md -- /help command handler, system prompt HELP block, bot wiring
-- [ ] 19-02-PLAN.md -- Mini App help page with admin detection, Hub card, /api/me endpoint
+- [x] 19-01-PLAN.md -- /help command handler, system prompt HELP block, bot wiring
+- [x] 19-02-PLAN.md -- Mini App help page with admin detection, Hub card, /api/me endpoint
 
 ## Progress
 
@@ -123,4 +123,4 @@ Plans:
 | 16. Household Data Migration | v1.2 | 2/2 | Complete | 2026-02-11 |
 | 17. Guided Onboarding | v1.2 | 2/2 | Complete | 2026-02-11 |
 | 18. App Feedback | v1.2 | 2/2 | Complete | 2026-02-11 |
-| 19. User Help Functionality | -- | 0/2 | Planning | -- |
+| 19. User Help Functionality | -- | 2/2 | Complete | 2026-02-11 |

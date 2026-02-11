@@ -281,17 +281,20 @@ export function createProcessor(deps: ProcessorDeps) {
       }
 
       // k3. Send cleaned response via formatted sender (marker stripped)
-      await sendFormattedMessage(ctx, cleanText);
+      // Skip sending if text is empty after marker extraction (Claude sent only the marker)
+      if (cleanText.trim()) {
+        await sendFormattedMessage(ctx, cleanText);
 
-      // l. Save outgoing response to messages table for conversation continuity
-      db.insert(messages)
-        .values({
-          chatId,
-          userId,
-          text: cleanText,
-          direction: "out" as const,
-        })
-        .run();
+        // l. Save outgoing response to messages table for conversation continuity
+        db.insert(messages)
+          .values({
+            chatId,
+            userId,
+            text: cleanText,
+            direction: "out" as const,
+          })
+          .run();
+      }
 
       // l2. Edit grocery list message if tools modified it
       if (deps.groceryRepository) {

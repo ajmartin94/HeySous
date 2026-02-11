@@ -1,296 +1,254 @@
 # Project Research Summary
 
-**Project:** HeySous v1.1 - Telegram Mini Apps
-**Domain:** Telegram Mini Apps (TWA) for meal planning bot
-**Researched:** 2026-02-09
+**Project:** HeySous v1.2 - Multi-User Support
+**Domain:** Multi-user Telegram bot with household sharing, invite-gated access, onboarding, and app feedback
+**Researched:** 2026-02-10
 **Confidence:** HIGH
 
 ## Executive Summary
 
-HeySous is adding three visual Mini App UIs (grocery list, meal plan viewer, recipe browser) to its existing grammY/Express/SQLite meal planning bot. The research identifies React + Vite + @tma.js SDK as the standard stack for Telegram Mini Apps, with a straightforward architecture: React frontend builds to static files served by the existing Express server, which gains new REST API routes protected by initData HMAC-SHA256 validation. The Mini Apps and bot share the same SQLite database and repository layer, avoiding sync complexity.
+HeySous v1.2 transforms a single-user meal planning bot into a multi-user system with household data sharing. The research reveals this is fundamentally a **data model migration challenge**, not a technology adoption problem. The existing stack (Node.js 22, grammY, SQLite/Drizzle, Express, React) requires **zero new npm dependencies**. All four feature areas -- invite system, multi-user identity, onboarding, and app feedback -- can be built entirely with existing packages plus Node.js built-ins.
 
-The recommended approach is incremental: build API authentication first, then the grocery list Mini App (highest value, simplest data model), then recipe browser (reusable components), then meal plan viewer last (depends on recipe detail component). All three Mini Apps are view layers only -- business logic stays in the existing repository functions. This hybrid chat+visual model preserves the bot's conversational strengths (recipe entry, meal planning, pivots) while solving visual pain points (cramped inline buttons, no browse capability, text-only meal plans).
+The core challenge is migrating from `chatId` as the sole data isolation key (339 occurrences across 47 files) to a dual-scope model: `householdId` for shared data (recipes, meal plans, grocery lists) and `userId` for personal data (messages, reminders, token usage). This is not a simple find-replace -- it requires systematic refactoring of every repository, tool handler, FTS5 query, and Mini App API route. The migration must preserve all existing data for the current user while establishing the foundation for household sharing. A partial migration creates a split-brain system where data written by new code is invisible to old queries.
 
-The critical risks are iOS-specific WebView issues (scrolling collapse, keyboard covering inputs, safe area insets) and state sync between bot and Mini App. Mitigations are well-documented: call `disableVerticalSwipes()` immediately, place inputs at the top of screens, use `contentSafeAreaInset` instead of CSS env variables, implement polling for fresh data, and enable WAL mode on SQLite. Security depends entirely on server-side initData validation with 1-hour expiration -- this must be the first middleware built.
+Ten critical pitfalls were identified, most centered on migration safety: orphaned existing user data, lost FTS5 triggers, cross-household data leaks, and identity mismatches between bot and Mini App. The recommended approach is a 4-phase execution: (1) foundational data model with users, households, invites, and access gating, (2) comprehensive chatId-to-householdId migration across all repositories, (3) guided onboarding with SQLite-backed state machine, (4) app feedback system. Phase 1 and 2 are tightly coupled and must be executed atomically -- the "half-migrated" state is the dangerous state.
 
 ## Key Findings
 
 ### Recommended Stack
 
-React 19 + Vite 7 is the standard Telegram Mini Apps frontend stack, with @tma.js/sdk (v3.x) providing signal-based access to Telegram platform features (theme, haptics, buttons, initData). The @telegram-apps/telegram-ui component library eliminates the need to manually match Telegram's look and eliminates Tailwind CSS or custom styling. On the backend, @tma.js/init-data-node validates HMAC-SHA256 signatures as Express middleware. This stack integrates cleanly with the existing Node.js 22 / TypeScript / Express 5 / better-sqlite3 backend.
+**No new dependencies required.** The existing stack covers all v1.2 requirements:
 
-**Core technologies:**
-- **React 19.2.4**: Component model suits 3 distinct Mini App views; best Telegram SDK support of any framework
-- **Vite 7.3.1**: Standard for TWA development; fast HMR; outputs static files servable from Express
-- **@tma.js/sdk 3.1.4 + @tma.js/sdk-react 3.0.15**: Signal-based reactivity for Telegram platform (viewport, theme, buttons, haptic feedback)
-- **@telegram-apps/telegram-ui 2.1.13**: Telegram-native React components matching platform look/feel; handles dark/light theme and iOS/Android differences
-- **@tma.js/init-data-node 2.0.4**: Server-side initData validation (HMAC-SHA256) for authentication
-- **react-router 7.13.0**: Client-side routing between 3 Mini App views and deep-linking via Telegram startParam
+**Core technologies (all existing):**
+- **Node.js 22** (built-in): `crypto.randomBytes().toString('base64url')` for invite token generation -- no nanoid/uuid needed
+- **grammY ^1.39.3**: Deep link payload via `ctx.match` provides invite token mechanism natively
+- **SQLite/better-sqlite3 ^12.6.2**: `ALTER TABLE ADD COLUMN` for migration, WAL mode handles multi-user concurrency
+- **Drizzle ORM ^0.45.1**: Schema definitions extend naturally with new tables (users, households, invites, app_feedback)
+- **Express ^5.2.1**: Admin API routes follow existing Mini App pattern
+- **React ^19.2.4 + Vite**: Admin dashboard pages fit existing SPA structure
 
-**Project structure:** Frontend lives in `mini-app/` subdirectory with separate package.json and tsconfig.json (needs DOM libs, JSX). Builds to `mini-app/dist/` which Express serves via `express.static('/app', ...)`. Not a monorepo -- just two package.json files with sequential builds. Backend Mini App code (auth, API routes) lives in `src/mini-app/` alongside existing bot code.
-
-**Critical configuration:** Vite `base: '/app/'` must match Express static mount point exactly. One mismatch breaks all asset loading. initData validation must use `expiresIn: 3600` (1 hour), not the default 86400 (24 hours).
+**Key insight:** The work is schema design, data migration, and code restructuring -- not technology adoption. Deep link tokens use grammY's native `ctx.match`, token generation uses Node.js crypto, onboarding state uses SQLite table (not grammY sessions plugin), and the admin dashboard extends the existing Express/React Mini App.
 
 ### Expected Features
 
-The research reveals a clear chat vs. Mini App boundary: conversational tasks (recipe entry, plan generation, pivots, all notifications) stay in chat where the bot excels, while visual tasks (grocery shopping, week-at-a-glance plan, recipe browsing) move to Mini Apps where rich UI shines.
+**Must have (table stakes for v1.2):**
+- Multi-user identity with users and households tables
+- Invite-gated access via Telegram deep links (`t.me/BotName?start=TOKEN`)
+- Household data sharing for recipes, meal plans, grocery lists, cooking history
+- Guided onboarding flow (preference Q&A, capability tour, seed recipes)
+- /feedback command for app feedback collection
+- Admin feedback view for collected feedback
 
-**Must have (table stakes for v1.1):**
-
-*Grocery List Mini App (Priority 1 -- solves biggest pain):*
-- Store-tab navigation (Kroger/Costco tabs)
-- Section grouping within stores (Produce, Dairy, etc.)
-- Tap to check/uncheck with haptic feedback
-- Checked items in collapsed "Done" section
-- Progress indicator (12/28 items)
-- Quantity + name display
-- Theme-aware (light/dark mode)
-- MainButton: "Done Shopping"
-- Telegram BackButton to return to chat
-
-*Meal Plan Mini App (Priority 2 -- visual upgrade):*
-- 7-day grid view (Monday-Sunday)
-- Meal type rows (dinner-only or multi-meal adaptive)
-- Today highlight
-- Current week / next week toggle
-- Tap meal name to show recipe detail
-- Theme-aware
-
-*Recipe Browser Mini App (Priority 3 -- enables browsing):*
-- Scrollable card list (title + summary + tags)
-- Search bar with debounced FTS5 search
-- Full recipe detail view (formatted content)
-- Tag pills on cards
-- BackButton navigation (list -> detail -> back)
-- Theme-aware
-
-*Shared infrastructure (blocks all Mini Apps):*
-- REST API with initData HMAC-SHA256 validation
-- API endpoints reusing existing repository functions
-- Mini App entry points: web_app inline keyboard buttons in bot responses
-- Telegram Web App SDK integration
-
-**Should have (competitive advantage, defer to v1.2):**
-- Grocery: swipe to uncheck gesture
-- Grocery: quick-add item form
-- Recipe: tag-based filtering
-- Recipe: "last cooked" date display on cards
-- Meal plan: tap to open full recipe (requires cross-view navigation)
+**Should have (differentiators):**
+- Single-use invite tokens with 7-day expiry
+- Two invite types: household (join existing) vs independent (new household)
+- SQLite-backed onboarding state (survives restarts, enables analytics)
+- Periodic "how am I doing?" check-in every 2 weeks
+- Per-user preference profiles within household context
 
 **Defer (v2+):**
-- Recipe: "Add to plan" button (complex UI: day/meal-type picker)
-- Grocery: item reordering within section (drag-drop in WebView is risky)
-- Shared Mini App shell with bottom tab navigation (three entry points work fine)
-- Recipe editing in Mini App (conversational edit is faster)
-- Nutritional info on cards (explicitly an anti-feature: unreliable AI estimates)
-- Real-time collaborative editing (single-user product)
+- Silent sentiment detection for implicit feedback (needs careful tuning)
+- Hub feedback button in Mini App (command covers use case)
+- Per-member grocery check-off attribution ("checked by Partner")
+- Invite tracking dashboard with status monitoring
+- Feedback categorization with rich admin dashboard filtering
 
 ### Architecture Approach
 
-The architecture is a thin API layer bridging React to existing repositories. The Express server gains REST routes under `/api/*` protected by initData validation middleware. These routes receive the same repository instances (groceryRepository, planRepository, knowledgeRepository) that bot handlers use, delegating directly to existing functions. No business logic in API routes -- they are adapters between HTTP and repositories. The React frontend is a pure view layer: renders data, sends mutations via fetch, integrates Telegram SDK for theme/haptics/buttons. State sync is simple: SQLite is the single source of truth, both bot and Mini App hit the same database, polling every 5-10 seconds keeps Mini App fresh.
+The architecture shifts from single-scope (`chatId`) to dual-scope (`userId` for personal, `householdId` for shared). Three new middleware components gate access and resolve identity: (1) access gate blocks unregistered users except /start, (2) household resolver injects `userId` and `householdId` into context, (3) onboarding router intercepts messages during onboarding. The migration preserves private-chat-only design (no group chat support) -- each household member uses the bot in their own private chat, sharing happens through database scope, not Telegram chat scope.
 
 **Major components:**
-1. **Auth Middleware** (`src/mini-app/auth.ts`) -- Validates initData HMAC-SHA256, extracts userId/chatId, rejects unauthorized. Uses @tma.js/init-data-node `validate()` with 1-hour expiration. Runs before all API routes.
-2. **API Router** (`src/mini-app/api/`) -- Three sub-routers (grocery, plans, recipes) mounted at `/api/*`. Thin wrappers: parse params, call existing repository functions, return JSON. No new business logic.
-3. **React SPA** (`mini-app/`) -- Vite-built static files served at `/app/*` by Express. Uses @tma.js/sdk-react hooks for Telegram platform (theme, haptics, buttons). Three page components (GroceryList, MealPlan, RecipeBrowser) with react-router routing.
-4. **Static File Serving** -- Express `app.use('/app', express.static('mini-app/dist'))` for assets, plus SPA fallback `app.get('/app/*', ...)` serving index.html for client-side routing.
-5. **Bot Integration** -- Existing bot handlers modified to include `InlineKeyboard.webApp('Open Grocery List', url)` buttons. BotFather menu button configured to open primary Mini App.
+1. **users + households tables** -- foundational identity and grouping (users.household_id FK)
+2. **invites table + deep link handler** -- token generation, validation, redemption tracking
+3. **access gate middleware** -- blocks non-invited users before all handlers
+4. **household resolver middleware** -- resolves user -> household, injects context
+5. **onboarding state machine** -- SQLite-backed Q&A flow (not grammY conversations plugin)
+6. **app_feedback table + handlers** -- /feedback command, admin view (distinct from meal feedback)
+7. **chatId -> householdId migration** -- systematic refactor of all repositories, tool handlers, FTS5 queries, Mini App routes
 
-**Data flow:** User taps "Open Grocery List" -> Telegram opens WebView with initData -> React mounts, calls `apiGet('/grocery/active')` with `Authorization: tma <initData>` header -> Express auth middleware validates signature -> Grocery route handler calls `groceryRepository.getActiveList(chatId)` -> Returns JSON -> React renders -> User taps item -> Optimistic UI update + `apiPost('/grocery/items/42/toggle')` -> Repository toggles in SQLite -> Confirm to React.
-
-**State sync:** No WebSocket, no event bus. Bot writes to SQLite, Mini App reads from SQLite. Both use same repository instances. Mini App polls every 5-10 seconds (paused when backgrounded). Changes from either side immediately visible to the other because they share the database. chatId mapping: `initData.user.id === chat.id` for private chats (true for HeySous).
+**Critical architectural decision:** Add `household_id` as NEW column alongside `chat_id`. Do NOT rename -- partial migration with both columns allows incremental refactor and easy rollback. For existing single-user, `household_id = chat_id` (solo user forms household of one). FTS5 search changes WHERE clause from `ki.chat_id = ?` to `ki.household_id = ?` -- virtual table structure unchanged, triggers survive.
 
 ### Critical Pitfalls
 
-1. **initData Validation Missing or Misconfigured** -- Without server-side validation, anyone can call API endpoints and impersonate users. Must implement as first middleware using @tma.js/init-data-node with `expiresIn: 3600` (1 hour). Never trust client-side initDataUnsafe. Default expiration is 24 hours (too long). Address in Phase 1 (API Foundation) before any data endpoints exist. SECURITY BREACH if skipped.
+1. **chatId-to-householdId migration breaks every query** -- 339 occurrences across 47 files. Partial migration creates split-brain where data written by new system is invisible to old queries. **Prevention:** Migrate ALL repositories in single phase, introduce `householdId` as new column (not rename), create `resolveScope(ctx)` helper.
 
-2. **iOS Scrolling Collapse -- Swipe Down Closes App** -- iOS Telegram interprets swipe-down at scrollY=0 as "close app" not "scroll." Grocery list starts at top, so first downward swipe closes the app. Fix: call `Telegram.WebApp.disableVerticalSwipes()` early in app initialization (Bot API 7.7+). Fallback: set `height: calc(100vh + 1px)` and programmatically scroll to (0, 1) on touchstart. Address in Phase 1 (Mini App scaffold). UX BREAKING on iOS without this fix.
+2. **Existing user's data orphaned by migration** -- Backfill must set `household_id = chat_id` for all existing rows. If backfill fails or resolveScope() has bug, existing user sees empty bot after migration. **Prevention:** Test migration on copy of production DB, verify `SELECT COUNT(*) FROM knowledge_items WHERE household_id IS NULL` returns 0, deploy migration and code atomically.
 
-3. **iOS Keyboard Covers Input Fields** -- iOS Telegram does not resize viewport when keyboard appears. Input fields at bottom get hidden. Fix: place inputs at TOP of screen (not bottom), use `visualViewport.height` not `viewportHeight`, scroll inputs into view on focus. Address in Phase 1 (UI layout) -- retrofitting bottom->top is a full layout rework. HIGH severity: affects add item, search recipes, all inputs.
+3. **FTS5 virtual table not updated after schema migration** -- Adding `household_id` column via `ALTER TABLE` is safe, but Drizzle Kit `push` may trigger table rebuild that breaks FTS5 triggers. Search returns stale/no results. **Prevention:** Use raw SQL `ALTER TABLE ADD COLUMN`, verify triggers survive (`SELECT * FROM sqlite_master WHERE type='trigger'`), run `INSERT INTO knowledge_fts(knowledge_fts) VALUES('rebuild')` after migration.
 
-4. **SQLite Concurrent Access -- Bot and Mini App Writing Simultaneously** -- Bot writes meal plan while Mini App toggles grocery item. SQLite default journal mode allows one writer at a time. Second write gets SQLITE_BUSY error, data lost. Fix: enable WAL mode (`PRAGMA journal_mode=WAL`), set `busy_timeout=5000`, keep transactions small, retry on SQLITE_BUSY. Address in Phase 1 (API Foundation) before adding write endpoints. DATA CORRUPTION risk.
+4. **Deep link invite tokens leaking or replayable** -- If tokens are predictable or never expire, leaked invite link allows unlimited unauthorized joins. **Prevention:** `crypto.randomBytes(24).toString('base64url')`, store in invites table with `expires_at`, `max_uses`, single-use by default, rate-limit /start with invalid tokens.
 
-5. **State Sync Between Bot and Mini App -- Stale Data** -- User opens grocery list Mini App, bot adds milk via chat, Mini App shows stale data. No real-time sync mechanism. Fix: Mini App polls every 5-10 seconds, re-fetches on `visibilitychange`, writes go immediately to database (no deferred saves). Address in Phase 2 (feature implementation) -- polling must launch with first data-fetching Mini App. HIGH severity: core value prop breaks if bot and Mini App disagree.
+5. **/start handler regression breaks existing single-user flow** -- Handler must distinguish: existing user (greet), new user with valid invite (onboard), new user without invite (block), existing user with invite (join household or notify). **Prevention:** Seed existing user into users table during migration, write explicit test cases for all 4 branches.
+
+6. **Household data sharing without permission granularity** -- All members get full read/write to everything including personal allergies. **Prevention:** Add `owner_id` (userId) to tables where ownership matters, preferences with `severity:allergy` visible but only editable by owner, reminders per-user.
+
+7. **Onboarding flow state machine corruption** -- User sends unexpected message mid-onboarding, catch-all message handler routes to Claude instead of onboarding handler, user stuck. **Prevention:** Store state in database (not memory), onboarding middleware intercepts BEFORE catch-all, implement /skip and /restart_onboarding commands, timeout abandoned flows after 24h.
+
+8. **System prompt injection with wrong user's preferences** -- Household-level preferences loaded without distinguishing current user. User A (shellfish allergy) gets plan with shrimp because User B has no restriction. **Prevention:** Load TWO sets -- household-level AND current user's personal preferences, clearly label in system prompt, for meal planning load ALL members' allergies.
+
+9. **Mini-App auth middleware identity mismatch** -- Current middleware sets `res.locals.chatId = String(userId)`. After migration, if repositories filter by `household_id`, Mini App returns empty because userId does not match any household_id. **Prevention:** Update middleware to resolve both `res.locals.userId` and `res.locals.householdId`, update ALL Mini App routes to use correct scope.
+
+10. **Message queue keyed by chatId loses messages** -- If debounce key changes to `householdId`, User A and User B messages batch together producing confused response. **Prevention:** Keep debounce keyed by user's private chat ID (not householdId), resolve householdId AFTER debounce for data access, maintain private-chat-only design.
 
 ## Implications for Roadmap
 
-Based on research, suggested phase structure prioritizes API foundation, then incremental Mini App delivery in value order, with pitfall prevention built into each phase.
+Based on research, suggested 4-phase structure with hard dependencies:
 
-### Phase 1: API Foundation & Mini App Scaffold
-**Rationale:** Security and platform integration are prerequisites for all Mini Apps. Building auth, one API endpoint, and minimal React setup validates the entire architecture before feature work begins.
-
-**Delivers:**
-- initData validation middleware (addresses Pitfall 1)
-- One API endpoint (grocery list GET) to prove auth works
-- Vite + React project structure with @tma.js/sdk integration
-- Telegram SDK initialization: `disableVerticalSwipes()`, theme CSS variables, safe area handling (addresses Pitfalls 2, 3)
-- SQLite WAL mode verification (addresses Pitfall 4)
-- Express static file serving for Mini App
-- BotFather menu button configuration
-
-**Addresses features:** None yet -- this is infrastructure.
-
-**Avoids pitfalls:** 1 (initData security), 2 (scrolling collapse), 3 (keyboard viewport), 4 (SQLite locking). These are foundational -- all Mini Apps depend on them.
-
-**Validation:** Call API from curl without initData (401), with valid initData (200). Open Mini App on iOS, swipe down at top (should NOT close). Tap input field (should remain visible above keyboard). Run PRAGMA journal_mode (verify WAL).
-
-### Phase 2: Grocery List Mini App
-**Rationale:** Highest user value (solves biggest pain: cramped inline buttons), simplest data model (read + toggle), and validates the hybrid bot+Mini App UX pattern. Success here proves the concept.
+### Phase 1: Users + Households + Invites + Access Gate
+**Rationale:** Foundation for everything. Multi-user identity must exist before any sharing can work. Invite system gates access before onboarding can function. Phase 1 and 2 are tightly coupled -- partial completion of either creates non-functional system.
 
 **Delivers:**
-- Grocery API routes: GET /api/grocery/active, POST /api/grocery/items/:id/toggle
-- GroceryList React page with store tabs, section grouping
-- Tap-to-check with optimistic updates and haptic feedback
-- Progress indicator, checked items collapse
-- Polling every 5 seconds for fresh data (addresses Pitfall 5)
-- MainButton integration: "Done Shopping"
-- Inline keyboard "Open Grocery List" button in bot /grocery response
+- users, households, invites tables with initialization
+- User and household repositories with CRUD operations
+- Invite token generation and deep link URL construction
+- Access gate middleware (blocks non-invited users)
+- Household resolver middleware (injects userId, householdId into context)
+- Updated /start handler supporting invite redemption flow
+- Extended BotContext type with userId, householdId, user fields
 
-**Addresses features:** All grocery list table stakes from FEATURES.md.
+**Addresses:**
+- Table stakes: multi-user identity, invite-gated access
+- Pitfalls 4, 5 (invite security, /start regression)
 
-**Uses stack:** React, @telegram-apps/telegram-ui, @tma.js/sdk-react (haptic feedback, MainButton, theme).
+**Critical success criteria:**
+- Existing user seeded into users table with `onboarding_state = 'complete'`
+- Invite deep link flow tested for all 4 branches (existing user bare /start, existing with invite, new without invite, new with valid invite)
+- Access gate blocks non-registered users but allows registered
+- No breaking changes to existing single-user functionality
 
-**Avoids pitfall:** 5 (state sync) via polling implementation.
-
-**Validation:** Check item in Mini App, ask bot "what's left?" (should reflect toggle). Add item via bot chat, wait 10 seconds, Mini App should show new item. Deploy, open Mini App immediately (should see updated version, not cached).
-
-### Phase 3: Recipe Browser Mini App
-**Rationale:** Builds before meal plan because meal plan's "tap recipe to view detail" depends on having a recipe detail component. Recipe browser is standalone and provides immediate value (first visual browse capability for knowledge base).
-
-**Delivers:**
-- Recipe API routes: GET /api/recipes, GET /api/recipes/:id, POST /api/recipes/search
-- RecipeBrowser React page with card list, search bar (debounced, FTS5)
-- RecipeCard component (title, summary, tags)
-- RecipeDetail component (full content, formatted markdown)
-- BackButton navigation (list -> detail -> back)
-- Inline keyboard "Browse Recipes" button in bot responses
-
-**Addresses features:** All recipe browser table stakes from FEATURES.md.
-
-**Implements architecture:** Reusable RecipeDetail component for Phase 4.
-
-**Validation:** Search for recipe, tap result, see detail. Tap back, return to list (scroll position maintained). Open with 0 recipes, see "No recipes yet. Add some via the bot!" message.
-
-### Phase 4: Meal Plan Mini App
-**Rationale:** Last because it requires RecipeDetail from Phase 3 for "tap meal to see recipe" interaction. Current text meal plan is adequate (less painful than grocery inline buttons), so deferring this is low-risk.
+### Phase 2: chatId -> householdId Migration
+**Rationale:** Must happen immediately after Phase 1 while codebase is in controlled state. Enables all household sharing features. This is the largest mechanical phase -- systematic refactor of every data access path. Partial completion creates split-brain.
 
 **Delivers:**
-- Plan API routes: GET /api/plans/active (current + next week)
-- MealPlan React page with 7-day grid, meal type rows
-- Today highlight, week navigation toggle
-- Tap meal name -> show RecipeDetail component (reused from Phase 3)
-- Inline keyboard "View Plan" button in bot plan generation response
+- `household_id` column added to all shared tables (knowledge_items, meal_plans, grocery_lists, cooking_history, feedback_checkins, knowledge_changelog)
+- Migration script with backfill: existing data sets `household_id = chat_id`
+- ALL repositories refactored to use householdId for shared data queries
+- Tool handler updated to pass householdId to shared-data tools
+- Pipeline processor context building uses householdId
+- FTS5 search queries updated to filter by `ki.household_id`
+- Mini App auth middleware resolves householdId
+- All Mini App API routes updated to use `res.locals.householdId`
+- System prompt builder loads household AND user preferences separately
 
-**Addresses features:** All meal plan table stakes from FEATURES.md.
+**Addresses:**
+- Table stakes: household data sharing for recipes, plans, grocery lists
+- Pitfalls 1, 2, 3, 6, 8, 9 (migration correctness, FTS5, permissions, system prompt, Mini App auth)
 
-**Uses:** RecipeDetail component from Phase 3, meal plan grid logic adapts to dinner-only or multi-meal.
+**Critical success criteria:**
+- `SELECT COUNT(*) FROM knowledge_items WHERE household_id IS NULL` returns 0
+- FTS5 triggers intact: `SELECT * FROM sqlite_master WHERE type='trigger' AND tbl_name='knowledge_items'` shows 3 triggers
+- Existing user can search recipes, view plans, see grocery lists after migration
+- New user joining household sees household's existing recipes
+- Mini App shows household data for all household members
 
-**Validation:** Open plan on Tuesday (Tuesday highlighted). Tap Wednesday dinner, see recipe detail. Navigate to next week, see future plan. Switch Telegram to dark mode while Mini App open, colors update.
+### Phase 3: Guided Onboarding
+**Rationale:** Depends on users table (Phase 1) and household-scoped preference saving (Phase 2). Once multi-user data model is stable, onboarding provides new user experience. Independent of app feedback (Phase 4).
 
-### Phase 5: Polish & v1.2 Features
-**Rationale:** After v1.1 is validated with users, add differentiators based on actual usage patterns.
+**Delivers:**
+- Onboarding state machine with states: registered, preferences_qa, tour, seed_recipes, complete
+- Onboarding middleware intercepting messages when `user.onboarding_state !== 'complete'`
+- Preference Q&A flow: dietary restrictions, household size, dinner time, stores
+- Capability tour messages showing bot features
+- Seed recipe prompt and collection
+- /skip command and timeout for abandoned flows
+- Onboarding completion tool marking user complete
 
-**Delivers (selective, based on user feedback):**
-- Grocery: swipe to uncheck gesture
-- Grocery: quick-add item form
-- Recipe: tag-based filtering
-- Recipe: "last cooked" date on cards
-- Meal plan: improved recipe navigation
+**Addresses:**
+- Table stakes: guided onboarding flow
+- Should have: SQLite-backed state, abbreviated onboarding for household members
+- Pitfall 7 (state machine corruption)
 
-**Defers to v2+:** Recipe "add to plan," grocery item reordering, shared Mini App shell, recipe editing in app.
+**Critical success criteria:**
+- New user completes invite redemption and immediately enters onboarding
+- Preferences saved during onboarding appear in next system prompt
+- User can skip onboarding and use bot with defaults
+- Bot restart mid-onboarding preserves state
+- Unexpected message during onboarding redirects to current question
+
+### Phase 4: App Feedback System
+**Rationale:** Most independent feature. Only depends on user identity (Phase 1), not household migration. Placed last to avoid context-switching and let team focus on core multi-user flow first.
+
+**Delivers:**
+- app_feedback table and repository
+- /feedback command handler with confirmation
+- Admin feedback view command (/feedback-report or Mini App route)
+- Periodic "how am I doing?" check-in using reminder infrastructure
+- Feedback sentiment/category extraction (optional)
+
+**Addresses:**
+- Table stakes: /feedback command, admin feedback view, periodic check-in
+- Defer: silent sentiment detection, hub feedback button (Mini App)
+
+**Critical success criteria:**
+- User can submit feedback via /feedback command
+- Admin can view all feedback via command or dashboard
+- Bi-weekly check-in scheduled correctly
+- Feedback distinct from meal feedback (separate table)
 
 ### Phase Ordering Rationale
 
-- **Security first:** Phase 1 builds auth before any data endpoints exist. No user-facing features until security is correct.
-- **Platform integration first:** Phase 1 handles iOS-specific issues (scroll collapse, keyboard, safe areas) before building UIs. Retrofitting these is expensive.
-- **Value-driven feature order:** Grocery (biggest pain) -> Recipe browser (enables new capability) -> Meal plan (nice-to-have upgrade).
-- **Dependency-driven:** Recipe browser before meal plan because meal plan needs RecipeDetail component.
-- **Validation at each phase:** Each phase delivers a working, user-testable Mini App. No big-bang integration at the end.
+**Why Phase 1 before Phase 2:** Users and households tables are foundation. Without user identity resolution, household scoping has nowhere to resolve to. Access gate prevents unauthorized access during migration window.
+
+**Why Phase 1 and 2 tightly coupled:** The "half-migrated" state (users table exists but repositories still use chatId) is dangerous. Some data visible, some invisible. Phases should be executed in rapid succession, ideally same day.
+
+**Why Phase 2 before Phase 3:** Onboarding saves preferences via existing tools. If household scoping is broken, preferences save incorrectly and onboarding appears complete but preferences are lost. Migration must be stable first.
+
+**Why Phase 4 last:** App feedback is orthogonal to onboarding and household sharing. Can be developed in parallel with Phase 3 but sequencing it last avoids context-switching and allows focus on harder migration work.
+
+**Critical constraint:** Phase 1 and 2 form atomic unit. Do not deploy Phase 1 to production and wait days before Phase 2. The access gate works, but without household scoping, new invited users see empty data.
 
 ### Research Flags
 
+**Phases needing deeper research during planning:**
+- **Phase 2 (migration):** Deep dive on FTS5 external content trigger behavior during ALTER TABLE, confirm better-sqlite3 WAL mode concurrency under multi-user load, validate Drizzle schema generation does not trigger unwanted rebuilds. This phase has highest technical risk.
+
 **Phases with standard patterns (skip research-phase):**
-- **Phase 1:** Express middleware, React+Vite setup, and Telegram SDK integration are well-documented in official @tma.js docs.
-- **Phase 2-4:** REST CRUD patterns, React component design, and @telegram-apps/telegram-ui usage are standard web development.
-
-**Phases needing spot verification (not full research-phase):**
-- **Phase 4:** Meal plan grid layout adapting to dinner-only vs. multi-meal might need UI iteration. Not a research topic, but plan for 1-2 design iterations.
-
-**No phases need `/gsd:research-phase`** -- all patterns are validated by official docs and the existing HeySous codebase. Execution can proceed directly from this research.
+- **Phase 1:** Users/households/invites are standard multi-tenant tables. grammY deep links are documented. Node.js crypto is well-understood. No novel patterns.
+- **Phase 3:** Onboarding state machines are common bot pattern. SQLite state storage matches existing feedback_checkins pattern. Claude-driven Q&A follows existing pipeline model.
+- **Phase 4:** App feedback table mirrors meal feedback structure. Admin commands follow existing /costs pattern. Express routes follow Mini App pattern.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | @tma.js/sdk v3, React 19, Vite 7 verified via npm. Versions confirmed as current stable. Integration with existing Express 5 / Node 22 validated. |
-| Features | HIGH | Table stakes derived from official Telegram Mini Apps docs + Telegram UI Kit. Competitive features from real TWA meal/grocery apps. Anti-features verified against HeySous v1.0 research (no nutrition tracking). |
-| Architecture | HIGH | initData validation algorithm from official Telegram docs. Express + repository pattern matches existing HeySous architecture. State sync via SQLite is consequence of existing single-process design. |
-| Pitfalls | HIGH | iOS-specific issues (scroll collapse, keyboard, safe areas) verified in TelegramMessenger/Telegram-iOS GitHub issues with 100+ comments. SQLite WAL mode is standard knowledge. initData expiration from official docs. |
+| Stack | HIGH | All technologies verified in node_modules. Zero new dependencies confirmed. grammY ctx.match deep link payload verified in source. Node.js 22 crypto.randomBytes with base64url tested. |
+| Features | HIGH | Feature dependencies mapped from codebase patterns. Telegram Bot API deep linking is stable, well-documented feature. Multi-tenant data scoping is established pattern. |
+| Architecture | HIGH | All architectural patterns derived from existing codebase analysis (12,726 LOC audited). Factory functions, init.ts migrations, repository patterns, Mini App structure all follow current conventions. |
+| Pitfalls | HIGH | 339 chatId occurrences across 47 files audited individually. FTS5 trigger behavior confirmed from SQLite docs. Migration risks based on direct codebase inspection. |
 
 **Overall confidence:** HIGH
 
-The stack, architecture, and pitfalls are all verified against official Telegram documentation and the @tma.js SDK docs. Feature expectations are grounded in both the Telegram Mini Apps platform capabilities and HeySous's existing v1.0 data model (inspected: groceryRepository, planRepository, knowledgeRepository all have the exact functions needed by the API routes). The iOS-specific pitfalls are well-documented in the Telegram-iOS GitHub repo with hundreds of community confirmations.
+Research based on thorough codebase audit, verified grammY source code, Node.js built-in testing, and SQLite documentation. The technical approach is conservative -- no experimental packages, no novel patterns. All new features use existing infrastructure (grammY commands, SQLite tables, Express routes, React pages).
 
 ### Gaps to Address
 
-**Minor gaps (handle during implementation):**
+**Migration testing gap:** While migration strategy is clear, testing on exact copy of production database is required before deployment. Current codebase has no production data to test against. Create seed data mimicking production scale (100+ recipes, 50+ meal plans, active grocery lists, reminders, feedback check-ins) to validate migration correctness.
 
-- **Exact @telegram-apps/telegram-ui peer dependency with React 19:** npm metadata shows compatibility with React 18+, but explicit React 19 testing not documented. Verify at install time. If peer dependency conflict, fall back to React 18 or use custom Telegram-styled components.
+**FTS5 rebuild timing:** Research confirms `INSERT INTO knowledge_fts(knowledge_fts) VALUES('rebuild')` rebuilds index, but performance characteristics at scale (1000+ recipes) unknown. May need to run during maintenance window if rebuild is slow.
 
-- **Vite 7 proxy with Express 5:** Standard Vite proxy pattern, but Express 5 is relatively new. Test API proxy in dev mode early (Phase 1). Fallback: run Vite and Express separately with CORS during dev.
+**Invite token collision:** `crypto.randomBytes(24)` provides 192-bit entropy -- collision probability is negligible for household scale (< 100 invites ever). No collision detection implemented in initial version. Add uniqueness constraint on invites.token column to handle unlikely collision gracefully.
 
-- **initData caching on desktop client:** Telegram desktop may cache initData for hours, causing "expired" errors even on fresh opens. If encountered, increase `expiresIn` to 7200 (2 hours) for desktop, or handle gracefully with "please reopen" message.
+**Onboarding question sequence:** Research identifies categories (dietary restrictions, household size, dinner time, stores) but exact question phrasing and order should be user-tested. Current plan is deterministic 4-question flow. May need iteration after initial deployment based on completion rates.
 
-- **useLaunchParams removal in @tma.js/sdk-react v3:** Confirmed in GitHub issue #667. Workaround is `useMemo(() => retrieveLaunchParams(), [])`. Verify this works in Phase 1 SDK setup.
-
-**No blocking gaps.** All identified gaps have documented workarounds and can be resolved during implementation without additional research.
+**Admin role definition:** Currently, "admin" is the original user (defined by ADMIN_USER_IDS env var). Multi-household system needs per-household ownership. Phase 1 schema includes users.role column (admin/member) but enforcement strategy needs refinement during implementation. For v1.2, treat original user as global admin, household creator as household owner.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-
-**Official Telegram documentation:**
-- [Telegram Bot API - Mini Apps](https://core.telegram.org/bots/webapps) -- initData, theme, viewport, events, MainButton, BackButton, sendData
-- [Telegram Mini Apps Community Docs](https://docs.telegram-mini-apps.com/) -- Platform overview, theming, init data validation, navigation, closing behavior
-- [Telegram Bot API - WebAppInfo](https://core.telegram.org/bots/api#webappinfo) -- web_app inline keyboard specification
-
-**npm packages (verified versions):**
-- [@tma.js/sdk](https://www.npmjs.com/package/@tma.js/sdk) v3.1.4 -- Core Telegram Mini Apps SDK
-- [@tma.js/sdk-react](https://www.npmjs.com/package/@tma.js/sdk-react) v3.0.15 -- React bindings
-- [@tma.js/init-data-node](https://www.npmjs.com/package/@tma.js/init-data-node) v2.0.4 -- Server-side validation
-- [@telegram-apps/telegram-ui](https://www.npmjs.com/package/@telegram-apps/telegram-ui) v2.1.13 -- UI components
-- [react](https://www.npmjs.com/package/react) v19.2.4 -- Current stable
-- [react-router](https://www.npmjs.com/package/react-router) v7.13.0 -- Current stable
-- [vite](https://www.npmjs.com/package/vite) v7.3.1 -- Current stable
-
-**GitHub repositories:**
-- [tma.js monorepo](https://github.com/Telegram-Mini-Apps/telegram-apps) -- SDK source, migration docs
-- [TelegramUI](https://github.com/telegram-mini-apps-dev/TelegramUI) -- Component library source
-- [grammY keyboard plugin](https://grammy.dev/plugins/keyboard) -- .webApp() method docs
-- [Official React template](https://github.com/Telegram-Mini-Apps/reactjs-template) -- Reference structure
+- **Codebase audit:** All 47 files with chatId/chat_id usage reviewed (339 occurrences). Complete schema analysis of 11 tables. Repository patterns, factory functions, init.ts migrations, tool handlers, Mini App auth middleware all inspected.
+- **grammY source code:** `/workspace/node_modules/grammy/out/composer.d.ts` lines 226-237 -- `ctx.match` type and deep link payload mechanism verified
+- **Node.js 22 runtime:** `crypto.randomBytes().toString('base64url')` tested directly in environment
+- **SQLite documentation:** ALTER TABLE ADD COLUMN behavior, WAL mode, FTS5 external content triggers, foreign key enforcement
+- **better-sqlite3 ^12.6.2:** Synchronous API, transaction handling, prepared statement patterns from existing usage in codebase
 
 ### Secondary (MEDIUM confidence)
+- **Telegram Bot API deep linking:** 64-character base64url payload limit, `t.me/BotName?start=PAYLOAD` format -- stable API feature (training data, not verified against current docs but unchanged for 5+ years)
+- **Multi-tenant data isolation patterns:** Row-level scoping, composite keys, scope resolution middleware -- established patterns from training data, not codebase-specific
 
-**Platform issues and workarounds:**
-- [Telegram-iOS #1447](https://github.com/TelegramMessenger/Telegram-iOS/issues/1447) -- Scrolling collapse issue (200+ comments)
-- [Telegram-iOS #1410](https://github.com/TelegramMessenger/Telegram-iOS/issues/1410) -- Keyboard viewport issue (150+ comments)
-- [Telegram-iOS #1377](https://github.com/TelegramMessenger/Telegram-iOS/issues/1377) -- Safe area insets (100+ comments)
-- [Telegram-Mini-Apps/issues #16](https://github.com/Telegram-Mini-Apps/issues/issues/16) -- Scrolling collapse fix guide
-- [Telegram-Mini-Apps/issues #667](https://github.com/Telegram-Mini-Apps/telegram-apps/issues/667) -- useLaunchParams removal in v3
-
-**Design references:**
-- [Telegram Mini Apps UI Kit (Figma)](https://www.figma.com/community/file/1348989725141777736/telegram-mini-apps-ui-kit) -- Official design patterns
-- [BAZU - Best Practices for TWA UI/UX](https://bazucompany.com/blog/best-practices-for-ui-ux-in-telegram-mini-apps/) -- Platform conventions
-
-**Competitor analysis:**
-- [Plan to Eat](https://www.plantoeat.com/) -- Meal plan calendar patterns
-- [CNN - Best Meal Planning Apps 2026](https://www.cnn.com/cnn-underscored/reviews/best-meal-planning-apps) -- Feature expectations
-
-### Tertiary (LOW confidence, needs validation)
-
-- Exact `emptyDirBeforeWrite` option name in Vite 7 config (may be `emptyOutDir` from Vite 6) -- verify in Vite 7 docs during Phase 1
-- Vite proxy performance with Express 5 -- standard pattern but untested with Express 5 specifically
+### Tertiary (LOW confidence)
+- **Optimal household permission model:** Whether preferences should be personal-editable-only vs household-editable is design decision, not technical fact. Research recommends personal-only for allergies but this needs validation with actual users.
+- **Onboarding completion rates:** No data on how many questions users tolerate before abandoning. 4-question flow is hypothesis based on bot onboarding best practices (training data), needs validation in production.
 
 ---
-*Research completed: 2026-02-09*
+*Research completed: 2026-02-10*
 *Ready for roadmap: yes*

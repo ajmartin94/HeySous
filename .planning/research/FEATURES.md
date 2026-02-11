@@ -1,288 +1,404 @@
-# Feature Research: Telegram Mini Apps for Meal Planning
+# Feature Research: Multi-User, Invites, Onboarding, and Feedback
 
-**Domain:** Telegram Mini Apps (TWA) for Grocery Lists, Meal Plans, and Recipe Browsing
-**Researched:** 2026-02-09
-**Confidence:** MEDIUM-HIGH (Telegram API docs verified, UI patterns from multiple sources, codebase data model inspected)
+**Domain:** Telegram bot multi-user access control, household sharing, guided onboarding, app feedback
+**Researched:** 2026-02-10
+**Confidence:** HIGH (Telegram Bot API mechanisms verified via grammY types in codebase; patterns derived from established bot design conventions and codebase analysis)
 
 ## Context: What Exists Today
 
-The existing v1.0 HeySous bot already has:
+The existing HeySous bot (v1.0 + v1.1) is **single-user-per-chat** with these key data model traits:
 
-- **Grocery lists** -- stored with `store`, `section`, `name`, `quantity`, `checked` fields; displayed as HTML text with inline keyboard buttons for toggle (2 per row, 80-item cap before falling back to text-only). Current pain: inline buttons are cramped, limited to label text, cannot show section headers inline, no visual progress, 100-button Telegram limit.
-- **Meal plans** -- stored as `mealPlanEntries` with `dayOfWeek` (0-6), `mealType` (breakfast/lunch/dinner), `recipeName`, and optional `knowledgeItemId` link. Currently displayed as plain text list. No way to tap a meal and see the recipe.
-- **Knowledge items (recipes)** -- stored with `title`, `summary`, `content`, `source`, `tags`. Searchable via FTS5 with BM25 ranking. No visual browse capability at all; user must ask Claude to find recipes.
+- **chatId as isolation key:** Every table (`knowledge_items`, `meal_plans`, `grocery_lists`, `reminders`, `cooking_history`, `feedback_checkins`) uses `chat_id` as the primary scoping column. In a 1:1 Telegram chat, `chat_id == user_id`, so these are equivalent today.
+- **userId tracked but unused for isolation:** The `messages` and `token_usage` tables store `user_id`, but no business logic branches on it. The message handler extracts `ctx.from?.id ?? "unknown"`.
+- **Mini App auth extracts userId:** The `auth-middleware.ts` maps `parsed.user.id` to `res.locals.chatId` -- again treating user ID as chat ID.
+- **No access control:** Any Telegram user who messages the bot gets a response. No gating, no invite check, no user table.
+- **No household concept:** No grouping of users, no shared data, no multi-user awareness in the system prompt or tool handlers.
+- **adminUserIds config exists:** `config.ts` already parses `ADMIN_USER_IDS` from env, but only used for the `/costs` command.
+- **Factory function pattern:** All services use `createXxx()` factories with dependency injection -- new features follow this pattern.
 
-The Mini Apps address a known limitation noted in v1.0 research: "Telegram as a platform is a constraint. No rich UI means grocery list management is inferior to native apps until Mini Apps are built."
-
-## Chat vs. Mini App: What Goes Where
-
-This is the most important design decision. Based on Telegram UX best practices and the hybrid model.
-
-**Stays in chat (bot messages):**
-- Recipe entry (conversational by design)
-- Meal plan generation (conversation with Claude to discuss preferences, constraints)
-- Plan adjustments ("swap Tuesday's dinner")
-- Pivot assistance ("chicken burned, what else?")
-- Preference changes ("actually dinner is at 6:30 now")
-- Feedback check-ins ("how was the butter chicken?")
-- All notifications and reminders
-- Quick status checks (/plan, /grocery for text summaries)
-
-**Moves to Mini App (visual tasks):**
-- Grocery list check-off while shopping (the primary use case -- needs speed, one-hand use, haptic feedback)
-- Weekly meal plan visualization (grid view, tap to see recipe)
-- Recipe browsing and search (card layout, tag filtering, full recipe detail)
-
-**The handoff pattern:** Bot sends a message with a `web_app` inline keyboard button (e.g., "Open Grocery List"). User taps it, Mini App opens inside Telegram. Mini App communicates with the same backend API. When done, user closes Mini App and returns to chat.
+---
 
 ## Feature Landscape
 
-### Table Stakes: Grocery List Mini App
+### 1. Invite System
 
-Features users expect from any grocery list UI. Missing these means the Mini App is worse than the inline buttons it replaces.
+#### Table Stakes (Users Expect These)
 
-| Feature | Why Expected | Complexity | Backend Dependency | Notes |
-|---------|--------------|------------|-------------------|-------|
-| **Tap to check off items** | The entire reason this Mini App exists. Tap an item, it gets checked with strikethrough. Must be faster than the current inline button approach. | LOW | `toggleItem(itemId)` exists | Use haptic feedback (`selectionChanged()`) on each tap. Optimistic UI -- check immediately, sync in background. |
-| **Items grouped by store** | Current bot already groups by store (Kroger/Costco). Users expect the same organization in the visual UI. | LOW | Items already have `store` field | Collapsible store sections. Visual separation with store name headers. |
-| **Items grouped by section within store** | Current bot groups by section (Produce, Dairy, etc.). Users expect aisle-based organization to match their shopping route. | LOW | Items already have `section` field | Nested grouping: Store > Section > Items. Sections collapsible. |
-| **Checked items visually distinct** | Strikethrough, grayed out, moved to bottom. Standard grocery app pattern. | LOW | `checked` boolean exists | Checked items move to collapsed "Done" section at bottom of each store. |
-| **Progress indicator** | "12/28 items" or a progress bar. Users want to know how far through the list they are. | LOW | Computed from item states | Per-store and overall progress. Visual bar or fraction. |
-| **Item quantity display** | "2 lbs chicken thighs" not just "chicken thighs". | LOW | `quantity` field exists | Display as `{quantity} {name}` -- same as current text format. |
-| **Pull to refresh** | Standard mobile pattern. If items were added via chat while Mini App is open, user expects to pull down and see updates. | LOW | Re-fetch from API | Standard web pull-to-refresh pattern. |
-| **Back button navigation** | Telegram provides `BackButton` API. Must work correctly to return to chat. | LOW | None | Use `Telegram.WebApp.BackButton` API. |
-| **Theme matching** | Must respect Telegram's light/dark mode. Cannot look like a foreign app dropped into the chat. | MEDIUM | None (client-side) | Use `ThemeParams` CSS variables for all colors. TelegramUI component library handles this automatically. |
+| Feature | Why Expected | Complexity | Notes |
+|---------|--------------|------------|-------|
+| **Deep link invite URLs** | Telegram's standard mechanism for bot onboarding. `t.me/BotName?start=TOKEN` triggers `/start` with payload in `ctx.match`. Users expect to click a link and land in the bot. | LOW | grammY `bot.command("start")` provides `ctx.match` as string payload. 64-char base64url limit per Telegram spec. |
+| **Token validation on /start** | Invalid or expired tokens must be rejected with a friendly message. Users must not get silently ignored or see an error. | LOW | Check token against DB. If invalid: "This invite link isn't valid. Ask [admin name] for a new one." |
+| **Single-use tokens** | Each invite link works exactly once. Prevents unwanted sharing of invite URLs. Standard for private bots. | LOW | Mark token as `redeemed` with `redeemed_by` and `redeemed_at` after successful use. |
+| **Two invite types: household vs independent** | The milestone spec distinguishes household invites (join existing household, share data) from independent invites (new standalone user). This is critical for the sharing model. | MEDIUM | Token record includes `type: "household" \| "independent"` and optional `household_id`. Household tokens link the new user to an existing household. |
+| **Gated access (reject non-invited users)** | The bot is private/personal. Unknown users who message the bot without an invite should be politely turned away. | LOW | Middleware before all handlers: check if `userId` exists in `users` table. If not, respond with "I'm a private bot. You need an invite link to get started." |
+| **Admin invite generation** | The admin (primary user) must be able to create invite links. `/invite household` or `/invite independent` commands. | LOW | Admin-only command. Generates token, stores in DB, returns `t.me/BotName?start=TOKEN` URL. |
 
-### Table Stakes: Meal Plan Mini App
-
-| Feature | Why Expected | Complexity | Backend Dependency | Notes |
-|---------|--------------|------------|-------------------|-------|
-| **7-day grid/list view** | The whole point is seeing the week at a glance, which text cannot do well. Every meal planning app shows a calendar or grid. | MEDIUM | `getPlan()` returns entries with `dayOfWeek` + `mealType` | Monday-Sunday layout. Show recipe name in each cell. Highlight today. |
-| **Meal type rows** | Breakfast / Lunch / Dinner rows (or just dinner if dinner-only plan). Must adapt to what meals are actually planned. | LOW | `mealType` field exists | Auto-detect: if all entries are dinner, show single-row. If mixed, show multi-row grid. |
-| **Tap meal to see recipe** | Users will tap a planned meal expecting to see the recipe. This is the primary interaction beyond just viewing. | MEDIUM | `knowledgeItemId` links to recipe content | Navigate to recipe detail view within the Mini App. If no linked recipe, show recipe name only with a "not stored yet" indicator. |
-| **Current week + next week navigation** | Users plan ahead. Must be able to see next week's plan if it exists. | LOW | `getActivePlans()` returns current + next week | Simple week toggle or swipe between weeks. |
-| **Today highlight** | Immediately see what is planned for today. Most important day in the view. | LOW | Compare `dayOfWeek` to current day | Visual emphasis: bolder border, background color, or "TODAY" label. |
-| **Theme matching** | Same as grocery -- must look native to Telegram. | MEDIUM | None | ThemeParams CSS variables. |
-
-### Table Stakes: Recipe Browser Mini App
-
-| Feature | Why Expected | Complexity | Backend Dependency | Notes |
-|---------|--------------|------------|-------------------|-------|
-| **Recipe card list** | Visual browse of all stored recipes. Cards with title and summary. The reason this Mini App exists -- you cannot browse a knowledge base through conversation alone. | MEDIUM | `listByChatId()` exists, returns title + summary | Card layout with title, summary snippet, and tags. Paginated or virtual scroll for large collections. |
-| **Search** | Type to filter recipes. Must match the FTS5 search that already powers the bot. | MEDIUM | `searchFts()` exists with BM25 ranking | Search bar at top. Debounced search as user types. Show results as cards. |
-| **Full recipe detail view** | Tap a card to see the complete recipe -- ingredients, instructions, notes. | LOW | `getFullItem()` returns full `content` field | Content is stored as markdown/text. Render with basic formatting (bold, lists). |
-| **Tag display** | Show recipe tags on cards for quick scanning (e.g., "quick", "Thai", "sous vide"). | LOW | Tags already stored in `knowledgeTags` | Pill/chip UI on each card. |
-| **Back navigation within Mini App** | Card list -> recipe detail -> back to list. Must maintain scroll position and search state. | MEDIUM | None (client-side routing) | Use BackButton API. Maintain state in memory (no full page reload). |
-
-### Differentiators (Competitive Advantage)
-
-Features that make the Mini Apps feel like a real cooking partner, not just a generic UI.
+#### Differentiators
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| **Grocery: store-tab navigation** | Instead of scrolling a long list, tabs at the top for "Kroger" / "Costco". Tap the store you are currently in. No other meal planning TWA does multi-store tabbed navigation. | LOW | Straightforward tab UI; data already split by store. |
-| **Grocery: haptic feedback on check** | Physical "thunk" when checking an item. Makes shopping feel satisfying and confirms the tap registered. Standard in native apps, rare in web-based Mini Apps. | LOW | `HapticFeedback.impactOccurred('light')` API available. |
-| **Grocery: swipe to uncheck** | User checks wrong item, swipe left to uncheck. More natural than finding the item in "done" and tapping again. | MEDIUM | Swipe gesture detection in web. Must disable Telegram's vertical swipe-to-close via `disableVerticalSwipes()`. |
-| **Meal plan: tap meal to open recipe** | Seamless flow from "what am I cooking tonight?" to seeing the full recipe. No other Telegram meal bot has visual plan-to-recipe navigation. | MEDIUM | Requires recipe browser view to be reachable from meal plan view. Shared component. |
-| **Meal plan: visual meal type indicators** | Color-coded or icon-based indicators for breakfast/lunch/dinner. Quick visual parsing of the week without reading every label. | LOW | Simple CSS styling per meal type. |
-| **Recipe: tag-based filtering** | Tap a tag to filter recipes. "Show me all 'quick' recipes" or "all 'Thai' recipes." Leverages the tag system already in the knowledge base. | MEDIUM | Need to fetch distinct tags, then filter by tag. Query exists via raw SQL. |
-| **Recipe: "last cooked" date display** | On each recipe card, show when you last made this dish. "Pad Thai -- last cooked 3 weeks ago." Surfaces the cooking history data that no other app exposes at browse time. | MEDIUM | Requires joining `cooking_history` with `knowledge_items` on recipe name or `knowledgeItemId`. |
-| **Recipe: tap to add to plan from browser** | While browsing recipes, tap "Add to plan" to slot a recipe into the current week. Bridges browse and planning. | HIGH | Requires write API endpoint. Must handle day/meal-type selection UI. Deferred to v1.2+. |
-| **Grocery: "add item" from Mini App** | Quick-add an item to the list without returning to chat. Useful for items forgotten during planning. | MEDIUM | Need a write endpoint. Simple form: name, quantity, store, section (with defaults). |
-| **MainButton integration** | Use Telegram's MainButton for the primary action in each context: "Done Shopping" in grocery, "This Week" in plan, "Search" in recipe. Native feel. | LOW | `MainButton.setText()`, `MainButton.show()` APIs. |
+| **Invite link preview message** | When sharing the invite URL in a Telegram chat, show a rich preview: "You've been invited to HeySous, a meal planning assistant!" | LOW | Configure bot description in BotFather. The deep link preview uses the bot's short_description. |
+| **Invite expiry** | Tokens expire after 7 days. Prevents stale links floating around. | LOW | `expires_at` column. Check on redemption. Admin can set custom expiry. |
+| **Invite tracking dashboard** | Admin can see who was invited, when, status (pending/redeemed/expired). `/invites` command. | LOW | Query invite_tokens table. Format as list. |
 
-### Anti-Features (Do NOT Build)
+#### Anti-Features
 
-| Feature | Why Tempting | Why Problematic | Alternative |
-|---------|-------------|-----------------|-------------|
-| **Drag-and-drop meal rearrangement** | Plan to Eat and Paprika have drag-drop calendars. Feels premium. | Drag-drop in a WebView is unreliable. Touch target accuracy is poor in Telegram's viewport. Swipe gestures conflict with Telegram's own swipe-to-close. Performance on Android WebView is inconsistent. This will feel janky, not premium. | To swap meals, return to chat: "swap Monday and Wednesday dinners." The bot handles this in one message. |
-| **Offline grocery list** | "What if I lose signal in the store?" | Telegram Mini Apps have no guaranteed offline capability. DeviceStorage (5MB) exists but is not a full offline sync solution. Building offline-first adds massive complexity (sync conflicts, versioning, stale state). The target user (Apple ecosystem, US) rarely loses signal in a grocery store. | CloudStorage for small caches. Optimistic UI that does not block on network. If truly offline, the chat message with the text list is still visible. |
-| **Recipe editing in Mini App** | "Let me fix this ingredient amount right here." | Recipe content is complex, freeform text. Building a recipe editor in a Mini App means designing a full form (ingredients list, instructions steps, notes) -- an entire app within an app. The existing conversational edit ("change the chicken to 3 lbs in the pad thai recipe") is faster and more flexible. | "Edit in chat" button that sends the user back to conversation with a prompt. |
-| **Complex week-by-week navigation (infinite scroll back)** | "Show me what I cooked in January." | The plan view is for THIS week and NEXT week -- the actionable horizon. Historical browsing belongs in the cooking history context, not the planner. Building infinite week navigation adds complexity with near-zero value for a single user. | Current + next week only. For history, ask the bot ("what did I cook last month?"). |
-| **Nutritional info on recipe cards** | "Show calories on each card." | Explicitly an anti-feature from v1.0 research. AI-estimated nutrition data is unreliable. Displaying unverified numbers looks authoritative and erodes trust. No nutrition database is integrated. | If a user stored nutritional info in their recipe text, it will appear in the recipe detail view naturally. Do not compute or display calculated macros. |
-| **Real-time collaborative editing** | "My partner and I both check items simultaneously." | Single-user product. WebSocket real-time sync adds backend complexity for zero users. The partner can use the inline buttons in chat or open their own Mini App session, with eventual consistency via API. | Single-user optimistic updates. If partner checks an item via bot buttons, it appears checked when the Mini App user refreshes. |
-| **Push notifications from Mini App** | "Remind me I need to buy milk." | Mini Apps are session-based. When closed, they cannot push. The bot already handles all notifications (prep reminders, daily summaries). Adding notification logic to the Mini App duplicates the bot's job. | All notifications stay in the bot. Mini Apps are view+interact only. |
-| **Image/photo display for recipes** | "Show a photo of each dish." | No recipe photos exist in the data model. The knowledge base stores text only (title, summary, content). Adding image storage requires file hosting, image optimization, and a fundamentally different content pipeline. Images would also slow Mini App loading significantly. | Text-only recipe cards. The summary field provides enough context to identify dishes. If photos are added later (v2+), the card component can be extended. |
+| Feature | Why Requested | Why Problematic | Alternative |
+|---------|---------------|-----------------|-------------|
+| **Self-service registration** | "Let anyone sign up" | This is a private/personal bot. Open registration means strangers using your Claude API credits and polluting the knowledge base. | Invite-only. Admin explicitly controls access. |
+| **Multi-use invite codes** | "Share one code with many people" | Loses control over who joins. Cannot revoke for specific people. Hard to track. | Single-use tokens. Admin generates one per person. |
+| **Telegram group-based access** | "Add the bot to a group chat" | Group chat dynamics (multiple users typing, @mentions required, message noise) conflict with the conversational 1:1 model. Telegram group bots have different API constraints (privacy mode, etc). | Keep bot as 1:1 private chat. Share data at the household level, not the chat level. |
+
+---
+
+### 2. Multi-User Identity
+
+#### Table Stakes
+
+| Feature | Why Expected | Complexity | Notes |
+|---------|--------------|------------|-------|
+| **Users table** | Persistent user records with Telegram metadata (user ID, first name, username). Foundation for everything else. | LOW | New `users` table: `telegram_id` (PK), `first_name`, `username`, `role` (admin/member), `household_id`, `created_at`, `onboarding_completed`. |
+| **Per-user chatId resolution** | Current code uses `chatId` everywhere. In 1:1 chats, chatId == userId. Must ensure all queries use the correct scope: user's own chatId for personal data, or householdId for shared data. | MEDIUM | Key insight: In Telegram 1:1 private chats, `ctx.chat.id == ctx.from.id`. The existing `chatId`-based isolation already works per-user. The change is adding a **household layer on top**, not replacing chatId. |
+| **Admin role** | Primary user (the person running the bot) has admin privileges: invite management, cost visibility, feedback dashboard. | LOW | `role` column in users table. Check `config.adminUserIds` for initial admin seeding. |
+| **User context in system prompt** | Claude should know who it's talking to. "You're talking to [Name]. They're part of the [Household Name] household." | LOW | Inject user metadata into system prompt preamble. |
+
+#### Differentiators
+
+| Feature | Value Proposition | Complexity | Notes |
+|---------|-------------------|------------|-------|
+| **Per-user preference profiles** | Each household member can have their own dietary restrictions, taste preferences, etc. Claude reasons over both personal and household preferences. | MEDIUM | Preferences already scoped by chatId. With household sharing, the system prompt includes both the user's personal preferences AND the household's shared preferences. |
+| **User activity tracking** | Know which household member last interacted, who generates most plans, etc. | LOW | Already tracked via `user_id` in messages/token_usage tables. |
+
+#### Anti-Features
+
+| Feature | Why Requested | Why Problematic | Alternative |
+|---------|---------------|-----------------|-------------|
+| **User profiles with photos/bios** | "Make it feel like a social app" | This is a cooking assistant, not a social network. Users already have Telegram profiles. | Use Telegram's own user metadata (first_name, username). No duplicate profile system. |
+| **Role-based permissions beyond admin/member** | "Different permission levels" | Two users (admin + partner) don't need RBAC. Over-engineering for a household of 2-4 people. | Two roles: admin (manages bot) and member (uses bot). |
+| **Multi-bot or multi-instance** | "Each household gets their own bot" | Operational complexity explosion. BotFather management, multiple deployments, separate DBs. | Single bot, multi-tenant via household_id scoping in one database. |
+
+---
+
+### 3. Household Sharing
+
+#### Table Stakes
+
+| Feature | Why Expected | Complexity | Notes |
+|---------|--------------|------------|-------|
+| **Households table** | Named group that links users. One household per invite chain. Admin's household is created on first boot. | LOW | New `households` table: `id`, `name`, `created_by`, `created_at`. Users table gets `household_id` FK. |
+| **Shared recipes** | All household members see the same recipe library. When one person adds "Chicken Parm", everyone can see it. | HIGH | **This is the hardest feature.** Current `knowledge_items.chat_id` scopes everything per-user. For household sharing, queries must change from `WHERE chat_id = ?` to `WHERE chat_id IN (SELECT telegram_id FROM users WHERE household_id = ?)`. Affects FTS5 queries, retrieval service, knowledge repository, tool handlers, and Mini App API routes. |
+| **Shared meal plans** | One meal plan per household per week (not per user). Either member can create or modify the plan. | HIGH | Same scoping challenge as recipes. `meal_plans.chat_id` becomes household-scoped. The plan tool handler must use household_id for lookups. Both users see the same plan in Mini App. |
+| **Shared grocery lists** | One active grocery list per household. Both members can check off items (in bot or Mini App). | MEDIUM | Grocery lists already have `chat_id`. Change to household scoping. Polling sync in Mini App (8s) means near-real-time shared checking. |
+| **Shared cooking history** | Household members share cooking history so Claude knows what "we" ate recently. | LOW | Same scoping pattern. Query by household_id instead of chat_id. |
+| **Shared reminders** | Morning prep summaries and prep alerts go to all household members (or configurable per user). | MEDIUM | Current reminders are per-chat. For households, either: (a) generate one set of reminders and send to all members, or (b) let each member configure their own reminder preferences but base content on the shared plan. Option (b) is better -- people wake up at different times. |
+
+#### The chatId-to-householdId Migration Strategy
+
+This is the central architectural challenge. There are two approaches:
+
+**Option A: Introduce householdId column alongside chatId (RECOMMENDED)**
+- Add `household_id` column to all shared tables (knowledge_items, meal_plans, grocery_lists, cooking_history)
+- Keep `chat_id` as the "created by" audit field
+- All sharing queries filter by `household_id`
+- Independent (non-household) users have a solo household (household of one)
+- FTS5 virtual table needs a content sync approach (FTS5 external content tables can join on household_id)
+- Migration: create household for admin, set household_id on all existing rows
+
+**Option B: Rewrite chatId to mean householdId everywhere**
+- Rename semantics: chatId becomes householdId
+- Breaks the clean mapping of Telegram chat_id to DB chat_id
+- Confusing for debugging, logging
+- Not recommended
+
+**Decision: Option A.** Add `household_id` as the sharing scope. `chat_id` remains for audit trail and personal data (messages, token_usage, reminder_settings stay per-user).
+
+#### Differentiators
+
+| Feature | Value Proposition | Complexity | Notes |
+|---------|-------------------|------------|-------|
+| **"Who added this?" attribution** | Recipes and plan entries show who contributed them. "Added by [Partner]" tag. | LOW | `chat_id` (creator) stays on records. Display creator's first_name in recipe detail. |
+| **Per-member grocery check-off visibility** | See who checked off what item. Useful when both partners are shopping simultaneously at different stores. | LOW | Add `checked_by` column to grocery_list_items. |
+| **Household name** | "The Smith Kitchen" or "Our Kitchen" -- personalizes the experience. | LOW | Set during admin onboarding or via command. Used in system prompt. |
+
+#### Anti-Features
+
+| Feature | Why Requested | Why Problematic | Alternative |
+|---------|---------------|-----------------|-------------|
+| **Multiple households per user** | "I want to be in my home kitchen AND my office lunch group" | Massive complexity increase. Which household context is active? Recipes duplicate across households. | One user, one household. Period. |
+| **Household permissions (viewer/editor)** | "Partner can view but not modify" | A household of 2-3 people doesn't need ACLs. Both partners should be able to add recipes and modify plans. Trust is implicit in a household invite. | All household members are equal (except admin for bot management). |
+| **Real-time collaboration indicators** | "Show who's viewing the grocery list right now" | WebSocket infrastructure, presence tracking, UI complexity. The 8s polling model is good enough. | Polling sync already provides near-real-time. No presence indicators needed. |
+| **Household chat / messaging between members** | "Let us discuss meals inside the bot" | They already have Telegram for messaging each other. The bot is an assistant, not a communication channel. | Users message each other directly on Telegram. |
+
+---
+
+### 4. Guided Onboarding
+
+#### Table Stakes
+
+| Feature | Why Expected | Complexity | Notes |
+|---------|--------------|------------|-------|
+| **Welcome message on invite redemption** | After clicking invite link and hitting /start, user gets a warm welcome. "Hey! Welcome to Sous. I'm your meal planning assistant. Let's get you set up!" | LOW | Modify /start handler to detect valid invite token, create user, trigger onboarding flow. |
+| **Preference Q&A sequence** | Ask 3-5 key questions to bootstrap the user's preference profile. Essential questions: dietary restrictions, household size, dinner time, preferred stores, cooking comfort level. | MEDIUM | Conversational flow driven by Claude, not hardcoded state machine. System prompt includes onboarding instructions. Claude asks questions, saves preferences via tools. Track progress with `onboarding_step` or let Claude manage it naturally. |
+| **Capability tour** | Brief explanation of what the bot can do. "I can help you plan meals, manage grocery lists, save recipes, and send you prep reminders." Show 3-4 examples of commands/interactions. | LOW | After preference Q&A, Claude sends a capability overview. Include inline keyboard buttons: "Plan a meal", "Add a recipe", "See my grocery list". |
+| **Seed recipe prompt** | Encourage user to add their first 3-5 recipes. "To start planning meals, I need to know some of your go-to recipes. What's a dinner you make often?" | LOW | Part of the onboarding conversation. Claude guides user through adding recipes naturally. |
+| **Onboarding completion flag** | Track that onboarding is done so the bot doesn't re-ask setup questions. | LOW | `onboarding_completed` boolean + `onboarding_completed_at` timestamp on users table. |
+| **Skip option** | User can skip onboarding and go straight to using the bot. "/skip or just start chatting." | LOW | Detect "skip" intent. Mark onboarding complete. Use defaults. |
+
+#### Household-Specific Onboarding
+
+| Feature | Why Expected | Complexity | Notes |
+|---------|--------------|------------|-------|
+| **Household join message** | When a user joins via household invite: "Welcome! You're joining [Partner]'s kitchen. You'll share recipes, meal plans, and grocery lists." | LOW | Check invite type. If household, load household name and members. |
+| **Abbreviated onboarding for household members** | Don't ask about dinner time and stores again -- those are household-level. Ask about personal dietary restrictions and preferences only. | MEDIUM | Claude's onboarding instructions must differentiate: new household (full Q&A) vs joining household (personal preferences only). |
+| **Shared context inheritance** | New household member immediately sees existing recipes, plans, and grocery lists. No cold start. | LOW | Household scoping handles this automatically. The new user's queries hit the same household_id data. |
+
+#### Differentiators
+
+| Feature | Value Proposition | Complexity | Notes |
+|---------|-------------------|------------|-------|
+| **Progressive onboarding** | Don't ask everything upfront. Ask the most critical questions first (allergies, dinner time), then learn the rest over the first week of usage. | LOW | This is natural for an AI-driven flow. Claude's instructions say "Ask the essential 3 questions now, then learn the rest organically from conversation." |
+| **Onboarding recap** | After a week, send a message: "Here's what I've learned about your preferences so far: [list]. Anything I'm missing?" | LOW | Scheduled message (like a reminder) triggered 7 days after onboarding_completed_at. |
+| **Interactive recipe seeding** | Instead of just "tell me a recipe", offer to generate recipes from description: "What's a weeknight dinner you make a lot? I'll draft the recipe and you can tweak it." | LOW | Already supported by the recipe creation flow. Just needs to be part of the onboarding prompt. |
+
+#### Anti-Features
+
+| Feature | Why Requested | Why Problematic | Alternative |
+|---------|---------------|-----------------|-------------|
+| **Form-based onboarding (Mini App)** | "A nice form UI for entering preferences" | Breaks the conversational model. The bot IS the interface. Forms feel impersonal and miss the opportunity to establish the assistant relationship. | Conversational onboarding via Claude. Natural, warm, builds rapport from the first interaction. |
+| **Mandatory onboarding** | "Don't let users do anything until they complete setup" | Frustrating. Some users want to dive right in. Forced flows feel like corporate software. | Gentle guidance with skip option. If a user starts chatting about recipes without finishing onboarding, Claude adapts. |
+| **Onboarding wizard with progress bar** | "Show step 2 of 5" | Rigid. Makes the conversation feel like a form. Loses the natural flow. | Claude manages the conversation naturally. No visible step counter. |
+
+---
+
+### 5. App Feedback System
+
+**Important distinction:** This is feedback about the **bot itself** (app feedback: "the grocery list is hard to use"), NOT feedback about meals (meal feedback: "the chicken was dry"). Meal feedback already exists in v1.0.
+
+#### Table Stakes
+
+| Feature | Why Expected | Complexity | Notes |
+|---------|--------------|------------|-------|
+| **/feedback command** | Explicit way for users to submit feedback about the app. `/feedback The recipe search could be better`. | LOW | New command handler. Store in `app_feedback` table with `user_id`, `text`, `source: "command"`, `created_at`. |
+| **Feedback confirmation** | After submitting feedback, acknowledge it warmly. "Thanks for the feedback! I've noted that down." | LOW | Simple reply after storing. |
+| **Admin feedback dashboard** | Admin can view all feedback. `/feedback-admin` or a Mini App page. | MEDIUM | Query app_feedback table. Show chronologically with user attribution. Filtering by date range. |
+
+#### Differentiators
+
+| Feature | Value Proposition | Complexity | Notes |
+|---------|-------------------|------------|-------|
+| **Silent sentiment detection** | Claude detects frustration or delight in normal conversation and logs it as implicit feedback. "ugh this isn't working" -> negative implicit feedback. "this is amazing!" -> positive implicit feedback. | MEDIUM | Add sentiment extraction to the pipeline processor. When Claude detects strong sentiment about the bot (not about food), log to app_feedback with `source: "implicit"`. Must distinguish "this chicken is terrible" (meal feedback) from "this bot is terrible" (app feedback). |
+| **Hub feedback button** | "Give Feedback" button in the Mini App hub dashboard. Opens a simple text input. | LOW | New Mini App route. Simple form: textarea + submit. Posts to `/api/feedback`. |
+| **Periodic "how am I doing?" check-in** | Every 2 weeks (configurable), the bot proactively asks: "Hey, how's everything going? Anything I could do better?" | MEDIUM | Scheduled message via the existing reminder/poller infrastructure. New reminder type `app_checkin`. Frequency configurable. Response processed as app feedback. |
+| **Feedback categorization** | Auto-categorize feedback: UX, recipes, planning, grocery, reminders, general. | LOW | Claude extracts category when processing feedback. Stored as `category` column. Useful for admin dashboard filtering. |
+| **Feedback sentiment scoring** | Rate each feedback as positive/neutral/negative/suggestion. | LOW | Claude extracts sentiment alongside category. Stored as `sentiment` column. |
+
+#### Anti-Features
+
+| Feature | Why Requested | Why Problematic | Alternative |
+|---------|---------------|-----------------|-------------|
+| **In-app feedback forms with ratings** | "Rate us 1-5 stars" | Impersonal. Quantitative ratings are meaningless with 2-3 users. Qualitative feedback is far more valuable for a personal bot. | Free-text feedback. Let users say what they think in their own words. |
+| **Feedback reply system** | "Admin can reply to feedback" | You're the admin AND the only other users are your household. Just message them on Telegram directly. | Direct Telegram communication for feedback follow-up. |
+| **Anonymous feedback** | "Let users submit without attribution" | With 2-3 users, anonymity is meaningless. And you need to know who said what to improve their experience. | All feedback attributed to user. |
+| **Public feedback board / changelog** | "Show all users what feedback was addressed" | Overkill for a household. | Mention changes in conversation: "Hey, I noticed you mentioned X was tricky -- I've improved that!" |
+
+---
 
 ## Feature Dependencies
 
 ```
-[Backend: REST API Layer]  <-- NEW: Required by all 3 Mini Apps
-    |
-    +---> [Auth: initData validation]  <-- Required before any data flows
-    |
-    +---> [Grocery List Mini App]
-    |        |
-    |        +-- Store-tab navigation (data: store field)
-    |        +-- Section grouping (data: section field)
-    |        +-- Tap-to-check (API: toggleItem)
-    |        +-- Progress bar (computed from checked states)
-    |        +-- Haptic feedback (client-only, TWA API)
-    |
-    +---> [Meal Plan Mini App]
-    |        |
-    |        +-- Week grid view (data: dayOfWeek + mealType)
-    |        +-- Today highlight (client-side date comparison)
-    |        +-- Tap meal -> recipe detail  ----+
-    |        +-- Week navigation (data: getActivePlans) |
-    |                                                    |
-    +---> [Recipe Browser Mini App]  <-------------------+
-             |
-             +-- Card list (data: listByChatId)
-             +-- Search (data: searchFts via API)
-             +-- Tag filtering (data: knowledgeTags)
-             +-- Recipe detail view (data: getFullItem)
-             +-- Last cooked date (data: cooking_history join)
+users table ─────────────────┬──> invite system (needs user records)
+                             ├──> onboarding (needs user state tracking)
+                             ├──> household sharing (needs user-to-household mapping)
+                             └──> app feedback (needs user attribution)
+
+households table ────────────┬──> household sharing (needs household grouping)
+                             └──> household onboarding (needs household context)
+
+invite system ───────────────┬──> gated access middleware (needs token validation)
+                             └──> onboarding trigger (invite redemption starts onboarding)
+
+gated access middleware ─────┬──> ALL bot handlers (must run before everything)
+                             └──> Mini App auth (must check user exists)
+
+household sharing ───────────┬──> shared recipes (householdId scoping on knowledge_items)
+                             ├──> shared meal plans (householdId scoping on meal_plans)
+                             ├──> shared grocery lists (householdId scoping on grocery_lists)
+                             ├──> shared cooking history (householdId scoping)
+                             ├──> shared reminders (household-aware reminder generation)
+                             └──> Mini App routes (resolve householdId from userId)
+
+onboarding ──────────────────┬──> preference Q&A (uses existing preference system)
+                             ├──> capability tour (static content + buttons)
+                             └──> seed recipe prompt (uses existing recipe entry)
+
+app feedback ────────────────┬──> /feedback command (standalone)
+                             ├──> silent sentiment detection (adds to pipeline processor)
+                             ├──> hub button (adds to Mini App)
+                             └──> periodic check-in (adds to reminder system)
+                             └──> admin dashboard (reads app_feedback table)
 ```
 
-### Critical Path
+### Critical Ordering Constraint
 
-1. **REST API layer** must exist before any Mini App can function. Currently the bot uses direct SQLite access. The Mini Apps need HTTP endpoints.
-2. **Auth (initData validation)** is the security gate. Without it, anyone could call the API.
-3. **Grocery list Mini App** should be built first -- highest user value, most concrete improvement over inline buttons, and simplest data model.
-4. **Recipe browser** should come second because the meal plan "tap to see recipe" depends on having a recipe detail view component.
-5. **Meal plan Mini App** should come last -- it requires the recipe detail component from the recipe browser, and the current text display is adequate (less painful than the grocery list).
+```
+1. users + households tables   (foundation -- everything depends on this)
+2. invite system + gated access  (must exist before onboarding can work)
+3. multi-user identity refactor  (chatId -> householdId scoping layer)
+4. household sharing             (depends on identity + scoping)
+5. onboarding                    (depends on invite system + user records)
+6. app feedback                  (depends on user records, otherwise independent)
+```
+
+Onboarding and app feedback are relatively independent of each other and can be developed in parallel after the identity/sharing foundation is in place.
+
+---
 
 ## MVP Definition
 
-### Launch With (v1.1)
+### Launch With (v1.2)
 
-The first Mini App release. Must feel complete for the features included.
+**Must ship together -- these form a coherent "multi-user" release:**
 
-**Grocery List Mini App (Priority 1 -- highest value, most pain solved):**
-- [x] Store tabs (Kroger / Costco)
-- [x] Section grouping within each store
-- [x] Tap to check/uncheck with haptic feedback
-- [x] Checked items in collapsed "Done" section
-- [x] Progress indicator (per-store and overall)
-- [x] Quantity + name display
-- [x] Theme-aware (light/dark mode via ThemeParams)
-- [x] MainButton: "Done Shopping" (marks list as completed)
-- [x] Telegram BackButton to return to chat
+1. **Users + Households tables** -- foundation for everything
+2. **Invite system** -- deep link tokens, admin /invite command, single-use, two types (household/independent), token expiry
+3. **Gated access middleware** -- reject non-invited users, check user exists before all handlers
+4. **Multi-user identity** -- per-user context, user metadata in system prompt
+5. **Household data sharing** -- shared recipes, meal plans, grocery lists, cooking history via household_id scoping
+6. **Guided onboarding** -- welcome message, preference Q&A (3-5 questions), capability tour, seed recipe prompt, skip option
+7. **/feedback command** -- basic app feedback collection
+8. **Admin feedback view** -- /feedback-admin command to see all feedback
+9. **Periodic "how am I doing?"** -- bi-weekly check-in using existing reminder infrastructure
 
-**Meal Plan Mini App (Priority 2 -- visual upgrade):**
-- [x] 7-day grid view (Monday-Sunday)
-- [x] Meal type rows (dinner-only or multi-meal adaptive)
-- [x] Today highlight
-- [x] Current week / next week toggle
-- [x] Tap meal name (shows recipe name; deep link to recipe detail if knowledgeItemId exists)
-- [x] Theme-aware
+### Add After Validation (v1.x)
 
-**Recipe Browser Mini App (Priority 3 -- enables browsing, supports plan):**
-- [x] Scrollable card list (title + summary + tags)
-- [x] Search bar with debounced FTS5 search
-- [x] Full recipe detail view (formatted content)
-- [x] Tag pills on cards
-- [x] BackButton navigation (list -> detail -> back)
-- [x] Theme-aware
+These are valuable but not essential for the v1.2 launch:
 
-**Shared Infrastructure (required for all):**
-- [x] REST API with initData HMAC-SHA256 validation
-- [x] API endpoints: grocery list + items, meal plan + entries, knowledge items + search
-- [x] Mini App entry points: web_app inline keyboard buttons in bot responses
-- [x] Telegram Web App SDK integration
-
-### Add After Validation (v1.2)
-
-After the base Mini Apps are working and used regularly.
-
-- [ ] **Grocery: swipe to uncheck** -- Swipe gesture adds polish but requires gesture library and swipe-conflict handling.
-- [ ] **Grocery: quick-add item** -- Form to add forgotten items without returning to chat. Needs store/section picker with smart defaults.
-- [ ] **Recipe: tag-based filtering** -- Tap a tag to filter the list. Needs tag aggregation endpoint.
-- [ ] **Recipe: "last cooked" display** -- Join cooking_history to show recency on cards. Needs new query.
-- [ ] **Meal plan: tap to open full recipe** -- Navigate from meal plan to recipe detail view. Needs shared routing between Mini Apps or embedded recipe component.
-- [ ] **Grocery: uncheck all (reset)** -- Start a fresh shopping trip with the same list.
+10. **Silent sentiment detection** -- implicit feedback from conversation. Needs careful tuning to avoid false positives (meal frustration vs bot frustration).
+11. **Hub feedback button** -- Mini App integration. Nice but /feedback command covers the use case.
+12. **Per-member grocery check-off attribution** -- "checked by [Partner]". Nice touch but not blocking.
+13. **Onboarding recap** -- 7-day follow-up message. Requires scheduling infrastructure (already exists via reminders).
+14. **Invite tracking dashboard** -- /invites command to see all invite status.
 
 ### Future Consideration (v2+)
 
-- [ ] **Recipe: "Add to plan" button** -- From recipe browser, add to this week's plan. Requires day/meal-type picker UI and write API.
-- [ ] **Grocery: item reordering within section** -- Manual sort for personal shopping route optimization.
-- [ ] **Meal plan: cooking history overlay** -- Show "cooked 3x" indicators on recipes in the plan.
-- [ ] **Shared Mini App shell** -- All three Mini Apps in one with bottom tab navigation instead of separate entry points.
-- [ ] **Recipe: source link** -- If recipe has a URL source, show a link button.
-- [ ] **Grocery: aisle number annotations** -- Per-store aisle mapping for even faster shopping.
+15. **Feedback categorization + admin dashboard Mini App** -- Rich filtering, trends, sentiment analysis over time.
+16. **Per-user preference profiles within household** -- "Partner doesn't eat mushrooms but I do." Currently household preferences are shared.
+17. **Notification preferences per household member** -- Fine-grained control over which reminders each person gets.
+
+---
 
 ## Feature Prioritization Matrix
 
-| Feature | User Value | Implementation Cost | Priority | Notes |
-|---------|------------|---------------------|----------|-------|
-| REST API + auth layer | CRITICAL | HIGH | P0 | Blocks everything. No API = no Mini Apps. |
-| Grocery: tap-to-check with sections | HIGH | LOW | P1 | Core value. Most-used interaction. |
-| Grocery: store tabs | HIGH | LOW | P1 | Kroger/Costco split is existing pain point. |
-| Grocery: progress indicator | MEDIUM | LOW | P1 | Quick win, satisfying UX. |
-| Grocery: haptic feedback | MEDIUM | LOW | P1 | Tiny cost, noticeable polish. |
-| Grocery: theme matching | HIGH | MEDIUM | P1 | Looks broken without it. Non-negotiable. |
-| Meal plan: week grid view | HIGH | MEDIUM | P1 | Primary visual upgrade over text. |
-| Meal plan: today highlight | MEDIUM | LOW | P1 | Tiny cost, high orientation value. |
-| Meal plan: week navigation | MEDIUM | LOW | P1 | Simple toggle, enables next-week viewing. |
-| Recipe: card list + search | HIGH | MEDIUM | P1 | Enables browsing for first time. |
-| Recipe: detail view | HIGH | LOW | P1 | Required for card list to be useful. |
-| Recipe: tag display | MEDIUM | LOW | P1 | Already in data model. Low effort. |
-| Grocery: swipe to uncheck | LOW | MEDIUM | P2 | Polish. Tap works fine for uncheck too. |
-| Grocery: quick-add item | MEDIUM | MEDIUM | P2 | Useful but can return to chat instead. |
-| Recipe: tag filtering | MEDIUM | MEDIUM | P2 | Search covers most cases. |
-| Recipe: last cooked date | MEDIUM | MEDIUM | P2 | Valuable context but not blocking. |
-| Plan: tap meal -> recipe | MEDIUM | MEDIUM | P2 | Requires cross-view navigation. |
-| Recipe: add to plan | MEDIUM | HIGH | P3 | Complex UI (day/meal picker). |
-| Grocery: item reorder | LOW | HIGH | P3 | Drag-drop in WebView is risky. |
-| Shared Mini App shell | LOW | HIGH | P3 | Three entry points work fine for now. |
+| Feature | User Value | Technical Risk | Dependency Weight | Priority |
+|---------|-----------|---------------|-------------------|----------|
+| Users + Households tables | Critical (foundation) | LOW | Blocks everything | P0 |
+| Gated access middleware | Critical (security) | LOW | Blocks all handlers | P0 |
+| Invite system (deep links) | Critical (access control) | LOW | Blocks onboarding | P0 |
+| Household data sharing | Critical (core value) | HIGH | Requires schema changes to 5+ tables, FTS5 changes | P0 |
+| Multi-user identity in prompts | HIGH | LOW | Requires users table | P0 |
+| Guided onboarding flow | HIGH | MEDIUM | Requires invite system, users table | P0 |
+| /feedback command | MEDIUM | LOW | Requires users table | P0 |
+| Admin feedback view | MEDIUM | LOW | Requires /feedback | P0 |
+| Periodic check-in | MEDIUM | LOW | Reuses reminder infra | P0 |
+| Silent sentiment detection | MEDIUM | MEDIUM | Requires pipeline changes | P1 |
+| Hub feedback button | LOW | LOW | Mini App addition | P1 |
+| Invite tracking | LOW | LOW | Standalone | P1 |
+| Grocery check-off attribution | LOW | LOW | Schema addition | P1 |
+| Onboarding recap | LOW | LOW | Scheduled message | P1 |
+| Per-user preference profiles | MEDIUM | HIGH | Complex preference merging | P2 |
+| Admin dashboard Mini App | LOW | MEDIUM | New Mini App route | P2 |
 
-## Chat-to-Mini-App Interaction Patterns
+---
 
-### Pattern 1: Bot Message with WebApp Button
+## Key Implementation Notes
 
-The primary entry point. After generating a grocery list or meal plan, the bot includes an inline keyboard button with `web_app` type.
+### Telegram Deep Link Mechanics (Verified via grammY Types)
 
-```
-Bot: "Here's your grocery list for this week!"
-     [Open Grocery List]    <-- web_app button
-     [View in Chat]         <-- fallback: shows text + inline buttons
-```
+- Deep link URL format: `t.me/BotName?start=PAYLOAD`
+- Payload limit: 64 characters (base64url safe)
+- In grammY: `bot.command("start")` handler receives payload as `ctx.match` (type: `string`)
+- The user automatically opens a chat with the bot and sends `/start PAYLOAD`
+- Bot receives this as a regular message update with the `/start` command
 
-### Pattern 2: Bot Menu Button
+**Token format recommendation:** Use `nanoid(21)` (URL-safe, 21 chars) for invite tokens. Well within the 64-char limit. Prefix with invite type: `h_` for household, `i_` for independent. Example: `h_V1StGXR8_Z5jdHi6B-myT`
 
-A persistent menu button in the chat header that opens a Mini App selector or the most relevant Mini App.
+### Household Scoping Strategy for Existing Data
 
-### Pattern 3: Mini App Closes, Bot Confirms
-
-After the user finishes in the Mini App (e.g., marks shopping complete), the Mini App sends data back via `sendData()` or the API, and the bot sends a confirmation message in chat.
+All shared data tables need a `household_id` column. The resolution flow:
 
 ```
-User: [closes Mini App after shopping]
-Bot: "Shopping complete! 28/28 items checked off. Enjoy cooking this week!"
+User sends message
+  -> Extract userId from ctx.from.id
+  -> Look up user record -> get household_id
+  -> Pass household_id to all repository/tool calls
+  -> Queries use WHERE household_id = ? instead of WHERE chat_id = ?
 ```
 
-### Pattern 4: Deep Links Between Mini Apps
+For the **Mini App**, the same flow applies:
+```
+Mini App sends request with initData
+  -> Extract userId from parsed initData
+  -> Look up user record -> get household_id
+  -> Pass household_id to route handlers
+```
 
-From the meal plan Mini App, tapping a recipe name opens the recipe detail. This can either navigate within the same Mini App (shared component) or open a new Mini App via Telegram deep link. Shared component within one app is preferred (faster, maintains context).
+**chat_id stays on records** as an audit trail (who created/modified this). But **household_id** becomes the query scope for all shared data.
 
-## Platform Constraints to Design Around
+### FTS5 Virtual Table Impact
 
-| Constraint | Impact | Mitigation |
-|-----------|--------|------------|
-| WebView performance varies (especially older Android) | Animations may stutter, long lists may lag | Virtual scrolling for recipe list. Minimal animations. Test on low-end device. |
-| No offline guarantee | List disappears if signal drops | Optimistic UI. Cache current list state in DeviceStorage (5MB). Text list in chat serves as backup. |
-| Viewport height changes during drag gestures | List may jump/resize while shopping | Use `viewportStableHeight` not `viewportHeight`. Disable vertical swipes via `disableVerticalSwipes()`. |
-| 100-button limit on inline keyboards (chat) | Not a Mini App issue, but affects the fallback | Mini App has no button limit. This is a key reason to build it. |
-| Session-based (no background processing) | Cannot send notifications from Mini App | All notifications remain in the bot. Mini App is view+interact only. |
-| CloudStorage: 1024 items, 4KB each | Too small for full recipe cache | Use CloudStorage for preferences/settings only. Fetch data from API. |
-| DeviceStorage: 5MB | Adequate for list cache, not full recipes | Cache active grocery list and current week plan. Fetch recipes on demand. |
+The `knowledge_items_fts` virtual table currently includes `chat_id` in its content. For household sharing, the FTS5 search function (`searchFts`) needs to change from filtering by `chat_id` to filtering by a set of chat_ids belonging to the household, OR by adding `household_id` to the FTS5 content table.
+
+**Recommended approach:** Add `household_id` to `knowledge_items` table. The FTS5 search query changes to:
+```sql
+SELECT ... FROM knowledge_items_fts
+JOIN knowledge_items ON knowledge_items.rowid = knowledge_items_fts.rowid
+WHERE knowledge_items.household_id = ?
+AND knowledge_items_fts MATCH ?
+```
+
+This is a JOIN-based approach rather than storing household_id in the FTS5 table itself, avoiding FTS5 rebuild complexity.
+
+### Onboarding Flow (Claude-Driven, Not State Machine)
+
+The onboarding should NOT be a hardcoded state machine with numbered steps. Instead:
+
+1. **System prompt includes onboarding instructions** when `user.onboarding_completed == false`
+2. **Claude manages the conversation** -- asks about allergies, dinner time, stores, comfort level
+3. **Claude uses existing tools** (save_knowledge) to store preferences as it learns them
+4. **Claude decides when onboarding is "done"** and calls a new `complete_onboarding` tool
+5. **The tool marks the user** as onboarding_completed and sends the capability tour
+
+This approach:
+- Matches the agent-first architecture (Claude drives, not hardcoded flows)
+- Handles interruptions naturally (user asks a question mid-onboarding, Claude answers, then returns)
+- Feels conversational, not like filling out a form
+- Adapts to the user's pace and verbosity
+
+### App Feedback vs Meal Feedback Distinction
+
+The existing **meal feedback** system (v1.0 Phase 9-10) handles:
+- Post-meal check-ins ("how was the chicken parm?")
+- Sentiment extraction (positive/neutral/negative/skipped)
+- Recipe annotations based on feedback
+
+The new **app feedback** system is completely separate:
+- Feedback about the bot itself, not about meals
+- Stored in a new `app_feedback` table (not in `feedback_checkins`)
+- Different schema: `user_id`, `text`, `category`, `sentiment`, `source` (command/implicit/checkin/hub)
+- Admin-facing (not used to modify recipes or plans)
+
+---
 
 ## Sources
 
-- [Telegram Mini Apps Official Documentation](https://core.telegram.org/bots/webapps) -- API reference, WebApp class, all methods and events (HIGH confidence)
-- [Telegram Mini Apps Community Docs](https://docs.telegram-mini-apps.com/) -- Haptic feedback, swipe behavior, platform events (HIGH confidence)
-- [TelegramUI React Component Library](https://github.com/telegram-mini-apps-dev/TelegramUI) -- Pre-built components for native Telegram look (HIGH confidence)
-- [Telegram Mini Apps UI Kit (Figma)](https://www.figma.com/community/file/1348989725141777736/telegram-mini-apps-ui-kit) -- Design reference for Telegram-native UI patterns (MEDIUM confidence)
-- [BAZU - Best Practices for UI/UX in Telegram Mini Apps](https://bazucompany.com/blog/best-practices-for-ui-ux-in-telegram-mini-apps/) -- Design principles, performance, accessibility (MEDIUM confidence)
-- [Magnetto - Everything About Telegram Mini Apps 2026](https://magnetto.com/blog/everything-you-need-to-know-about-telegram-mini-apps) -- Platform overview, limitations, what not to build (MEDIUM confidence)
-- [Ronasit - Telegram Mini App Examples](https://ronasit.com/blog/examples-of-telegram-mini-apps/) -- Real-world examples including food/grocery apps (MEDIUM confidence)
-- [DurgerKingBot Demo](https://core.telegram.org/bots/webapps#implementing-mini-apps) -- Official Telegram food ordering Mini App example (HIGH confidence)
-- [listOK - Telegram Shopping List Bot](https://shallowdepth.online/projects/listok/) -- Existing Telegram grocery list implementation (LOW confidence)
-- [CNN - Best Meal Planning Apps 2026](https://www.cnn.com/cnn-underscored/reviews/best-meal-planning-apps) -- Feature expectations from native meal planning apps (MEDIUM confidence)
-- [Tubik Studio - Recipe Card UI Experiments](https://blog.tubikstudio.com/ui-experiments-options-for-recipe-cards-in-a-food-app/) -- Recipe card design patterns (MEDIUM confidence)
-- [Plan to Eat](https://www.plantoeat.com/) -- Competitor reference for meal plan calendar and grocery list features (MEDIUM confidence)
+- grammY types inspected at `/workspace/node_modules/grammy/out/context.d.ts` -- CommandContext, ctx.match for deep link payloads (HIGH confidence)
+- Telegram Bot API deep linking spec -- 64 character base64url payload limit for `/start` parameter (HIGH confidence, well-established Telegram API feature)
+- Existing codebase schema analysis -- all table structures, chatId scoping pattern, factory function conventions (HIGH confidence, direct inspection)
+- `config.ts` adminUserIds pattern -- already parsed from env, used for /costs (HIGH confidence)
+- Mini App auth middleware -- userId extraction from initData, mapped to chatId (HIGH confidence)
+- Existing reminder/feedback infrastructure -- poller, sender, generator pattern for scheduled messages (HIGH confidence)
 
 ---
-*Feature research for: Telegram Mini Apps (v1.1 milestone) -- HeySous Meal Planning Bot*
-*Researched: 2026-02-09*
+
+*Feature research for: Multi-user Telegram bot with household sharing, invite system, onboarding, and feedback*
+*Researched: 2026-02-10*

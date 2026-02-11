@@ -1,812 +1,743 @@
 # Architecture Research
 
-**Domain:** Telegram Mini Apps integration with Express/grammY backend
-**Researched:** 2026-02-09
-**Confidence:** HIGH (core patterns verified via official Telegram Bot API docs, @tma.js docs, and multiple credible sources)
+**Domain:** Multi-user Telegram bot with household sharing, invite system, onboarding, and feedback
+**Researched:** 2026-02-10
+**Confidence:** HIGH (based on thorough codebase analysis + well-established Telegram Bot API and grammY patterns)
 
----
+## System Overview
 
-## Standard Architecture
-
-### System Overview
+### Current Architecture (v1.1)
 
 ```
-                    TELEGRAM CLIENT (iOS/Android/Desktop/Web)
-    ┌─────────────────────────────────────────────────────────────────┐
-    │                                                                 │
-    │  ┌──────────────┐         ┌───────────────────────────────────┐ │
-    │  │  Chat with    │ launch  │    Mini App (WebView)            │ │
-    │  │  @HeySousBot  │────────>│                                  │ │
-    │  │              │         │  React SPA served from bot server │ │
-    │  │  /grocery    │         │  @tma.js/sdk-react for TG APIs   │ │
-    │  │  /plan       │         │  REST calls to /api/* endpoints  │ │
-    │  │  /recipes    │         │                                  │ │
-    │  └──────┬───────┘         └──────────────┬────────────────────┘ │
-    │         │                                │                      │
-    └─────────┼────────────────────────────────┼──────────────────────┘
-              │ Telegram Bot API               │ HTTPS (same origin)
-              │ (webhooks)                     │ Authorization: tma <initData>
-    ══════════╪════════════════════════════════╪═══════════════════════
-              │         YOUR EXPRESS SERVER     │
-    ┌─────────▼──────────────────┐  ┌──────────▼──────────────────────┐
-    │  Webhook Handler           │  │  Mini App API Layer             │
-    │  POST /webhook/<token>     │  │  GET  /api/grocery/active       │
-    │  (grammY webhookCallback)  │  │  POST /api/grocery/:id/toggle   │
-    │                            │  │  GET  /api/plans/current        │
-    │  Existing bot logic:       │  │  GET  /api/recipes              │
-    │  commands, AI pipeline,    │  │  POST /api/recipes/search       │
-    │  callbacks                 │  │                                 │
-    └─────────┬──────────────────┘  │  Auth middleware validates      │
-              │                     │  initData via HMAC-SHA256       │
-              │                     └──────────┬──────────────────────┘
-              │                                │
-    ┌─────────▼────────────────────────────────▼──────────────────────┐
-    │                   EXISTING SERVICE LAYER                        │
-    │                                                                 │
-    │  groceryRepository ──┐                                          │
-    │  planRepository ─────┤── All existing factory-function services │
-    │  knowledgeRepository─┤   No changes needed to these             │
-    │  retrievalService ───┘                                          │
-    │                                                                 │
-    │  ┌──────────────────────────────────────────────────────────┐   │
-    │  │                   SQLite Database                         │   │
-    │  │  grocery_lists, grocery_list_items, meal_plans,          │   │
-    │  │  meal_plan_entries, knowledge_items, knowledge_tags       │   │
-    │  └──────────────────────────────────────────────────────────┘   │
-    └─────────────────────────────────────────────────────────────────┘
-
-    ┌─────────────────────────────────────────────────────────────────┐
-    │  Static File Serving                                            │
-    │  GET /app/*  -->  express.static('dist/mini-app')              │
-    │  Vite-built React SPA with client-side routing                 │
-    └─────────────────────────────────────────────────────────────────┘
+Telegram User  --->  Telegram Bot API
+                          |
+                    [grammY webhook/poll]
+                          |
+                    [Middleware Pipeline]
+                    1. hydrateReply
+                    2. autoChatAction
+                    3. db injection
+                    4. callback handlers (grocery, feedback)
+                    5. command handlers (/start, /costs, etc.)
+                    6. feedbackTextHandler
+                    7. messageHandler (catch-all -> debounce queue)
+                          |
+                    [Pipeline Processor]
+                    messages -> context build -> Claude call w/ tools -> response
+                          |
+              +-----------+-----------+
+              |           |           |
+         Knowledge    Planning    Grocery    Reminders    Feedback
+         (FTS5)       (Plans)    (Lists)    (Poller)     (Check-ins)
+              |           |           |           |           |
+              +-----+-----+-----+-----+-----+-----+-----+---+
+                          |
+                    [SQLite via better-sqlite3]
+                    (single file, WAL mode)
+                          |
+                    [Express Server]
+                    /webhook, /api, /app (Mini App SPA)
 ```
 
-### Component Responsibilities
+**Key observation:** All data is currently keyed by `chatId` (which equals `ctx.chat.id` as a string). In a private Telegram chat, `chat.id == user.id`, so chatId and userId are interchangeable today. The codebase already captures `userId` from `ctx.from?.id` in the message handler but only uses `chatId` for data queries.
 
-| Component | Responsibility | New vs Existing |
-|-----------|---------------|-----------------|
-| **Express Server** (`src/server.ts`) | Serve webhook, health check, **new:** static files + API routes | MODIFY -- add Mini App routes |
-| **Auth Middleware** (`src/mini-app/auth.ts`) | Validate initData HMAC-SHA256, extract userId/chatId, reject unauthorized | NEW |
-| **API Router** (`src/mini-app/api/`) | REST endpoints for grocery, plans, recipes | NEW |
-| **React SPA** (`mini-app/`) | 3 Mini App UIs: grocery list, meal plan, recipe browser | NEW (separate build) |
-| **groceryRepository** | Grocery list CRUD (getActiveList, toggleItem, etc.) | EXISTING -- no changes |
-| **planRepository** | Meal plan CRUD (getPlan, getActivePlans) | EXISTING -- no changes |
-| **knowledgeRepository** | Recipe/knowledge CRUD (listByChatId, getById) | EXISTING -- no changes |
-| **Bot Handlers** | Commands that now **also** send Mini App launch buttons | MODIFY -- add webApp buttons |
-| **BotFather Config** | Menu button pointing to Mini App URL | NEW (one-time config) |
+### Target Architecture (v1.2)
 
----
+```
+Telegram User  --->  t.me/HeySousBot?start=INVITE_TOKEN
+                          |
+                    [grammY webhook/poll]
+                          |
+                    [Middleware Pipeline]
+                    1. hydrateReply
+                    2. autoChatAction
+                    3. db injection
+                    4. ACCESS GATE (new) -- verify user registered, else redirect to /start
+                    5. HOUSEHOLD RESOLVER (new) -- resolve userId -> householdId, inject ctx
+                    6. callback handlers (grocery, feedback)
+                    7. ONBOARDING ROUTER (new) -- intercept if onboarding in progress
+                    8. command handlers (/start w/ invite, /feedback, etc.)
+                    9. feedbackTextHandler
+                    10. messageHandler (catch-all)
+                          |
+                    [Pipeline Processor]
+                    (now uses householdId for shared data, userId for personal data)
+                          |
+              +-----------+--+--------+-----------+-----------+
+              |              |        |           |           |
+         Knowledge      Planning  Grocery    Reminders    Feedback    Users (new)
+         (FTS5)         (Plans)   (Lists)    (Poller)     (App-level) Households (new)
+              |              |        |           |           |        Invites (new)
+              +--------------+--------+-----------+-----------+--------+
+                          |
+                    [SQLite via better-sqlite3]
+                          |
+                    [Express Server]
+                    /webhook, /api, /app, /admin (new)
+```
+
+## Component Responsibilities
+
+### New Components
+
+| Component | Responsibility | Location |
+|-----------|---------------|----------|
+| **users table + repository** | Store registered users with Telegram user ID, display name, household assignment, onboarding state | `src/users/` |
+| **households table + repository** | Group users into households, manage shared data ownership | `src/users/` (same module -- 1:N relationship) |
+| **invites table + repository** | Single-use invite tokens, deep link generation, redemption tracking | `src/invites/` |
+| **access gate middleware** | Block unregistered users from all handlers except /start | `src/bot/middlewares/access-gate.ts` |
+| **household resolver middleware** | Look up user's household from DB, inject `householdId` into context | `src/bot/middlewares/household-resolver.ts` |
+| **onboarding state machine** | Track user through preference Q&A, capability tour, seed recipe flow | `src/onboarding/` |
+| **app feedback system** | /feedback command, silent sentiment detection, admin dashboard | `src/app-feedback/` (distinct from existing meal feedback) |
+| **admin API routes** | Feedback dashboard data endpoints | `src/mini-app/routes/admin.ts` |
+
+### Modified Components
+
+| Component | What Changes | Why |
+|-----------|-------------|-----|
+| **BotContext** (`src/bot/context.ts`) | Add `userId`, `householdId`, `user` fields to context type | Every handler needs resolved identity |
+| **startHandler** (`src/bot/handlers/start.ts`) | Handle invite token from `ctx.match`, create user, join household | Deep link entry point |
+| **Pipeline Processor** (`src/pipeline/processor.ts`) | Use `householdId` instead of `chatId` for shared data queries | Household sharing |
+| **Tool Handler** (`src/ai/tool-handler.ts`) | Pass `householdId` to repositories for shared data | Knowledge, plans, grocery are household-scoped |
+| **Knowledge Repository** | Query by `householdId` instead of `chatId` | Recipes shared across household |
+| **Plan Repository** | Query by `householdId` instead of `chatId` | Meal plans shared |
+| **Grocery Repository** | Query by `householdId` instead of `chatId` | Grocery lists shared |
+| **Reminder Repository** | Keep per-user (not household) for notification preferences | Different users want different reminder times |
+| **FTS5 search** (`src/knowledge/fts.ts`) | Filter by `householdId` instead of `chatId` | Shared recipe search |
+| **Mini App auth** (`src/mini-app/auth-middleware.ts`) | Resolve `householdId` from authenticated user | API needs household scope |
+| **All existing init.ts files** | Migration logic to add `household_id` columns | Schema evolution |
+| **System prompt** (`src/ai/system-prompt.ts`) | Add household context (who's in household, member names) | Claude needs to know about multi-user |
+
+### Unchanged Components
+
+| Component | Why Unchanged |
+|-----------|--------------|
+| **Claude client** (`src/ai/claude-client.ts`) | AI interface stays the same |
+| **Message queue** (`src/pipeline/message-queue.ts`) | Debounce keyed by chatId still correct (private chats) |
+| **Telegram sender/formatter** | Output formatting unchanged |
+| **Express server structure** (`src/server.ts`) | Just adds routes |
+| **Mini App SPA** (`mini-app/`) | Existing views work with household data transparently via API |
 
 ## Recommended Project Structure
 
 ```
 src/
-├── main.ts                    # Entry point (existing -- add Mini App wiring)
-├── config.ts                  # Config (existing -- add MINI_APP_URL)
-├── server.ts                  # Express server (existing -- add static + API mount)
-├── mini-app/                  # NEW: all Mini App backend code
-│   ├── auth.ts                # initData validation middleware
-│   ├── api/                   # REST API routes
-│   │   ├── index.ts           # Router composition: mount all sub-routers
-│   │   ├── grocery.ts         # GET/POST grocery endpoints
-│   │   ├── plans.ts           # GET meal plan endpoints
-│   │   └── recipes.ts         # GET/POST recipe endpoints
-│   └── types.ts               # API request/response types
-├── bot/                       # EXISTING (minor modifications)
-│   ├── handlers/
-│   │   ├── grocery.ts         # MODIFY: add Mini App launch button
-│   │   ├── plan.ts            # MODIFY: add Mini App launch button
-│   │   └── ...                # Other handlers unchanged
-│   └── ...
-├── grocery/                   # EXISTING -- unchanged
-├── planning/                  # EXISTING -- unchanged
-├── knowledge/                 # EXISTING -- unchanged
-└── ...
-
-mini-app/                      # NEW: separate directory at project root
-├── package.json               # React + Vite + @tma.js/sdk-react
-├── vite.config.ts             # Build config: outDir -> ../dist/mini-app
-├── tsconfig.json              # Separate TS config for frontend
-├── index.html                 # Vite entry point
-├── src/
-│   ├── main.tsx               # React entry: TMA SDK init, router setup
-│   ├── App.tsx                # Route definitions for 3 Mini Apps
-│   ├── lib/
-│   │   ├── api.ts             # HTTP client: fetch wrapper with initData auth
-│   │   ├── telegram.ts        # TMA SDK helpers (theme, haptics, buttons)
-│   │   └── types.ts           # Shared API types (mirror of backend types)
-│   ├── pages/
-│   │   ├── GroceryList.tsx    # Grocery list Mini App
-│   │   ├── MealPlan.tsx       # Meal plan viewer Mini App
-│   │   └── RecipeBrowser.tsx  # Recipe search/browse Mini App
-│   └── components/
-│       ├── GroceryItem.tsx    # Checkable grocery item
-│       ├── MealCard.tsx       # Single meal in plan view
-│       ├── RecipeCard.tsx     # Recipe summary card
-│       └── TelegramLayout.tsx # Shell with theme colors, safe area
-└── public/
-    └── (static assets)
+  users/                      # NEW
+    schema.ts                 # users, households Drizzle schema
+    init.ts                   # CREATE TABLE for users, households
+    repository.ts             # CRUD for users and households
+    types.ts                  # User, Household interfaces
+  invites/                    # NEW
+    init.ts                   # CREATE TABLE for invite_tokens
+    repository.ts             # Create, redeem, validate tokens
+    deep-link.ts              # Generate t.me/BotName?start=TOKEN URLs
+    types.ts                  # InviteToken interface
+  onboarding/                 # NEW
+    state-machine.ts          # Onboarding state transitions
+    preference-questions.ts   # Q&A flow definition (deterministic questions)
+    tour.ts                   # Capability tour message sequence
+    seed-recipes.ts           # Starter recipe suggestions
+    handler.ts                # grammY Composer for onboarding flow
+    types.ts                  # OnboardingState, OnboardingStep enums
+  app-feedback/               # NEW (distinct from existing meal feedback/)
+    init.ts                   # CREATE TABLE for app_feedback
+    repository.ts             # App feedback CRUD
+    handler.ts                # /feedback command handler
+    detector.ts               # Silent sentiment extraction from messages
+    admin-routes.ts           # Express routes for dashboard
+    types.ts                  # AppFeedback interface
+  bot/
+    context.ts                # MODIFIED -- add userId, householdId, user
+    middlewares/
+      access-gate.ts          # NEW -- block unregistered users
+      household-resolver.ts   # NEW -- resolve user -> household
+      error-handler.ts        # unchanged
+    handlers/
+      start.ts                # MODIFIED -- handle invite deep links
+      ...                     # other handlers unchanged
+  ...                         # existing modules unchanged
 ```
 
 ### Structure Rationale
 
-- **`src/mini-app/`** contains backend API code (auth, routes) alongside existing backend code. It imports from existing repositories via the same dependency injection pattern (receives `groceryRepository`, `planRepository`, etc.).
-- **`mini-app/`** at project root is a separate Vite project with its own `package.json`. It builds to `dist/mini-app/` which Express serves as static files. This keeps frontend dependencies (React, Vite) completely separate from backend dependencies.
-- **No monorepo tooling needed.** Two `package.json` files, one `npm run build:mini-app` script. The frontend is a static build artifact that Express serves. No shared runtime code -- only shared type definitions (can be duplicated or symlinked).
+**Why separate `users/` from `invites/`:** Users and invites have different lifecycles. Invites are transient (created, redeemed, expired). Users are permanent. Keeping them in separate modules follows the existing pattern where each domain has its own directory (grocery/, planning/, reminders/, feedback/).
 
----
+**Why `app-feedback/` not extending existing `feedback/`:** The existing `feedback/` module handles meal-level feedback (how was dinner?). App feedback is a different domain (how is the app itself?). Conflating them would create confusion. The naming `app-feedback` makes the distinction clear.
+
+**Why `onboarding/` as a separate module:** Onboarding is a temporary state machine that runs once per user. It has its own flow, messages, and completion criteria. After completion, it is dormant. This is architecturally distinct from persistent handlers.
 
 ## Architectural Patterns
 
-### Pattern 1: TWA Auth (initData Validation)
+### Pattern 1: The chatId -> householdId Migration
 
-**What:** Every API request from the Mini App includes Telegram's `initData` in the `Authorization` header. The server validates the HMAC-SHA256 signature using the bot token, confirming the request is from a legitimate Telegram user.
+**What:** Systematically replace `chatId` with `householdId` for shared data, keep `chatId`/`userId` for personal data.
 
-**How initData works:**
+**When:** All shared data access (knowledge, plans, grocery lists).
 
-1. When Telegram opens the Mini App WebView, it injects launch parameters including `initData` -- a query string containing `user`, `auth_date`, `hash`, `query_id`, and other fields.
-2. The `hash` field is an HMAC-SHA256 signature computed by Telegram using the bot's secret token.
-3. The server can verify this signature because it also knows the bot token.
-
-**Validation algorithm (4 steps):**
+**The key insight:** In the current system, `chatId = ctx.chat.id`, and in private chats `chat.id == from.id`. After the migration, the data ownership model splits into two scopes:
 
 ```
-1. Parse initData query string into key-value pairs
-2. Remove the "hash" pair, sort remaining pairs alphabetically
-3. Join as "key=value\n" (data-check-string)
-4. secret_key = HMAC-SHA256("WebAppData", bot_token)    // "WebAppData" is the key
-5. computed_hash = HMAC-SHA256(secret_key, data-check-string)
-6. Compare computed_hash (hex) with the received hash
-7. Check auth_date is within acceptable window (prevent replay attacks)
+HOUSEHOLD-SCOPED (shared between household members):
+  knowledge_items.chat_id -> household_id
+  meal_plans.chat_id -> household_id
+  grocery_lists.chat_id -> household_id
+  cooking_history.chat_id -> household_id
+  feedback_checkins.chat_id -> household_id
+  knowledge_changelog.chat_id -> household_id
+
+USER-SCOPED (personal, per individual):
+  reminder_settings.chat_id (stays per-user -- each person wants their own times)
+  messages.chat_id (per-chat conversation history)
+  token_usage.chat_id (cost tracking per person)
+  user_preferences tagged 'subject:self' (personal dietary restrictions)
+
+NOTE on preferences:
+  Preferences tagged 'subject:household' (household size, shared store prefs)
+  are stored in knowledge_items (household-scoped), so they are shared.
+  Preferences tagged 'subject:self' are also in knowledge_items but
+  conceptually belong to the user. The agent handles this distinction
+  through the existing tag system -- no schema change needed.
 ```
 
-**Express middleware implementation:**
+**Migration approach:** Add a `household_id` column to shared tables. For existing single-user data, the migration sets `household_id = chat_id` (since the solo user forms a household of one). New data uses the resolved household ID. The `chat_id` column is retained for backward compatibility and can be dropped later.
+
+**Implementation pattern:**
 
 ```typescript
-// src/mini-app/auth.ts
-import { validate, parse, type InitData } from '@tma.js/init-data-node';
-import type { RequestHandler } from 'express';
+// Before (current -- every repository method):
+const plan = planRepository.getPlan(chatId, weekStartDate);
 
-// Extend Express locals to carry parsed initData
-declare module 'express' {
-  interface Locals {
-    initData: InitData;
-    chatId: string;
-  }
-}
+// After (v1.2):
+const plan = planRepository.getPlan(householdId, weekStartDate);
+// householdId comes from ctx.householdId, resolved by middleware
+```
 
-export function createAuthMiddleware(botToken: string): RequestHandler {
-  return (req, res, next) => {
-    const authHeader = req.header('authorization') ?? '';
-    const [authType, authData] = authHeader.split(' ', 2);
+### Pattern 2: Invite-Gated Access via Telegram Deep Links
 
-    if (authType !== 'tma' || !authData) {
-      res.status(401).json({ error: 'Missing or invalid authorization' });
+**What:** Users can only access the bot through an invite link. The /start command with a payload registers the user.
+
+**How it works in Telegram/grammY:**
+
+1. Admin generates invite token (stored in DB)
+2. Deep link URL: `https://t.me/HeySousBot?start=INVITE_abc123`
+3. User clicks link, Telegram opens chat and sends `/start INVITE_abc123`
+4. grammY's `bot.command('start')` handler receives the payload in `ctx.match`
+5. Bot validates token, creates user record, assigns to household
+6. Token is marked as redeemed (single-use)
+
+**grammY deep link verification (from node_modules/grammy/out/composer.d.ts):**
+> "You can use deep linking to let users start your bot with a custom payload.
+> starts your bot, you will receive `custom-payload` in the `ctx.match` property."
+
+```typescript
+// In start handler:
+startHandler.command("start", async (ctx) => {
+  const inviteToken = ctx.match; // deep link payload, e.g. "INVITE_abc123"
+
+  if (!inviteToken) {
+    // No token -- check if user is already registered
+    const user = userRepository.getByTelegramId(String(ctx.from.id));
+    if (user) {
+      await ctx.reply("Welcome back!");
       return;
     }
+    await ctx.reply(
+      "You need an invite link to use HeySous. Ask the household admin for one!"
+    );
+    return;
+  }
 
-    try {
-      // validate() throws on invalid signature, expired data, etc.
-      // expiresIn: 3600 = 1 hour (Telegram docs recommend treating as time-bounded)
-      validate(authData, botToken, { expiresIn: 3600 });
+  // Validate and redeem token
+  const invite = inviteRepository.redeem(inviteToken, String(ctx.from.id));
+  if (!invite) {
+    await ctx.reply("That invite link is invalid or has already been used.");
+    return;
+  }
 
-      const initData = parse(authData);
-      res.locals.initData = initData;
+  // Create user and assign to household
+  const user = userRepository.create({
+    telegramId: String(ctx.from.id),
+    displayName: ctx.from.first_name,
+    householdId: invite.householdId,
+  });
 
-      // Extract chatId -- for Mini Apps opened from bot chat,
-      // user.id IS the chatId for private chats
-      if (initData.user) {
-        res.locals.chatId = String(initData.user.id);
-      } else {
-        res.status(401).json({ error: 'No user in init data' });
-        return;
-      }
+  // Start onboarding
+  await onboardingHandler.start(ctx, user);
+});
+```
 
-      next();
-    } catch (err) {
-      res.status(401).json({ error: 'Invalid init data', details: String(err) });
+**Token format:** Use `crypto.randomUUID()` prefixed with `INV_` for readability. Tokens expire after 7 days. Single-use only.
+
+**Deep link URL format:** `https://t.me/HeySousBot?start=INV_xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`
+Note: Telegram allows 64 characters in the start parameter, base64 encoded. A UUID is 36 chars + 4 prefix = 40 chars, well within limits.
+
+### Pattern 3: Access Gate Middleware
+
+**What:** A middleware that intercepts all updates and blocks unregistered users.
+
+**When:** Every update except /start (which is the registration entry point).
+
+**Why needed:** Without the gate, unregistered users could trigger Claude API calls, access data, or interact with the bot. The gate ensures only invited users proceed past registration.
+
+```typescript
+// src/bot/middlewares/access-gate.ts
+export function createAccessGate(userRepository: UserRepository) {
+  return async (ctx: BotContext, next: () => Promise<void>) => {
+    // Always allow /start command (registration entry point)
+    if (ctx.message?.text?.startsWith("/start")) {
+      return next();
     }
+
+    // Always allow callback queries from registered users
+    // (grocery buttons, feedback buttons still need to work)
+
+    const telegramId = String(ctx.from?.id);
+    if (!telegramId || telegramId === "undefined") return;
+
+    const user = userRepository.getByTelegramId(telegramId);
+    if (!user) {
+      await ctx.reply(
+        "You need an invite link to use HeySous. "
+        + "Ask the household admin for one!"
+      );
+      return; // Block -- do not call next()
+    }
+
+    // Inject user info into context for downstream handlers
+    ctx.userId = user.telegramId;
+    ctx.householdId = user.householdId;
+    ctx.user = user;
+
+    return next();
   };
 }
 ```
 
-**Client-side: sending initData with every request:**
+**Middleware order matters:** Access gate MUST run AFTER db injection but BEFORE all feature handlers. The updated middleware order becomes:
 
-```typescript
-// mini-app/src/lib/api.ts
-import { retrieveRawInitData } from '@tma.js/sdk';
-
-const BASE_URL = ''; // same origin -- no CORS needed
-
-export async function apiGet<T>(path: string): Promise<T> {
-  const initDataRaw = retrieveRawInitData();
-  const res = await fetch(`${BASE_URL}/api${path}`, {
-    headers: {
-      'Authorization': `tma ${initDataRaw}`,
-    },
-  });
-  if (!res.ok) throw new Error(`API error: ${res.status}`);
-  return res.json();
-}
-
-export async function apiPost<T>(path: string, body?: unknown): Promise<T> {
-  const initDataRaw = retrieveRawInitData();
-  const res = await fetch(`${BASE_URL}/api${path}`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `tma ${initDataRaw}`,
-      'Content-Type': 'application/json',
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  if (!res.ok) throw new Error(`API error: ${res.status}`);
-  return res.json();
-}
+```
+1. hydrateReply
+2. autoChatAction
+3. db injection
+4. ACCESS GATE          <-- new
+5. callback handlers (grocery, feedback)
+6. ONBOARDING ROUTER    <-- new
+7. command handlers
+8. feedbackTextHandler
+9. messageHandler
 ```
 
-**Key security details:**
-- `expiresIn: 3600` (1 hour) prevents replay attacks with stolen initData. Telegram docs recommend 1 hour.
-- Default expiration in `@tma.js/init-data-node` is 86400 seconds (1 day) -- too long, explicitly set 1 hour.
-- The `user.id` from initData maps directly to the `chatId` used throughout the existing codebase for private chats (Telegram user ID = chat ID in private chats).
-- No session tokens or JWTs needed -- initData is validated on every request. It is effectively a signed session token from Telegram itself.
+### Pattern 4: Onboarding State Machine
 
-**Confidence:** HIGH -- validation algorithm verified via official Telegram docs and @tma.js docs. The `validate` function from `@tma.js/init-data-node` implements this exact algorithm.
+**What:** A stateful flow that guides new users through setup.
 
----
+**When:** After invite redemption, until onboarding is complete.
 
-### Pattern 2: API Layer for Mini Apps
+**State transitions:**
 
-**What:** A set of Express routes under `/api/*` that expose existing repository data to the Mini App frontend. These routes sit behind the auth middleware and delegate directly to existing service functions.
+```
+REGISTERED -> PREFERENCES_QA -> TOUR -> SEED_RECIPES -> COMPLETE
 
-**Key principle: Thin API layer.** The routes are adapters between HTTP and existing repository functions. No business logic in routes -- it already exists in the repositories.
+States:
+  registered:      User just created, onboarding not started
+  preferences_qa:  Asking dietary restrictions, household size, dinner time, stores
+  tour:            Showing capability overview messages
+  seed_recipes:    Offering to save starter recipes
+  complete:        Onboarding finished, normal bot operation
+```
 
-**Route design for the three Mini Apps:**
+**Why a state machine, not free-form conversation:** Onboarding needs deterministic progression. If Claude handles onboarding conversationally, it might skip steps, ask questions in random order, or fail to capture required preferences. A state machine guarantees all steps complete. The questions during `preferences_qa` ARE processed by Claude (to handle natural language answers like "I'm allergic to shellfish"), but the flow control (which question comes next) is deterministic.
+
+**Storage:** The onboarding state is stored in the `users` table as an `onboarding_state` column (text enum). This is simpler than a separate table since it is a 1:1 relationship with the user. An additional `onboarding_step` integer tracks progress within a state (e.g., which preference question they are on).
+
+**Interception pattern:** An onboarding middleware checks `ctx.user.onboardingState`. If not "complete", it routes messages to the onboarding handler instead of the normal pipeline.
 
 ```typescript
-// src/mini-app/api/grocery.ts
-import { Router } from 'express';
-import type { GroceryRepository } from '../../grocery/repository.js';
-
-export function createGroceryRouter(groceryRepo: ReturnType<typeof import('../../grocery/repository.js').createGroceryRepository>) {
-  const router = Router();
-
-  // GET /api/grocery/active -- get active grocery list with items
-  router.get('/active', (req, res) => {
-    const chatId = res.locals.chatId;
-    const list = groceryRepo.getActiveList(chatId);
-    if (!list) {
-      res.json({ list: null, items: [] });
-      return;
+// Onboarding router middleware (inserted before normal handlers)
+export function createOnboardingRouter(onboardingHandler: OnboardingHandler) {
+  return async (ctx: BotContext, next: () => Promise<void>) => {
+    if (!ctx.user || ctx.user.onboardingState === "complete") {
+      return next(); // Normal flow
     }
-    const items = groceryRepo.getListItems(list.id);
-    res.json({ list, items });
-  });
-
-  // POST /api/grocery/items/:itemId/toggle -- toggle checked state
-  router.post('/items/:itemId/toggle', (req, res) => {
-    const itemId = Number(req.params.itemId);
-    // Verify item belongs to this user's list
-    const listId = groceryRepo.getListIdForItem(itemId);
-    if (listId === null) {
-      res.status(404).json({ error: 'Item not found' });
-      return;
-    }
-    const list = groceryRepo.getActiveList(res.locals.chatId);
-    if (!list || list.id !== listId) {
-      res.status(403).json({ error: 'Not your item' });
-      return;
-    }
-    const checked = groceryRepo.toggleItem(itemId);
-    res.json({ itemId, checked });
-  });
-
-  return router;
+    // Route to onboarding handler -- this consumes the update
+    return onboardingHandler.handle(ctx);
+  };
 }
 ```
 
-```typescript
-// src/mini-app/api/plans.ts
-import { Router } from 'express';
+### Pattern 5: Extended BotContext
 
-export function createPlansRouter(planRepo: ReturnType<typeof import('../../planning/repository.js').createPlanRepository>) {
-  const router = Router();
-
-  // GET /api/plans/active -- get current + next week plans
-  router.get('/active', (req, res) => {
-    const chatId = res.locals.chatId;
-    const plans = planRepo.getActivePlans(chatId);
-    res.json({ plans });
-  });
-
-  return router;
-}
-```
+**What:** The grammY context object is extended with user and household identity.
 
 ```typescript
-// src/mini-app/api/recipes.ts
-import { Router } from 'express';
+// src/bot/context.ts (modified)
+import type { User } from "../users/types.js";
 
-export function createRecipesRouter(
-  knowledgeRepo: ReturnType<typeof import('../../knowledge/repository.js').createKnowledgeRepository>,
-  retrievalService: { search: (chatId: string, query: string) => unknown[] }
-) {
-  const router = Router();
-
-  // GET /api/recipes -- list all recipes for this user
-  router.get('/', (req, res) => {
-    const chatId = res.locals.chatId;
-    const recipes = knowledgeRepo.listByChatId(chatId);
-    // Filter to only recipe-tagged items
-    const recipeItems = recipes.filter(item =>
-      item.tags.includes('recipe')
-    );
-    res.json({ recipes: recipeItems });
-  });
-
-  // GET /api/recipes/:id -- get single recipe
-  router.get('/:id', (req, res) => {
-    const chatId = res.locals.chatId;
-    const recipe = knowledgeRepo.getById(Number(req.params.id), chatId);
-    if (!recipe) {
-      res.status(404).json({ error: 'Recipe not found' });
-      return;
-    }
-    res.json({ recipe });
-  });
-
-  // POST /api/recipes/search -- search recipes by query
-  router.post('/search', (req, res) => {
-    const chatId = res.locals.chatId;
-    const { query } = req.body as { query: string };
-    // Use existing FTS5 search via retrieval service
-    const results = retrievalService.search(chatId, query);
-    res.json({ results });
-  });
-
-  return router;
-}
+export type BotContext = ParseModeFlavor<Context & AutoChatActionFlavor> & {
+  db: DrizzleDatabase;
+  userId?: string;        // Telegram user ID (string)
+  householdId?: string;   // Resolved household ID
+  user?: User;            // Full user record from DB
+};
 ```
 
-**API composition and mounting in Express:**
-
-```typescript
-// src/mini-app/api/index.ts
-import { Router } from 'express';
-import { createAuthMiddleware } from '../auth.js';
-import { createGroceryRouter } from './grocery.js';
-import { createPlansRouter } from './plans.js';
-import { createRecipesRouter } from './recipes.js';
-
-export function createMiniAppApi(deps: {
-  botToken: string;
-  groceryRepository: /* type */;
-  planRepository: /* type */;
-  knowledgeRepository: /* type */;
-  retrievalService: /* type */;
-}) {
-  const router = Router();
-
-  // All /api/* routes require valid initData
-  router.use(createAuthMiddleware(deps.botToken));
-
-  router.use('/grocery', createGroceryRouter(deps.groceryRepository));
-  router.use('/plans', createPlansRouter(deps.planRepository));
-  router.use('/recipes', createRecipesRouter(deps.knowledgeRepository, deps.retrievalService));
-
-  return router;
-}
-```
-
-**Mounting in existing server.ts:**
-
-```typescript
-// src/server.ts (modified)
-export function createServer(bot, port, miniAppApi?) {
-  const app = express();
-  app.use(express.json());
-
-  // Health check
-  app.get('/health', (_req, res) => res.send('ok'));
-
-  // Webhook handler (existing)
-  app.use(`/webhook/${bot.token}`, webhookCallback(bot, 'express'));
-
-  // Mini App API (new)
-  if (miniAppApi) {
-    app.use('/api', miniAppApi);
-  }
-
-  // Mini App static files (new) -- AFTER API routes
-  app.use('/app', express.static('dist/mini-app'));
-  // SPA fallback: serve index.html for client-side routes
-  app.get('/app/*', (_req, res) => {
-    res.sendFile('index.html', { root: 'dist/mini-app' });
-  });
-
-  return app;
-}
-```
-
-**Confidence:** HIGH -- this follows standard Express patterns and directly reuses existing repository interfaces.
-
----
-
-### Pattern 3: State Sync Between Mini App and Bot
-
-**What:** The Mini App and the bot conversation share the same underlying database. State changes from either side are immediately visible to the other because they hit the same SQLite file.
-
-**Three sync scenarios:**
-
-**Scenario A: Mini App reads bot-created data (most common)**
-- User says "make me a grocery list" in chat -> bot creates list via AI pipeline -> Mini App opens and reads the same list via API.
-- No sync mechanism needed. Both read/write the same SQLite tables.
-
-**Scenario B: Mini App modifies data, bot sees changes**
-- User checks off items in Mini App -> API writes to `grocery_list_items.checked` -> Next time bot references the list (e.g., user asks "what's left on my list?"), it reads the updated state.
-- No sync mechanism needed. SQLite is the single source of truth.
-
-**Scenario C: Bot needs to notify chat about Mini App actions (optional, future)**
-- After Mini App completes a grocery run (all items checked), bot could send a message: "Looks like you finished shopping!"
-- Implementation: API endpoint triggers `bot.api.sendMessage()` after a significant action. This is optional for v1.1.
-
-**Why this is simple for HeySous:**
-- Single SQLite database is the shared state store.
-- Both the bot handlers and Mini App API routes receive the same repository instances (created in `main.ts`).
-- No event bus, no WebSocket, no polling needed. The database IS the sync layer.
-
-**chatId mapping:**
-- In private Telegram chats, `user.id === chat.id`. The Mini App receives `user.id` via initData. The bot stores data keyed by `chat.id`. These are the same value for private chats, so data access just works.
-- If group chat support is ever added, this mapping would need adjustment (Mini App would need to also receive `chat_instance` or the chat context).
-
-**Confidence:** HIGH -- this is a consequence of the existing architecture (single-process, single-database).
-
----
-
-### Pattern 4: Launching Mini Apps from Bot Commands
-
-**What:** Users open Mini Apps via three entry points. Each requires slightly different setup.
-
-**Entry point 1: Menu Button (primary, always visible)**
-
-Configure via BotFather: `/setmenubutton` -> select bot -> enter URL (e.g., `https://yourdomain.com/app/`) -> enter button text (e.g., "Open App").
-
-This places a persistent button at the bottom-left of the chat input. When tapped, it opens the Mini App.
-
-**Entry point 2: Inline keyboard buttons in bot replies**
-
-When the bot sends a grocery list or meal plan, it can include a "View in App" button:
-
-```typescript
-// In grocery handler, after sending text list:
-import { InlineKeyboard } from 'grammy';
-
-const keyboard = new InlineKeyboard()
-  .webApp('Open Grocery List', `${config.miniAppUrl}/grocery`);
-
-await ctx.reply('Here is your grocery list:', {
-  reply_markup: keyboard,
-});
-```
-
-**Entry point 3: Custom keyboard buttons (persistent)**
-
-```typescript
-import { Keyboard } from 'grammy';
-
-const keyboard = new Keyboard()
-  .webApp('Grocery List', `${config.miniAppUrl}/grocery`)
-  .webApp('Meal Plan', `${config.miniAppUrl}/plan`)
-  .row()
-  .webApp('Recipes', `${config.miniAppUrl}/recipes`);
-
-await ctx.reply('What would you like to do?', {
-  reply_markup: { keyboard: keyboard.build(), resize_keyboard: true },
-});
-```
-
-**Key difference between inline and custom keyboard Mini Apps:**
-- **Custom keyboard** webApp buttons: Mini App can use `sendData()` to send up to 4096 bytes back as a `web_app_data` service message, then closes. Good for "pick something and return."
-- **Inline keyboard** webApp buttons: Mini App gets a `query_id` and can use `answerWebAppQuery` to send a message on behalf of the user. Good for "compose something and share."
-- **For HeySous:** Neither `sendData` nor `answerWebAppQuery` is needed. The Mini Apps are full CRUD interfaces that communicate via REST API, not via the bot message flow. The inline keyboard "Open in App" button is the best fit -- it opens the Mini App as a full-screen overlay, and the user can interact as long as they want.
-
-**Confidence:** HIGH -- verified via official Telegram Bot API docs and grammY keyboard plugin docs.
-
----
-
-### Pattern 5: Frontend SDK Integration
-
-**What:** The React Mini App uses `@tma.js/sdk-react` to access Telegram platform features: theme colors, haptic feedback, back button, main button, and the initData for auth.
-
-**SDK initialization:**
-
-```typescript
-// mini-app/src/main.tsx
-import { SDKProvider, useLaunchParams } from '@tma.js/sdk-react';
-import { createRoot } from 'react-dom/client';
-import App from './App';
-
-function Root() {
-  return (
-    <SDKProvider>
-      <App />
-    </SDKProvider>
-  );
-}
-
-createRoot(document.getElementById('root')!).render(<Root />);
-```
-
-**Key SDK features to use:**
-
-| Feature | Hook / API | Use In HeySous |
-|---------|-----------|---------------|
-| Theme colors | `useThemeParams()` | Match bot chat theme (dark/light mode, accent colors) |
-| Haptic feedback | `useHapticFeedback()` | Tap feedback on grocery item toggle, recipe selection |
-| Back button | `useBackButton()` | Navigate between Mini App pages |
-| Main button | `useMainButton()` | "Done Shopping" or "Close" action |
-| initData (raw) | `retrieveRawInitData()` | Send with every API request for auth |
-| Viewport | `useViewport()` | Handle safe area insets, expand to full height |
-| CloudStorage | `useCloudStorage()` | NOT recommended -- use server-side SQLite instead |
-
-**Confidence:** MEDIUM -- @tma.js/sdk-react hook names verified via npm and docs, but the exact v3 API may have changed (v2 vs v3 naming has been in flux). Pin to a specific version and verify hooks at implementation time.
-
----
+**Why optional fields:** The access gate middleware sets these. Handlers that run before the gate (like the /start command) will not have them set. Making them optional prevents type errors in those cases.
 
 ## Data Flow
 
-### Mini App Request Flow
+### Request Flow (After v1.2)
 
 ```
-User taps "Open Grocery List" button in chat
-    │
-    ▼
-Telegram client opens WebView
-    │
-    ├── Injects launch params: initData (signed), theme, viewport
-    │
-    ▼
-React app mounts
-    │
-    ├── @tma.js/sdk-react initializes, parses launch params
-    ├── Apply Telegram theme colors to CSS variables
-    ├── Call WebApp.ready() to dismiss loading spinner
-    │
-    ▼
-GroceryList page mounts
-    │
-    ├── Calls apiGet('/grocery/active')
-    │     │
-    │     ├── Authorization: tma <initData>
-    │     │
-    │     ▼
-    │   Express receives GET /api/grocery/active
-    │     │
-    │     ├── Auth middleware: validate(initData, botToken, { expiresIn: 3600 })
-    │     ├── Extract chatId from initData.user.id
-    │     │
-    │     ▼
-    │   Grocery route handler:
-    │     │
-    │     ├── groceryRepository.getActiveList(chatId)   // existing function
-    │     ├── groceryRepository.getListItems(listId)    // existing function
-    │     │
-    │     ▼
-    │   Return JSON: { list, items }
-    │
-    ▼
-React renders grocery items grouped by store/section
-    │
-    ▼
-User taps item to check it off
-    │
-    ├── Haptic feedback: impactOccurred('light')
-    ├── Optimistic UI update (toggle immediately)
-    ├── Calls apiPost('/grocery/items/42/toggle')
-    │     │
-    │     ▼
-    │   Express: auth middleware -> groceryRepository.toggleItem(42)
-    │   Return: { itemId: 42, checked: true }
-    │
-    ├── If API confirms, keep optimistic state
-    └── If API fails, revert optimistic state + show error
+1. Telegram update arrives
+2. grammY parses update
+3. hydrateReply middleware
+4. autoChatAction middleware
+5. db injection middleware
+6. ACCESS GATE:
+   - Is this /start? -> PASS THROUGH (allow registration)
+   - Is user registered? Look up by ctx.from.id
+     - NO -> reply "need invite link", STOP
+     - YES -> inject userId, householdId, user into ctx, CONTINUE
+7. ONBOARDING ROUTER:
+   - Is onboarding complete? Check ctx.user.onboardingState
+     - NO -> route to onboarding handler, STOP
+     - YES -> CONTINUE
+8. Normal handler pipeline (unchanged from v1.1)
+   - callback handlers, command handlers, message handler
+9. Pipeline processor uses ctx.householdId for shared data queries
 ```
 
-### Bot <-> Mini App State Sync
+### Invite Redemption Flow
 
 ```
-                     SQLite Database
-                    (single source of truth)
-                           │
-              ┌────────────┼────────────┐
-              │            │            │
-    ┌─────────▼──┐  ┌─────▼──────┐  ┌──▼──────────────┐
-    │ Bot writes  │  │ Mini App   │  │ Mini App writes  │
-    │ via AI      │  │ reads via  │  │ via REST API     │
-    │ pipeline    │  │ REST API   │  │                  │
-    │             │  │            │  │                  │
-    │ Examples:   │  │ Examples:  │  │ Examples:        │
-    │ - Create    │  │ - Load     │  │ - Toggle item    │
-    │   grocery   │  │   active   │  │   checked state  │
-    │   list      │  │   list     │  │ - (future: add   │
-    │ - Save meal │  │ - View     │  │   items to list) │
-    │   plan      │  │   plan     │  │                  │
-    │ - Store     │  │ - Browse   │  │                  │
-    │   recipe    │  │   recipes  │  │                  │
-    └─────────────┘  └────────────┘  └──────────────────┘
-
-    No event bus needed. No WebSocket needed.
-    Both sides hit the same repository functions
-    which access the same SQLite file.
+1. Admin calls /invite command in their chat
+2. Bot generates token: "INV_" + crypto.randomUUID()
+3. Token stored in invite_tokens table with admin's household_id
+4. Bot replies with deep link: t.me/HeySousBot?start=INV_xxxx
+5. Admin shares link with invitee (via any messaging channel)
+6. Invitee clicks link -> Telegram opens chat -> /start INV_xxxx
+7. Start handler validates token (exists, not redeemed, not expired)
+8. User record created with household assignment
+9. Token marked redeemed (redeemed_by, redeemed_at set)
+10. Onboarding begins
 ```
 
----
+### Onboarding Flow
+
+```
+1. User registered (onboarding_state = 'registered')
+2. Bot sends welcome + first preference question
+3. State -> 'preferences_qa', step 0
+4. Q&A loop (deterministic questions, Claude processes answers):
+   a. Dietary restrictions?     -> save as preference knowledge item
+   b. Household size?           -> save as preference
+   c. Usual dinner time?        -> save as preference + update reminder_settings
+   d. Preferred grocery stores? -> save as preference
+   e. (any additional Qs)
+5. State -> 'tour', step 0
+6. Bot sends 3-4 capability overview messages:
+   a. "I can remember your recipes..."
+   b. "I plan weekly meals..."
+   c. "I generate grocery lists..."
+   d. "I send reminders..."
+7. State -> 'seed_recipes', step 0
+8. Bot offers starter recipe suggestions based on stated preferences
+9. User can save some, skip, or add their own
+10. User signals done (or bot detects 5+ recipes saved)
+11. State -> 'complete'
+12. Normal bot operation begins
+```
+
+### Data Ownership Model
+
+```
+                    +------------------+
+                    |   Household      |
+                    |   id: "h_abc"    |
+                    +--------+---------+
+                             |
+              +--------------+--------------+
+              |                             |
+      +-------+-------+            +-------+-------+
+      | User A (admin)|            | User B        |
+      | telegram: 111 |            | telegram: 222 |
+      | household: h_abc           | household: h_abc
+      +-------+-------+            +-------+-------+
+              |                             |
+   PERSONAL DATA:                PERSONAL DATA:
+   - messages (chat_id=111)      - messages (chat_id=222)
+   - reminder_settings           - reminder_settings
+   - token_usage                 - token_usage
+   - onboarding_state            - onboarding_state
+
+              SHARED DATA (household_id = h_abc):
+              - knowledge_items (recipes, shared preferences)
+              - meal_plans
+              - grocery_lists
+              - cooking_history
+              - feedback_checkins (meal feedback)
+```
+
+## New Database Schema
+
+### users table
+
+```sql
+CREATE TABLE IF NOT EXISTS users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  telegram_id TEXT NOT NULL UNIQUE,
+  display_name TEXT NOT NULL,
+  household_id TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT 'member' CHECK(role IN ('admin', 'member')),
+  onboarding_state TEXT NOT NULL DEFAULT 'registered'
+    CHECK(onboarding_state IN (
+      'registered', 'preferences_qa', 'tour', 'seed_recipes', 'complete'
+    )),
+  onboarding_step INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+  updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+);
+```
+
+### households table
+
+```sql
+CREATE TABLE IF NOT EXISTS households (
+  id TEXT PRIMARY KEY,           -- UUID string for non-enumerable IDs
+  name TEXT NOT NULL DEFAULT 'My Household',
+  created_by TEXT NOT NULL,      -- telegram_id of creator
+  created_at INTEGER NOT NULL DEFAULT (unixepoch())
+);
+```
+
+### invite_tokens table
+
+```sql
+CREATE TABLE IF NOT EXISTS invite_tokens (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  token TEXT NOT NULL UNIQUE,
+  household_id TEXT NOT NULL,
+  created_by TEXT NOT NULL,      -- telegram_id of admin who created it
+  redeemed_by TEXT,              -- telegram_id of user who used it (NULL if unused)
+  redeemed_at INTEGER,
+  expires_at INTEGER NOT NULL,   -- unix timestamp, default 7 days from creation
+  created_at INTEGER NOT NULL DEFAULT (unixepoch())
+);
+```
+
+### app_feedback table (distinct from meal feedback_checkins)
+
+```sql
+CREATE TABLE IF NOT EXISTS app_feedback (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_telegram_id TEXT NOT NULL,
+  household_id TEXT NOT NULL,
+  source TEXT NOT NULL CHECK(source IN ('command', 'button', 'detected', 'checkin')),
+  sentiment TEXT CHECK(sentiment IN ('positive', 'neutral', 'negative')),
+  content TEXT,                  -- free-text feedback
+  context_json TEXT,             -- conversation context when auto-detected
+  created_at INTEGER NOT NULL DEFAULT (unixepoch())
+);
+```
+
+### Migration columns for existing tables
+
+```sql
+-- Add household_id to all shared tables
+ALTER TABLE knowledge_items ADD COLUMN household_id TEXT;
+ALTER TABLE meal_plans ADD COLUMN household_id TEXT;
+ALTER TABLE grocery_lists ADD COLUMN household_id TEXT;
+ALTER TABLE cooking_history ADD COLUMN household_id TEXT;
+ALTER TABLE feedback_checkins ADD COLUMN household_id TEXT;
+ALTER TABLE knowledge_changelog ADD COLUMN household_id TEXT;
+
+-- Backfill: for existing single-user data, household_id = chat_id
+-- (solo user's Telegram chat_id IS their user ID IS their household)
+UPDATE knowledge_items SET household_id = chat_id WHERE household_id IS NULL;
+UPDATE meal_plans SET household_id = chat_id WHERE household_id IS NULL;
+UPDATE grocery_lists SET household_id = chat_id WHERE household_id IS NULL;
+UPDATE cooking_history SET household_id = chat_id WHERE household_id IS NULL;
+UPDATE feedback_checkins SET household_id = chat_id WHERE household_id IS NULL;
+UPDATE knowledge_changelog SET household_id = chat_id WHERE household_id IS NULL;
+```
+
+**Migration strategy:** Follow the existing init.ts pattern (CREATE TABLE IF NOT EXISTS + ALTER TABLE wrapped in try/catch for idempotency). Each domain's init.ts adds the `household_id` column if missing. SQLite's ALTER TABLE ADD COLUMN is safe because it defaults to NULL and the backfill UPDATE sets the value for existing rows.
+
+### FTS5 Impact
+
+The FTS5 virtual table (`knowledge_fts`) uses `content='knowledge_items'` (external content mode). It does NOT store `chat_id` or `household_id` -- it only stores `title`, `summary`, `content`. The filtering happens in the JOIN clause:
+
+```sql
+-- Before:
+WHERE knowledge_fts MATCH ? AND ki.chat_id = ?
+
+-- After:
+WHERE knowledge_fts MATCH ? AND ki.household_id = ?
+```
+
+This is a clean migration -- FTS5 structure is unchanged, only WHERE clauses in queries change.
+
+## Scaling Considerations
+
+| Concern | 1 household | 10 households | 100 households |
+|---------|-------------|---------------|----------------|
+| SQLite file size | < 10 MB | < 100 MB | < 1 GB, still fine |
+| FTS5 search speed | Instant | Instant (per-household filter) | Still fast (BM25 + WHERE) |
+| Concurrent writes | No issue (WAL mode) | Minimal contention | May need write queue |
+| Claude API costs | $1-5/month | $10-50/month | Consider Haiku for onboarding |
+| Reminder poller | Iterates all settings | Still fine | Add index on due_at |
+| Invite token lookups | Trivial | Trivial | UNIQUE index on token |
+| Onboarding load | None after completion | Negligible | Negligible |
+
+**Key insight:** At the scale this project targets (personal use + a few households), SQLite with WAL mode handles everything. The architecture does not need to optimize for thousands of concurrent users.
 
 ## Anti-Patterns
 
-### Anti-Pattern 1: Putting Business Logic in the Mini App Frontend
+### Anti-Pattern 1: Group Chat for Household Sharing
 
-**What people do:** Implement grocery list management, meal plan generation, or recipe parsing in the React frontend.
+**What:** Using a Telegram group chat to share data between household members.
 
-**Why it is wrong:** Frontend state is ephemeral. If the user closes the Mini App, switches devices, or Telegram clears the WebView cache, all state is lost. Additionally, business logic in the frontend means two codepaths for the same operations (bot commands + Mini App) that can diverge.
+**Why bad:** Group chats have different Telegram Bot API semantics (different update types, message permissions, admin controls, bot privacy mode). The bot would need to handle group-specific edge cases (members joining/leaving, admin privileges, message visibility). The entire existing per-private-chat architecture would need rewriting.
 
-**Do this instead:** The Mini App frontend is a thin UI layer. All data operations go through the REST API, which delegates to the same repository functions the bot uses. The frontend does rendering, optimistic updates, and Telegram SDK integration -- nothing else.
+**Instead:** Each household member uses the bot in their own private chat. Data sharing happens through the `household_id` in the database. Both users see the same recipes, plans, and grocery lists, each in their own private conversation with Sous.
 
-**Confidence:** HIGH -- this is validated by real Mini App post-mortems where frontend state caused $40K+ rework.
+### Anti-Pattern 2: Using grammY Sessions for Onboarding State
 
----
+**What:** Storing onboarding state in grammY's session middleware (in-memory or external storage adapter).
 
-### Anti-Pattern 2: Building a Separate Backend for the Mini App
+**Why bad:** grammY sessions are designed for ephemeral per-update state. Onboarding state must survive bot restarts. The codebase already uses SQLite for all persistence. Adding a second persistence layer via grammY sessions creates unnecessary complexity. Sessions would need a storage adapter backed by SQLite anyway, duplicating what a simple column in the users table achieves.
 
-**What people do:** Create a second Express server or a separate microservice for Mini App API endpoints, with its own database connection.
+**Instead:** Store `onboarding_state` and `onboarding_step` as columns in the `users` table. The access gate middleware already loads the user record on every request, so onboarding state is available without an additional query.
 
-**Why it is wrong:** For HeySous, the entire point is that the Mini App reads and writes the SAME data the bot uses. A separate backend means either duplicating the SQLite file (impossible for writes), connecting to the same file from two processes (SQLite write contention), or introducing a shared database like PostgreSQL (unnecessary complexity).
+### Anti-Pattern 3: Big-Bang chatId Rename
 
-**Do this instead:** Add API routes to the existing Express server. They receive the same repository instances via the same dependency injection in `main.ts`. One process, one database connection, zero sync issues.
+**What:** Renaming all `chat_id` columns to `household_id` in one migration.
 
-**Confidence:** HIGH -- this is a direct consequence of the SQLite single-writer constraint and the existing architecture.
+**Why bad:** This breaks the existing single-user setup during development. If the migration has a bug, all existing data becomes inaccessible. The codebase has many raw SQL queries (not just Drizzle) that reference `chat_id`. A rename requires updating every query simultaneously.
 
----
+**Instead:** Add `household_id` as a NEW column alongside `chat_id`. Backfill from `chat_id`. Update queries incrementally to use `household_id`. Keep `chat_id` columns until fully migrated and tested. This allows incremental migration and easy rollback.
 
-### Anti-Pattern 3: Using sendData() as the Primary Data Channel
+### Anti-Pattern 4: Making Onboarding Claude-Driven
 
-**What people do:** Use `Telegram.WebApp.sendData()` to send all Mini App actions back to the bot as service messages, then process them in bot handlers.
+**What:** Sending the entire onboarding conversation through the normal Claude pipeline and hoping it asks the right questions.
 
-**Why it is wrong:** `sendData()` sends up to 4096 bytes, then closes the Mini App. It is designed for "pick one thing and return to chat" flows (e.g., date picker, location selector). For a grocery list where the user checks off 15 items, the Mini App would close after each action.
+**Why bad:** Claude might skip questions, ask them in random order, go off on tangents ("oh you like Italian food, let me tell you about..."), or fail to extract and save the specific preferences needed. Onboarding needs deterministic completion of all required steps.
 
-**Do this instead:** Use REST API calls for all CRUD operations. The Mini App stays open as long as the user needs it. Reserve `sendData()` only if a future flow requires returning a single result to the chat (e.g., "share this recipe in chat").
+**Instead:** Use a state machine for flow control (which question, what order, when to advance). Use Claude only for processing natural language answers within each step (e.g., extracting "shellfish allergy" from "I can't eat shellfish"). The state machine guarantees progress; Claude handles language understanding.
 
-**Confidence:** HIGH -- verified via official Telegram docs: sendData "sends data to the bot...a service message is sent to the bot containing the data...and the Mini App is closed."
+### Anti-Pattern 5: Separate Admin Web App for Feedback Dashboard
 
----
+**What:** Building a full separate web application for the admin feedback dashboard.
 
-### Anti-Pattern 4: Ignoring Telegram Theme and Platform Conventions
+**Why bad:** Overkill for the current scope. The admin is one person. A full web app needs its own auth system, deployment, and maintenance.
 
-**What people do:** Build a generic React app with custom styling that ignores Telegram's theme colors, safe areas, and interaction patterns.
-
-**Why it is wrong:** The Mini App looks alien inside Telegram. Users expect the same visual language (colors, spacing, animations). iOS and Android Telegram clients have different WebView implementations -- CSS that works on Android (Chromium 119) may break on iOS (WKWebView).
-
-**Do this instead:** Use `useThemeParams()` to read Telegram's CSS variables (`--tg-theme-bg-color`, `--tg-theme-text-color`, etc.) and apply them. Use the Telegram UI library or match its design system. Test on both iOS and Android. Use haptic feedback for interactive elements.
-
-**Confidence:** MEDIUM -- theme variable names verified via official docs, but specific cross-platform rendering issues are anecdotal.
-
----
-
-### Anti-Pattern 5: Not Validating initData Expiry
-
-**What people do:** Validate the HMAC signature but not the `auth_date` field, or use an excessively long expiry window (the default 86400 seconds / 24 hours).
-
-**Why it is wrong:** A stolen initData string could be replayed for 24 hours. Since initData contains the user ID and grants access to their data, this is a significant security risk.
-
-**Do this instead:** Set `expiresIn: 3600` (1 hour) when calling `validate()`. The Telegram docs suggest 1 hour as the recommended window. If the user's session expires, the Mini App will get a 401 response and can prompt them to reopen from Telegram (which generates fresh initData).
-
-**Confidence:** HIGH -- verified via official Telegram authorization docs.
-
----
+**Instead:** Start with a `/feedback-report` bot command for admin users (identified by existing `ADMIN_USER_IDS` config) that sends aggregated feedback stats inline in the chat. If a richer UI is needed later, add a simple Express route at `/admin/feedback` with basic auth, or a Mini App page accessible only to admin users.
 
 ## Integration Points
 
-### External Services (Telegram TWA API)
+### External Services
 
-| Service / API | Integration | Notes |
-|---------------|-------------|-------|
-| **Telegram WebView** | Opens Mini App in embedded browser | HTTPS required. Must be same domain or configured via BotFather. iOS uses WKWebView, Android uses Chromium 119+. |
-| **@tma.js/sdk-react** | React hooks for TG platform features | Client-side only. Provides `retrieveRawInitData()`, theme hooks, haptic feedback, button controls. Pin version -- API changed between v2 and v3. |
-| **@tma.js/init-data-node** | Server-side initData validation | `validate(rawData, botToken, { expiresIn })` throws on invalid/expired. `parse(rawData)` returns typed `InitData` object. |
-| **BotFather** | One-time config: `/setmenubutton`, `/newapp` | Sets the menu button URL and registers the Mini App. URL must be HTTPS and match the domain serving your Mini App. |
-| **grammY Keyboard** | `InlineKeyboard.webApp(text, url)` | Adds "Open in App" button to bot messages. URL is the specific Mini App page (e.g., `/app/grocery`). |
+| Service | Integration | Notes |
+|---------|------------|-------|
+| **Telegram Bot API** | Deep links via `t.me/BotName?start=TOKEN` | Well-documented, payload in ctx.match. 64 char limit on start param. |
+| **Telegram Bot API** | `ctx.from.id` for user identity | Available on every update in private chats |
+| **Anthropic Claude API** | Unchanged | Used in onboarding for answer processing, otherwise same as v1.1 |
+| **crypto.randomUUID()** | Invite token generation | Node.js built-in, no external dependency |
 
-### Internal Boundaries (Mini App Frontend <-> Express Backend <-> Existing Services)
+### Internal Boundaries
 
-| Boundary | Communication | Key Constraint |
-|----------|---------------|----------------|
-| **React SPA <-> Express API** | REST over HTTPS, same origin (`/api/*`). Auth via `Authorization: tma <initData>` header. | Same-origin avoids CORS entirely. API routes MUST be mounted before the static file catch-all. |
-| **Express API routes <-> Repositories** | Direct function calls. API routes receive repository instances via closure (same DI pattern as bot handlers). | Repositories are synchronous (better-sqlite3 is sync). No async needed in route handlers for DB calls. |
-| **Bot handlers <-> Repositories** | Direct function calls (existing pattern). | No change needed. Bot and API routes share the same repository instances created in `main.ts`. |
-| **Mini App static files <-> Express** | `express.static('dist/mini-app')` for assets, SPA fallback for `index.html`. | Build step required: `cd mini-app && npm run build` must run before server start in production. |
+| Boundary | From | To | Interface |
+|----------|------|-----|-----------|
+| Access gate -> All handlers | middleware | handlers | ctx.user, ctx.householdId set; unregistered users blocked |
+| Onboarding router -> Normal flow | middleware | handlers | Intercepts when `onboarding_state !== 'complete'` |
+| Start handler -> Invite repo | handler | repository | `redeem(token, telegramId)` -> Invite or null |
+| Start handler -> User repo | handler | repository | `create({ telegramId, displayName, householdId })` |
+| Start handler -> Onboarding | handler | state machine | `start(ctx, user)` triggers first onboarding message |
+| Household resolver -> All repos | middleware/processor | repositories | `householdId` replaces `chatId` in shared data queries |
+| Pipeline processor -> Tool handler | processor | tool-handler | `householdId` passed for shared data; `userId` for personal |
+| /invite command -> Invite repo | handler | repository | `create(householdId, createdBy)` -> token string |
+| /feedback command -> App feedback repo | handler | repository | `create({ userId, householdId, source, content })` |
+| Admin routes -> App feedback repo | Express route | repository | `getAll()`, `getStats()` |
+| Reminder poller -> User repo | poller | repository | May need household context for shared plan data |
+| Mini App auth -> User repo | middleware | repository | Resolve `householdId` from authenticated Telegram user ID |
 
 ### Config Changes Needed
 
 ```typescript
-// src/config.ts additions:
-interface Config {
-  // ... existing fields ...
-  miniAppUrl: string;  // e.g., "https://yourdomain.com/app"
-}
+// No new env vars required for core functionality.
+// ADMIN_USER_IDS already exists for admin commands.
+// Invite system uses existing BOT_TOKEN for deep link URL construction.
 
-// In config:
-miniAppUrl: process.env.MINI_APP_URL ?? `http://localhost:${process.env.PORT || 3000}/app`,
+// The bot username is needed for deep link URLs:
+// t.me/{BOT_USERNAME}?start=TOKEN
+// This can be fetched via bot.api.getMe() at startup.
 ```
 
-### New Dependencies
+## Build Order (Dependency-Driven)
 
-**Backend (add to existing package.json):**
-```bash
-npm install @tma.js/init-data-node
+The features have hard dependencies that constrain build order:
+
+```
+Phase 1: Users + Households + Invites + Access Gate
+  (everything else depends on user identity existing)
+  |
+Phase 2: chatId -> householdId Migration
+  (repositories, tool handler, pipeline processor, FTS5 queries, Mini App auth)
+  |
+Phase 3: Onboarding State Machine
+  (requires user table, preference tools working with household scope)
+  |
+Phase 4: App Feedback System
+  (requires user identity, independent of onboarding)
 ```
 
-**Frontend (new mini-app/package.json):**
-```bash
-npm install react react-dom @tma.js/sdk-react
-npm install -D vite @vitejs/plugin-react typescript
-```
+**Phase 1** is foundational: without user identity and household resolution, nothing else works. It includes the access gate and household resolver middleware because they are needed immediately.
 
----
+**Phase 2** is the largest but most mechanical phase: systematically updating every repository and query to use `householdId` instead of `chatId` for shared data. It is mostly search-and-replace with careful testing.
 
-## Build Order Recommendation (Dependency-Driven)
+**Phase 3** (onboarding) depends on the preference-saving pipeline working with household scope, so it follows Phase 2.
 
-Based on analysis of dependencies between new components:
+**Phase 4** (app feedback) is the most independent feature. It only needs user identity (Phase 1), not household data migration. It could theoretically be built before Phase 2 or 3, but placing it last avoids context-switching and lets the team focus on the core multi-user flow first.
 
-### Step 1: Auth middleware + one API endpoint (grocery)
-- Implement `src/mini-app/auth.ts` (initData validation)
-- Implement `src/mini-app/api/grocery.ts` (one route: GET /api/grocery/active)
-- Mount in `src/server.ts`
-- Test with curl using a manually-constructed initData (or skip auth in dev mode)
-- **Rationale:** Auth is the foundation. Grocery list is the simplest API (read-only first). Validates the entire pattern before building more.
+## Key Design Decisions
 
-### Step 2: Minimal React frontend (grocery list only)
-- Set up `mini-app/` with Vite + React + @tma.js/sdk-react
-- Build GroceryList page that fetches and renders items
-- Serve from Express via `express.static`
-- Test in Telegram via BotFather menu button
-- **Rationale:** First end-to-end proof that Mini App opens in Telegram, authenticates, fetches data, and renders.
+### Decision 1: householdId as string (not integer)
 
-### Step 3: Grocery list interactivity
-- Add toggle endpoint (POST /api/grocery/items/:id/toggle)
-- Add optimistic updates in React
-- Add haptic feedback
-- **Rationale:** Completes the first fully functional Mini App.
+Use a string ID (UUID or nanoid) for households. This allows generating household IDs before database insertion (needed for the invite token flow where the household might be created simultaneously). It also prevents enumeration.
 
-### Step 4: Meal plan Mini App
-- Add plans API routes
-- Build MealPlan page
-- **Rationale:** Read-only, simpler than grocery. Uses different repository.
+### Decision 2: First user auto-migrated, not onboarded
 
-### Step 5: Recipe browser Mini App
-- Add recipes API routes (list + search + detail)
-- Build RecipeBrowser page with FTS5 search
-- **Rationale:** Most complex UI (search, detail views), built last.
+The current admin user (who has been using the bot since v1.0) should NOT go through onboarding. They already have recipes, preferences, and plans. During migration, the system creates a household using the admin's existing chat_id, creates a user record with `onboarding_state = 'complete'`, and backfills `household_id` on all their existing data. Zero disruption.
 
-### Step 6: Bot integration (launch buttons)
-- Modify bot handlers to include "Open in App" inline keyboard buttons
-- **Rationale:** Done last because it is cosmetic -- the Mini Apps work via menu button from Step 2 onward.
+### Decision 3: Invites always join an existing household
 
----
+Invites are tied to a specific household. There is no "create a new household" flow for invitees. The admin creates the household (implicitly, by being the first user), then invites others to join it. This significantly simplifies the model.
+
+### Decision 4: Keep both userId and householdId in context
+
+Even after migration, some operations genuinely need the per-user chat ID (messages, token usage, reminder settings). The context carries both `userId` and `householdId`. Repository methods explicitly declare which scope they operate in.
+
+### Decision 5: Preferences stay in knowledge_items
+
+User preferences are currently stored as knowledge_items tagged with "preference". This pattern works for household sharing because:
+- Shared preferences (store prefs, household size) are tagged `subject:household` and scoped to `household_id`
+- Personal preferences (dietary restrictions) are tagged `subject:self` and the agent knows they belong to a specific person
+- No schema change needed for preferences -- the existing tag taxonomy handles the distinction
+
+### Decision 6: Admin dashboard starts as a bot command
+
+Rather than building a web UI for the feedback dashboard immediately, start with a `/feedback-report` command that admin users can run in their chat. This leverages existing infrastructure (bot commands, admin user ID check) and avoids building auth for a web dashboard. A Mini App or web page can be added later if needed.
 
 ## Sources
 
-- [Telegram Bot API - Mini Apps (official)](https://core.telegram.org/bots/webapps) -- initData fields, validation algorithm, sendData, answerWebAppQuery, MainButton, BackButton, launch methods (HIGH confidence)
-- [Telegram Mini Apps - Init Data](https://docs.telegram-mini-apps.com/platform/init-data) -- detailed HMAC-SHA256 validation steps, Ed25519 alternative, auth_date expiry (HIGH confidence)
-- [Telegram Mini Apps - Authorizing User](https://docs.telegram-mini-apps.com/platform/authorizing-user) -- Express middleware example, Authorization header format, GoLang example (HIGH confidence)
-- [@tma.js/init-data-node - Validation](https://docs.telegram-mini-apps.com/packages/tma-js-init-data-node/validating) -- validate() signature, expiresIn option, error types (HIGH confidence)
-- [tma.js GitHub Repository](https://github.com/Telegram-Mini-Apps/tma.js) -- monorepo structure, package naming (@tma.js/*), active maintenance (HIGH confidence)
-- [Telegram Mini Apps React Template](https://github.com/Telegram-Mini-Apps/reactjs-template) -- official Vite + React + TypeScript template, SDK initialization pattern (MEDIUM confidence -- template may evolve)
-- [grammY - Keyboard Plugin](https://grammy.dev/plugins/keyboard) -- InlineKeyboard.webApp(), Keyboard.webApp() methods (HIGH confidence)
-- [grammY - WebAppData type](https://grammy.dev/ref/types/webappdata) -- web_app_data message type fields (HIGH confidence)
-- [Telegram Mini Apps - Creating New App](https://docs.telegram-mini-apps.com/platform/creating-new-app) -- BotFather /newapp and /setmenubutton setup (MEDIUM confidence)
-- [Telegram Mini Apps - Haptic Feedback](https://docs.telegram-mini-apps.com/platform/haptic-feedback) -- impactOccurred, selectionChanged, notificationOccurred (HIGH confidence)
-- [vite-express on GitHub](https://github.com/szymmis/vite-express) -- pattern for serving Vite builds from Express (MEDIUM confidence -- useful reference, not a dependency we need)
+- grammY deep linking: verified in `node_modules/grammy/out/composer.d.ts` lines 228-237 -- `ctx.match` receives the deep link payload from `/start` commands
+- grammY session middleware: verified in `node_modules/grammy/out/convenience/session.d.ts` -- `getSessionKey` defaults to `ctx.chatId`, supports custom key functions
+- grammY middleware pipeline: verified in existing `src/bot/index.ts` -- middleware order is explicit and deterministic
+- Existing codebase patterns: all factory functions, init.ts migration patterns, repository patterns verified by reading all source files
+- SQLite ALTER TABLE ADD COLUMN: standard SQLite feature, safe for incremental migration (new column defaults to NULL)
+- Telegram deep link format: `t.me/BotName?start=PAYLOAD` with 64-character limit -- well-established stable API (MEDIUM confidence, from training data, not verified against current docs but unchanged for 5+ years)
+- Telegram `ctx.from.id` availability: standard in private chats, verified by existing usage in `src/bot/handlers/message.ts` line 28
 
 ---
-*Architecture research for: Telegram Mini Apps integration with Express/grammY backend*
-*Researched: 2026-02-09*
+*Architecture research for: Multi-user Telegram bot with household sharing, invite system, onboarding, and feedback*
+*Researched: 2026-02-10*

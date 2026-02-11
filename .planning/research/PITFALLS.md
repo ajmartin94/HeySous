@@ -1,153 +1,276 @@
 # Pitfalls Research
 
-**Domain:** Adding Telegram Mini Apps to existing bot (HeySous v1.1)
-**Researched:** 2026-02-09
-**Confidence:** HIGH (verified against official Telegram Mini Apps documentation, community issue trackers, and @tma.js SDK docs)
+**Domain:** Adding multi-user support, household sharing, invite systems, onboarding flows, and feedback mechanisms to an existing single-user Telegram bot (HeySous v1.2)
+**Researched:** 2026-02-10
+**Confidence:** HIGH (based on thorough codebase audit of 12,726 LOC -- all 47 files with chatId/chat_id usage reviewed, Telegram Bot API deep linking mechanics, SQLite migration patterns, and multi-tenant data isolation best practices)
 
-**Context:** HeySous is an 8,263 LOC TypeScript bot (grammY, Express, SQLite/Drizzle) on Railway. v1.1 adds 3 React Mini Apps (grocery list, meal plan, recipe browser) served from the same Express server, sharing the same SQLite database. Target platform is iOS Telegram client.
+**Context:** HeySous is a conversational AI meal planning bot. Currently single-user with `chatId` (derived from `ctx.chat.id`) as the sole data isolation key across all 11 tables. Moving to multi-user with per-user identity, household sharing, invite-gated access, guided onboarding, and an app feedback system. The migration must preserve existing data for the original user and not break any existing functionality.
 
 ---
 
 ## Critical Pitfalls
 
-Mistakes that cause rewrites, security breaches, or broken user experience.
+Mistakes that cause data leaks, data loss, broken production systems, or require rewrites.
 
-### Pitfall 1: initData Validation Missing or Misconfigured
+### Pitfall 1: chatId-to-userId Migration Breaks Every Query in the System
 
 **What goes wrong:**
-The Mini App sends requests to your Express API endpoints, claiming to be a specific Telegram user. Without server-side initData validation, anyone who discovers your API URL can impersonate any user, read their recipes, modify their grocery lists, or corrupt their meal plans. Even for a single-user system, this is a security hole -- an attacker could wipe your data.
+The entire codebase uses `chatId` (from `ctx.chat.id`) as the data isolation key. In private Telegram chats, `chat.id === from.id` (user ID), so this works for single-user. When you add multi-user support, you need `userId` (the person) separate from `chatId` (the conversation). Currently, 339 occurrences of `chatId`/`chat_id`/`ctx.chat.id` span 47 source files. Every repository function, every SQL query, every tool handler, the message queue, the processor pipeline, the FTS5 search, the mini-app auth middleware, and the reminder poller all use `chatId` as the identity key. A partial migration -- where some queries use the new `userId` and others still use `chatId` -- creates a split-brain where data written by the new system is invisible to old queries, and vice versa.
 
 **Why it happens:**
-During development, you skip validation because "it's just me." The Mini App works perfectly without it. Then you deploy, and any HTTP client can hit your `/api/groceries` endpoint with no authentication. initData validation has a multi-step HMAC-SHA256 process that's easy to get wrong: you must sort parameters alphabetically, join with newline, HMAC with `WebAppData` as the key first (not the bot token directly), then HMAC the result with the bot token.
+The `chatId === userId` assumption was correct for single-user and was never abstracted. It is baked into every layer: schema columns, repository function signatures, tool handler closures, context builders, and the mini-app auth middleware (`res.locals.chatId = String(userId)`). Developers start migrating one repository at a time ("I'll update knowledge first, then planning"), and during the transition, half the system looks up data by `userId` and the other half by `chatId`. Since the existing user's data has `chatId` values that happen to equal their `userId`, it appears to work -- until a second user joins a household and their `userId` differs from the household's data scope.
 
 **How to avoid:**
-- Implement initData validation as Express middleware before writing any API routes. Make it the first thing you build in the Mini App API layer.
-- Use the `@telegram-apps/init-data-node` package which handles the HMAC-SHA256 validation correctly, rather than implementing it manually.
-- Add expiration checking using `auth_date` -- reject initData older than 1 hour (the default in many libraries is 24 hours, which is too long for a live editing interface like a grocery list).
-- Never trust `initDataUnsafe` on the client side for authorization decisions. Always validate on the server.
-- In development, use a bypass flag (e.g., `SKIP_TMA_AUTH=true`) that is impossible to accidentally deploy (check in middleware, log a warning).
+- Introduce a `userId` column on ALL tables that need per-user attribution (messages, token_usage, cooking_history, feedback_checkins). Do NOT rename `chatId` -- it remains as the household/scope key.
+- Introduce a `householdId` concept. For the existing single-user, `householdId` equals their current `chatId`. All data queries that currently filter by `chatId` should filter by `householdId` instead.
+- Migrate ALL repositories in a SINGLE phase, not spread across multiple phases. The "half-migrated" state is the dangerous state.
+- Create a `resolveScope(ctx)` helper that extracts both `userId` and `householdId` from context, and use it everywhere instead of raw `String(ctx.chat.id)`.
+- Write the data migration as a single SQLite transaction: add columns, populate defaults, add indexes. Run it before any code changes go live.
 
 **Warning signs:**
-- API endpoints work when called from curl/Postman without any Telegram headers
-- No `Authorization` or `X-Init-Data` header being checked on API routes
-- Using `initDataUnsafe.user.id` on the client to decide what data to show
+- A user's recipes are visible to one feature (search works) but not another (plan generation can not find them)
+- New user joins household but sees empty knowledge base
+- FTS5 search returns results from wrong household
+- Mini-app shows different data than the bot for the same user
 
-**Phase to address:** Phase 1 (API Foundation). Must be the first middleware added, before any data endpoints exist.
+**Phase to address:** Phase 1 (Data Model Migration). This is the foundation -- nothing else works correctly until this is done.
 
-**Severity:** SECURITY BREACH if skipped. Even for a solo user, the database is exposed.
-
-**Confidence:** HIGH -- initData validation is the primary authentication mechanism for Mini Apps, documented in [official Telegram docs](https://core.telegram.org/bots/webapps) and [tma.js init-data docs](https://docs.telegram-mini-apps.com/platform/init-data).
+**Severity:** DATA LEAK if households share incorrectly scoped data. DATA LOSS if queries silently return empty results for migrated users.
 
 ---
 
-### Pitfall 2: iOS Scrolling Collapse -- Swipe Down Closes the App
+### Pitfall 2: Existing User's Data Orphaned by Migration
 
 **What goes wrong:**
-On iOS Telegram, when a user swipes down on a Mini App that is either (a) not scrollable, or (b) scrollable but scrolled to the top (scrollY === 0), the swipe gesture is interpreted as "close the Mini App" instead of "scroll." For a grocery list where users check items from the top, the very first downward swipe closes the app. Users lose unsaved state. This is the single most frustrating iOS-specific bug and it affects all three planned Mini Apps.
+The existing production user has real data: recipes, meal plans, grocery lists, preferences, cooking history, reminders, feedback check-ins. When you add `userId` and `householdId` columns, you must populate them correctly for ALL existing rows. If the migration script sets `householdId = NULL` as a default (or any value that does not match the new lookup logic), the existing user logs in after the migration and sees an empty bot. All their recipes, plans, and preferences are gone -- not deleted, but invisible because queries now filter by a `householdId` that does not match the value stored in old rows.
 
 **Why it happens:**
-Telegram's iOS WebView uses the swipe-down gesture for both "scroll content" and "dismiss sheet." When there's nowhere to scroll, the gesture goes to the sheet. The grocery list starts at the top (scrollY=0), so any downward touch triggers dismissal. This is not a bug in your code -- it's a Telegram client behavior that you must work around.
+The migration adds new columns but does not backfill them. Or backfills them with a generated UUID/household ID that the user's session does not resolve to. Or the migration runs but the code deploying alongside it has a bug in the `resolveScope()` function, so the looked-up `householdId` for the existing user does not match what was written to the database.
 
 **How to avoid:**
-- Call `window.Telegram.WebApp.disableVerticalSwipes()` early in app initialization (available since Bot API 7.7). This is the clean modern solution.
-- As a fallback for older clients: ensure the document is always scrollable by setting `height: calc(100vh + 1px)` on the HTML element, and on `touchstart`, if `scrollY === 0`, programmatically scroll to `(0, 1)` so the swipe registers as a scroll.
-- Test every Mini App view by swiping down when at the top of the list. If the app closes, the fix is not working.
+- For the existing single-user, their `householdId` MUST equal their current `chatId` value. This is the simplest, safest migration: `UPDATE knowledge_items SET household_id = chat_id WHERE household_id IS NULL`.
+- Create a `users` table and a `households` table. Insert the existing user into both with IDs derived from their current `chatId`.
+- Test the migration on a COPY of the production database before deploying. Run the migration, then verify: `SELECT COUNT(*) FROM knowledge_items WHERE household_id IS NULL` must be 0. Run the same for ALL 11 tables.
+- Add a NOT NULL constraint on `householdId` AFTER backfilling, not during column creation. SQLite does not allow adding NOT NULL columns without a default, and the default must be meaningful.
+- Deploy the migration and the new code atomically. If the code goes live before the migration runs, queries fail. If the migration runs but old code is still serving, old code ignores the new columns (safe, but confusing).
 
 **Warning signs:**
-- "The app keeps closing when I scroll" (you, testing on your iPhone)
-- Mini App closes when you try to pull-to-refresh or swipe down on any list view
-- Works fine on desktop Telegram but breaks on iOS
+- After migration, existing user sees "No recipes yet" or "No meal plan for this week"
+- `SELECT COUNT(*) FROM knowledge_items WHERE household_id IS NULL` returns any rows
+- Existing user's preferences (dietary restrictions, store names) are not loaded into the system prompt
 
-**Phase to address:** Phase 1 (Mini App scaffold). Call `disableVerticalSwipes()` in the app initialization, before any UI renders.
+**Phase to address:** Phase 1 (Data Model Migration). Write migration script, test on copy of production data, verify with count queries.
 
-**Severity:** UX BREAKING on iOS. The grocery list is unusable without this fix.
-
-**Confidence:** HIGH -- well-documented in [Telegram-Mini-Apps/issues #16](https://github.com/Telegram-Mini-Apps/issues/issues/16) and [TelegramMessenger/Telegram-iOS #1447](https://github.com/TelegramMessenger/Telegram-iOS/issues/1447). The `disableVerticalSwipes()` API is documented in the [official Bot API](https://core.telegram.org/bots/webapps).
+**Severity:** DATA LOSS (perceived). The data exists but is invisible. Recovery requires a manual SQL fix, but the user may have already re-entered recipes, creating duplicates.
 
 ---
 
-### Pitfall 3: iOS Keyboard Covers Input Fields and Breaks Viewport
+### Pitfall 3: FTS5 Virtual Table Not Updated After Schema Migration
 
 **What goes wrong:**
-When a user taps an input field (e.g., adding a grocery item, searching recipes), the iOS virtual keyboard appears. The Telegram WebView does not properly resize the viewport -- `viewportHeight` reports the same value as if the keyboard were closed. Input fields at the bottom of the screen get covered by the keyboard. The user cannot see what they're typing. Worse, the viewport shifts unpredictably, and there's often a gap between the keyboard and the input field.
+The FTS5 virtual table (`knowledge_fts`) uses external content mode, synced via triggers on `knowledge_items`. When you add a `household_id` column to `knowledge_items`, the FTS5 table itself does not change (it only indexes `title`, `summary`, `content`). However, the search query in `fts.ts` joins `knowledge_fts` with `knowledge_items` and filters by `ki.chat_id = ?`. If you rename the column or change the filter to `ki.household_id = ?`, you must verify the join still works. More dangerously: if the migration alters the `knowledge_items` table structure in a way that requires a table rebuild (SQLite's `ALTER TABLE` limitations), the FTS5 triggers may break because they reference the old table structure.
 
 **Why it happens:**
-The iOS Telegram client applies `position: fixed` to the HTML document to prevent native scrolling, then manually calculates the visible area. This prevents the standard WebView resize behavior that mobile Safari uses. The `viewportHeight` in the Telegram WebApp object does not account for the keyboard, so CSS-based layouts that rely on viewport height break.
+SQLite `ALTER TABLE` only supports `ADD COLUMN` and `RENAME COLUMN` for simple changes. If the migration does a table rebuild (create new table, copy data, drop old, rename new -- which Drizzle Kit does for complex changes), the FTS5 external-content triggers reference the OLD table. After the rebuild, the triggers point to a table that no longer exists. All inserts, updates, and deletes to `knowledge_items` silently fail to update the FTS5 index. Search returns stale or no results.
 
 **How to avoid:**
-- Place input fields at the TOP of the screen, not the bottom. For the grocery list, put the "add item" input at the top, with the list scrolling below.
-- Use `window.visualViewport` API to detect actual visible area when the keyboard is open.
-- On input focus, programmatically scroll the input into view with `element.scrollIntoView({ behavior: 'smooth', block: 'center' })`.
-- Avoid fixed-position bottom bars with inputs. If you need a bottom input, use absolute positioning relative to the visual viewport, not the layout viewport.
-- Test every input field on an actual iOS device with the Telegram app. The simulator does not replicate this behavior accurately.
-- Consider using `Telegram.WebApp.hideKeyboard()` (Bot API 9.1+) when the user submits, to immediately dismiss the keyboard.
+- Use `ALTER TABLE knowledge_items ADD COLUMN household_id TEXT` for the new column. This is a simple add that does NOT trigger a table rebuild. The FTS5 triggers survive.
+- Do NOT use Drizzle Kit `drizzle-kit push` for this migration. Write raw SQL migration scripts. Drizzle Kit may decide to rebuild the table for schema changes it deems incompatible with ALTER TABLE.
+- After the migration, manually verify triggers exist: `SELECT * FROM sqlite_master WHERE type='trigger' AND tbl_name='knowledge_items'`. Must show 3 triggers (insert, delete, update).
+- If triggers are lost, re-run `initializeFts()` from `src/knowledge/fts.ts`. The function uses `DROP TRIGGER IF EXISTS` + `CREATE TRIGGER`, so it is idempotent and safe to re-run.
+- After migration, run `INSERT INTO knowledge_fts(knowledge_fts) VALUES('rebuild')` to rebuild the FTS5 index from scratch. This ensures the index matches the table.
 
 **Warning signs:**
-- Input is visible on desktop but disappears behind keyboard on iOS
-- Users have to scroll up manually after tapping an input
-- The viewport "jumps" when focusing/unfocusing inputs
+- Recipe search returns no results after migration (but recipes exist in the table)
+- `SELECT * FROM sqlite_master WHERE type='trigger' AND tbl_name='knowledge_items'` returns fewer than 3 rows
+- New recipes saved after migration are not found by search, but old recipes are (FTS5 index is stale, not updating)
 
-**Phase to address:** Phase 1 (UI scaffold). Input placement must be top-of-screen from the first prototype. Retrofitting bottom inputs to top inputs means rethinking the entire layout.
+**Phase to address:** Phase 1 (Data Model Migration). Verify FTS5 triggers survive the migration. Include `rebuild` command in migration script.
 
-**Severity:** HIGH -- every Mini App has at least one input (add grocery item, search recipes, edit meal plan). All will be broken on iOS if not addressed.
-
-**Confidence:** HIGH -- documented in [Telegram-iOS #1410](https://github.com/TelegramMessenger/Telegram-iOS/issues/1410), [Telegram-iOS #1296](https://github.com/TelegramMessenger/Telegram-iOS/issues/1296), [Telegram-iOS #1637](https://github.com/TelegramMessenger/Telegram-iOS/issues/1637), and [Telegram-Mini-Apps/issues #33](https://github.com/Telegram-Mini-Apps/issues/issues/33).
+**Severity:** FEATURE BROKEN. FTS5 search is the core retrieval mechanism -- the AI assistant cannot find recipes without it, making the bot useless.
 
 ---
 
-### Pitfall 4: SQLite Concurrent Access -- Bot and Mini App Writing Simultaneously
+### Pitfall 4: Deep Link Invite Tokens Leaking or Being Replayable
 
 **What goes wrong:**
-The bot and Mini App API share the same SQLite database. User checks off a grocery item in the Mini App while the bot is writing a new meal plan. SQLite's default journal mode allows only one writer at a time -- the second write gets `SQLITE_BUSY` ("database is locked"). In the worst case, the Mini App shows an error and the user's checkbox state is lost. With Drizzle ORM, this may surface as an unhandled promise rejection that crashes the process.
+Telegram deep links use the format `https://t.me/BotName?start=PAYLOAD` where PAYLOAD is a base64-safe string up to 64 characters. When a user clicks this link, Telegram sends `/start PAYLOAD` to the bot. If the invite token is a simple household ID or a predictable pattern (e.g., `invite_12345`), anyone who guesses or brute-forces the token can join any household. If tokens do not expire, a leaked invite link (shared in a group chat, posted on social media) allows unlimited new users to join the household forever.
 
 **Why it happens:**
-In v1.0, the bot was the only writer. Adding Mini App API routes creates a second write path to the same database file. SQLite in default journal mode (DELETE) serializes all writes. Even with WAL mode, if a write transaction takes too long (e.g., bot generating a complex meal plan with multiple inserts), subsequent writes queue up.
+Developers use the household ID directly as the invite payload because it is simple. Or they generate a UUID token but do not set an expiration or use limit. Telegram deep links are URLs -- they are shared, bookmarked, and indexed. Unlike a private message, a deep link is a public invitation.
 
 **How to avoid:**
-- Enable WAL (Write-Ahead Logging) mode on the SQLite database: `PRAGMA journal_mode=WAL`. This allows concurrent reads during writes and significantly reduces locking. This should already be done in v1.0 but verify it.
-- Set `busy_timeout` to a reasonable value (e.g., 5000ms) so SQLite retries instead of immediately failing: `PRAGMA busy_timeout=5000`.
-- Keep write transactions small. Do not wrap a full meal plan generation in a single transaction -- insert recipes, then insert plan entries in separate transactions.
-- Use a single Drizzle client instance shared between the bot and the API server (they're in the same Node.js process), not separate connections.
-- Add error handling for `SQLITE_BUSY` in the API layer -- retry once, then return a 503 with a "try again" message.
+- Generate cryptographically random invite tokens (e.g., `crypto.randomBytes(24).toString('base64url')`). Store them in an `invites` table with `token`, `householdId`, `createdBy`, `expiresAt`, `maxUses`, `currentUses`.
+- Set a reasonable default expiration (7 days) and max uses (5). Allow the inviter to configure these.
+- When `/start INVITE_TOKEN` is received, validate: token exists, not expired, not exhausted. On success, create the user-household association. On failure, reply with a friendly "This invite link has expired. Ask your household member for a new one."
+- After validation, DELETE or mark the token as used (for single-use tokens) or increment `currentUses` (for multi-use tokens).
+- Do NOT include the household ID in the token itself (e.g., do not use `household_5_abc123`). The token is an opaque lookup key.
+- Rate-limit `/start` with invalid tokens to prevent brute-force enumeration.
 
 **Warning signs:**
-- "database is locked" errors in logs after Mini App launch
-- Intermittent 500 errors from API endpoints
-- Grocery list checkboxes that revert (write failed silently)
+- Invite tokens are sequential numbers or obvious patterns
+- Tokens never expire (no `expiresAt` column)
+- No `maxUses` limit -- a single link can add unlimited users
+- The invite payload contains the household ID in plaintext
 
-**Phase to address:** Phase 1 (API Foundation). Verify WAL mode and busy_timeout before adding any Mini App write endpoints.
+**Phase to address:** Phase 2 (Invite System). Design the invite table and token generation before implementing the `/start` handler changes.
 
-**Severity:** DATA CORRUPTION risk. Lost writes mean the user checks off groceries that reappear, or meal plan edits vanish.
-
-**Confidence:** HIGH -- SQLite locking behavior is well-documented. The specific risk of shared access in a single-process Node.js app is a known pattern.
+**Severity:** SECURITY BREACH. Unauthorized users join households and access private recipe collections, dietary restrictions, and meal plans.
 
 ---
 
-### Pitfall 5: State Sync Between Bot and Mini App -- Stale Data and Race Conditions
+### Pitfall 5: /start Handler Regression Breaks Existing Single-User Flow
 
 **What goes wrong:**
-User opens the grocery list Mini App and sees 12 items. Meanwhile, they message the bot "add milk to the list." The bot adds milk to the database, but the Mini App still shows 12 items because it loaded data on mount and has no way to know about the change. The user doesn't see milk, adds it manually via the Mini App, and now there are two entries for milk. Alternatively: user checks off items in the Mini App, then asks the bot "what's left on my list?" -- the bot reads from the database but the Mini App hasn't synced its changes yet.
+The current `/start` handler is a simple greeting. The new system gates access behind invite tokens: `/start INVITE_TOKEN` creates the user and joins a household, while bare `/start` (no token) must be rejected for new users. But the existing user already uses the bot -- they never went through an invite flow. If the new `/start` handler requires a token for ALL users, the existing user gets locked out after a bot restart or session clear. If it allows bare `/start` for existing users but blocks new users, there is a branching logic path that is easy to get wrong.
 
 **Why it happens:**
-The bot and Mini App are independent clients of the same database. There's no real-time sync mechanism. The Mini App is a web page with its own state. The bot processes messages asynchronously. Neither knows about the other's mutations without explicit coordination.
+The `/start` command is the entry point for both Telegram deep links (with payload) and the normal "user opens bot for the first time" flow. Telegram sends `/start` every time a user taps the "Start" button or clicks a deep link. The handler must distinguish between: (a) existing user saying hi, (b) new user with valid invite, (c) new user without invite (should be blocked), (d) existing user clicking an invite link (should join new household or be told they are already a member).
 
 **How to avoid:**
-- The Mini App must be the **view**, not the source of truth. Every mutation goes through the API to the database immediately (no optimistic-only updates that skip the server).
-- Implement polling on the Mini App side: re-fetch data every 5-10 seconds while the app is visible. For a single-user app, this is low cost and avoids the complexity of WebSocket.
-- When the Mini App gains focus (`visibilitychange` event), always re-fetch current data from the API.
-- For the bot side: after any data mutation (add to grocery list, update meal plan), if you know the Mini App might be open, accept that it will be slightly stale. The polling will catch it.
-- Consider a lightweight "version" or "lastModified" field on lists -- the Mini App can check if its version matches before showing stale data.
+- In the `/start` handler, first check if the user exists in the `users` table. If yes, they are an existing user -- greet them normally (or handle the invite-to-new-household case if a payload is present).
+- If the user does NOT exist AND there is no invite payload, show a gated message: "HeySous is invite-only. Ask a friend for an invite link!"
+- If the user does NOT exist AND there IS an invite payload, validate the token and create the user + household association.
+- Seed the existing user into the `users` table during the data migration (Phase 1), so they are always recognized as "existing."
+- Write explicit test cases for all 4 scenarios above. The `/start` handler is the most branching-heavy handler in the system.
 
 **Warning signs:**
-- Duplicate items in grocery list
-- Mini App shows stale data until manually refreshed
-- Bot and Mini App disagree on checked/unchecked state
+- Existing user sees "HeySous is invite-only" after bot restart
+- New user with valid invite token sees the old greeting instead of onboarding
+- Clicking an invite link while already a member creates a duplicate user record
+- `/start` with an expired token shows a generic error instead of a helpful message
 
-**Phase to address:** Phase 2 (Feature implementation). The API must always write-through immediately. Polling should be added alongside the first data-fetching Mini App.
+**Phase to address:** Phase 2 (Invite System), but requires Phase 1 (users table + migration) to be complete first. This is a hard dependency.
 
-**Severity:** HIGH -- this is the core value proposition of the hybrid model. If bot and Mini App disagree on state, trust in the system breaks.
+**Severity:** LOCKOUT for existing user. Complete system unusability if the single existing user cannot access the bot.
 
-**Confidence:** HIGH -- eventual consistency in multi-client systems is a fundamental distributed systems challenge. The specific TWA context makes it harder because there's no built-in Telegram mechanism for Mini App push updates.
+---
+
+### Pitfall 6: Household Data Sharing Without Permission Granularity
+
+**What goes wrong:**
+All household members get full read/write access to everything: recipes, meal plans, grocery lists, preferences, reminders. User A saves a private dietary restriction ("allergic to shellfish, severity: allergy"). User B joins the household. User B can now read, modify, and delete User A's allergy preferences. User B changes the grocery list while User A is shopping. User B modifies a meal plan that User A carefully curated. There is no concept of "my recipes" vs "household recipes" or "my preferences" vs "shared preferences."
+
+**Why it happens:**
+The simplest household model is "everything is shared." It avoids the complexity of per-item ownership and permission checks. But dietary restrictions, allergies, and personal preferences are inherently per-person. And meal plans often need to account for all household members' restrictions -- but should only be editable by the person who created them (or by explicit permission).
+
+**How to avoid:**
+- Add an `ownerId` (userId) column to tables where individual ownership matters: `knowledge_items`, `meal_plans`, `reminder_settings`.
+- Recipes and cooking notes are household-shared (anyone can see and edit). Preferences with `severity:allergy` or `severity:restriction` tags are household-visible but only editable by the owner.
+- Grocery lists are inherently shared (the household shops together). Meal plans could be per-user or per-household -- decide this early and document the decision.
+- Reminders are per-user (User A wants morning reminders at 7am, User B at 9am). The `reminder_settings` table already has per-`chatId` settings; in the new model, these become per-`userId`.
+- Start with a simple model: everything shared, preferences per-user. Add granular permissions later if needed. But design the schema to ALLOW future permission columns without another migration.
+
+**Warning signs:**
+- User B edits User A's allergy preference and the system no longer avoids shellfish in plans
+- User B deletes a recipe that User A added, and User A has no way to know who deleted it
+- Reminder settings for one user overwrite settings for another
+
+**Phase to address:** Phase 1 (Data Model). Decide the ownership model during schema design, even if enforcement is deferred to a later phase.
+
+**Severity:** DATA INTEGRITY. Wrong allergy information in meal plans is a health risk, not just a UX issue.
+
+---
+
+### Pitfall 7: Onboarding Flow State Machine Corruption
+
+**What goes wrong:**
+The onboarding flow is a multi-step Q&A: collect dietary preferences, cooking skill, household size, store preferences, then seed recipes and show a tour. If the user sends a message mid-onboarding (e.g., types "hello" instead of answering "What are your dietary restrictions?"), the pipeline processor routes the message to Claude, which responds conversationally instead of advancing the onboarding state. The user is now stuck: the bot thinks they are in normal conversation mode, the onboarding state machine thinks they are on step 2. Subsequent onboarding prompts arrive out of order or not at all.
+
+**Why it happens:**
+The current message handler is a catch-all: ALL `message:text` events go to the debounce queue and then to Claude. There is no middleware that intercepts messages during onboarding and routes them to the onboarding handler instead. The onboarding state is stored somewhere (database, in-memory map), but the message handler does not check it.
+
+**How to avoid:**
+- Store onboarding state in the database: `onboarding_state` table with `userId`, `currentStep`, `answersJson`, `startedAt`.
+- Add an onboarding middleware that runs BEFORE the catch-all message handler. If the user has an active onboarding state, intercept the message and route it to the onboarding handler.
+- The onboarding handler should be tolerant of unexpected input: if the user says "hello" when asked about dietary restrictions, respond with "I'd love to chat, but let's finish setting you up first! What dietary restrictions should I know about?"
+- Implement a `/skip` command and a `/restart_onboarding` command for users who want to skip the onboarding or start over.
+- Set a timeout on onboarding state: if the user has not advanced in 24 hours, mark the onboarding as abandoned and let them use the bot normally (with defaults).
+
+**Warning signs:**
+- User sends a message during onboarding and gets a Claude response about meal planning instead of the next onboarding question
+- Onboarding prompts appear twice or in wrong order
+- User completes onboarding but their preferences were not saved
+- User gets stuck in onboarding with no way to exit
+
+**Phase to address:** Phase 3 (Onboarding Flow). Must be implemented as middleware that runs before the catch-all message handler.
+
+**Severity:** UX BROKEN. A first-time user who gets stuck in onboarding will abandon the bot. First impressions matter most.
+
+---
+
+### Pitfall 8: Message Queue Keyed by chatId Loses Messages in Multi-User Households
+
+**What goes wrong:**
+The `MessageQueue` debounce batching is keyed by `chatId`. In the current single-user model, one user per chat means one debounce timer per user. In a multi-user household, if both User A and User B are messaging the bot simultaneously (in their own private chats with the bot), they have separate `chatId` values, so no conflict. BUT -- if the system ever supports group chats (same `chatId` for multiple users), or if the debounce key changes to `householdId`, messages from User A and User B get batched together. Claude receives "What's for dinner?" from User A concatenated with "Add milk to the list" from User B as a single batch, producing a confused response.
+
+**Why it happens:**
+The `MessageQueue.enqueue()` takes `chatId` as the key. In the current code, `chatId = String(ctx.chat.id)` and `userId = String(ctx.from?.id ?? "unknown")`. For private chats, each user has their own chat with the bot, so chatId is unique per user. The pitfall emerges if: (1) group chat support is added (multiple users, one chatId), (2) the debounce key is changed to householdId, or (3) the processor does not correctly attribute messages to users within a batch.
+
+**How to avoid:**
+- Keep the debounce queue keyed by the user's private chat ID, NOT by householdId. Each user talks to the bot in their own private chat.
+- If group chat support is added later, the debounce key must be `chatId + userId` (composite key), and the processor must handle multi-user batches.
+- In the processor, resolve the `householdId` from the `userId` AFTER debounce, not before. The debounce is about message timing; the household scope is about data access.
+- Do NOT change the MessageQueue's keying strategy unless group chats are explicitly required.
+
+**Warning signs:**
+- Two users' messages appear concatenated in Claude's context
+- Response addresses the wrong user's question
+- Debounce timer for one user is reset by another user's message
+
+**Phase to address:** Phase 1 (Data Model). Decide early: private-chat-only or group-chat support. If private-chat-only, the message queue needs no changes.
+
+**Severity:** DATA CORRUPTION in Claude context. Wrong responses to wrong users. Potentially reveals one user's private questions to another.
+
+---
+
+### Pitfall 9: System Prompt Injection With Wrong User's Preferences
+
+**What goes wrong:**
+The processor builds the system prompt by loading preferences, active plans, grocery context, reminder context, and feedback context -- ALL filtered by `chatId`. In the new multi-user model, these contexts must reflect the CURRENT USER's preferences within the household's shared data. If User A is allergic to shellfish and User B is not, and the system prompt loads household-level preferences without distinguishing who is asking, Claude might suggest shrimp for User A's dinner because User B has no shellfish restriction.
+
+**Why it happens:**
+The `buildSystemPrompt()` function receives preference summaries and plan context, all queried by a single `chatId`. In the new model, `chatId` becomes `householdId` (shared data), but preferences are per-user. The system prompt must include BOTH: "Household preferences: prefers Mediterranean cuisine" AND "Current user (User A) preferences: shellfish allergy, vegetarian on Mondays." If the system prompt only includes household-level preferences, per-user restrictions are invisible to Claude.
+
+**How to avoid:**
+- When building the system prompt, load two sets of preferences: (1) household-level preferences (shared by all members), (2) current user's personal preferences (allergies, dietary restrictions, schedule).
+- Clearly label them in the system prompt: "Household preferences: ..." and "Your preferences: ...". This helps Claude distinguish.
+- For meal planning, load ALL household members' restrictions (everyone's allergies matter for a shared meal). For recipe suggestions for a specific user, load only that user's preferences.
+- Add a `scope` tag to preferences: `scope:personal` vs `scope:household`. The system prompt builder uses this to partition.
+
+**Warning signs:**
+- Claude suggests a meal containing an allergen that one household member is allergic to
+- User A asks for recipe suggestions and gets recommendations based on User B's preferences
+- Preferences saved by User A appear in User B's `/preferences` output
+
+**Phase to address:** Phase 1 (Data Model) for schema support, Phase 3 (Onboarding) for collecting per-user preferences, Phase 4 for updating the system prompt builder.
+
+**Severity:** HEALTH RISK. Wrong allergy information in meal suggestions is not just a bug -- it is a safety issue.
+
+---
+
+### Pitfall 10: Mini-App Auth Middleware Identity Mismatch After Multi-User Migration
+
+**What goes wrong:**
+The current mini-app auth middleware (`src/mini-app/auth-middleware.ts`) extracts `userId` from initData and sets `res.locals.chatId = String(userId)`. All mini-app API routes then use `res.locals.chatId` to query repositories. After the multi-user migration, mini-app routes need BOTH `userId` (who is making the request) and `householdId` (what data scope to query). If `res.locals.chatId` is still set to the user's Telegram ID but repositories now filter by `householdId`, the mini-app returns empty data because the user's Telegram ID does not match any `householdId`.
+
+**Why it happens:**
+The identity mapping `userId === chatId` was a convenient shortcut for single-user private chats. The auth middleware set `chatId` to the user's ID because they were the same thing. After migration, the middleware must resolve the user's household membership and provide the correct `householdId` for data queries.
+
+**How to avoid:**
+- Update the auth middleware to: (1) extract `userId` from initData, (2) look up the user's household in the database, (3) set BOTH `res.locals.userId` and `res.locals.householdId`.
+- Update ALL mini-app API routes to use `res.locals.householdId` for data queries (grocery lists, recipes, plans) and `res.locals.userId` for user-specific data (preferences, reminder settings).
+- If the user has no household (not yet invited), return a 403 with a clear error message, not an empty dataset.
+- Add a test that: creates a new user via invite, opens the mini-app, and verifies data is visible.
+
+**Warning signs:**
+- Mini-app shows empty grocery list after migration, but bot `/grocery` command shows items
+- Mini-app recipe browser shows no recipes for new household members
+- `res.locals.chatId` is still being used in API routes after migration
+
+**Phase to address:** Phase 1 (Data Model Migration) for the auth middleware update, Phase 2 (Invite System) for the "no household" error case.
+
+**Severity:** FEATURE BROKEN. All three mini-apps (grocery, recipes, meal plan) return empty data for all users after migration.
 
 ---
 
@@ -157,76 +280,70 @@ Shortcuts that seem reasonable but create long-term problems.
 
 | Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
 |----------|-------------------|----------------|-----------------|
-| Separate API for Mini App (new routes, new auth) instead of sharing bot's data layer | Faster to prototype, no touching existing code | Two codepaths to the same data, diverging validation logic, double the maintenance | Never -- reuse the existing data access layer from the bot |
-| localStorage for Mini App state instead of server-side persistence | No API needed, instant reads/writes | Data lost when Telegram clears WebView cache (happens unpredictably), no sync with bot, gone on device switch | Only for transient UI state (scroll position, filter selection). Never for grocery checks or edits |
-| Polling every 1 second for real-time feel | Feels responsive, simple implementation | 60 requests/minute per open Mini App. SQLite read load, API server load, battery drain on mobile | Never at 1s. Use 5-10s for active use, pause when app is backgrounded |
-| Bundling all 3 Mini Apps into one SPA with client-side routing | Single build, shared dependencies, less deployment complexity | Larger bundle (user downloads recipe browser code when opening grocery list), more complex routing, harder to reason about | Acceptable for v1.1 given small scope. Each "app" is a route in a single React app. Split later if bundles exceed 200KB |
-| Skipping `@telegram-apps/sdk-react` and using `window.Telegram.WebApp` directly | No dependency, works immediately | No TypeScript types, no React lifecycle integration, manual event cleanup, miss platform updates | Only for the initial spike/POC. Switch to the SDK before writing real features |
-| Not implementing closing confirmation for the grocery list | Fewer API calls, simpler code | User swipes to close Mini App mid-edit, loses unchecked items if writes haven't flushed | Never for the grocery list Mini App -- enable `web_app_setup_closing_behavior` with confirmation |
+| Using `chatId` as `householdId` for existing user instead of generating a proper household ID | Zero-risk migration -- existing data needs no column value change | Household IDs are Telegram user IDs, which are opaque numbers. If the original user leaves the household, their personal Telegram ID remains as the household identifier forever. Confusing for debugging and auditing | Acceptable for v1.2 launch. The existing user IS the household founder. Generate proper IDs in a future version if needed |
+| Skipping row-level ownership on knowledge_items ("everything is shared in household") | Simpler queries, fewer authorization checks, faster to implement | Cannot distinguish "my recipe" from "household recipe." Cannot implement per-user recipe collections or "recently added by me" views. No audit trail for who changed what | Acceptable for v1.2 if the household is small (2-3 people). Add ownership tracking in the migration schema even if enforcement is deferred |
+| Storing onboarding state in memory instead of database | Faster reads, simpler code | Lost on bot restart. User restarts onboarding from scratch if the bot redeploys during their setup. On Railway, deploys happen frequently | Never. Always use the database for onboarding state. Restarts should resume where the user left off |
+| Single invite link per household (no multi-token management) | Simpler UI, one command to generate invite | Cannot revoke individual invites, cannot set per-invite permissions, cannot track which invite each member used | Acceptable for v1.2. Most households will use one invite link. Add revocation in a future version |
+| Hardcoding onboarding questions instead of making them data-driven | Faster to implement, no admin UI needed | Changing onboarding requires a code change and deploy. Cannot A/B test different onboarding flows | Acceptable for v1.2. Onboarding questions are unlikely to change frequently |
+| Using the bot's private chat for all interaction (no group chat support) | Avoids the massive complexity of multi-user-in-one-chat, debounce conflicts, message attribution | Cannot use the bot in a family group chat. Each user must have a separate private chat | Acceptable and RECOMMENDED for v1.2. Group chat support is a separate, much larger feature |
 
 ---
 
 ## Integration Gotchas
 
-Common mistakes when connecting Mini Apps to the existing bot system.
+Common mistakes when connecting these new features to the existing system.
 
 | Integration | Common Mistake | Correct Approach |
 |-------------|----------------|------------------|
-| **Express routing** | Mounting Mini App static files and API routes on the same path prefix, causing conflicts with the bot webhook route | Use distinct path prefixes: `/webhook` for bot, `/api/tma/*` for Mini App API, `/app/*` for static files. Ensure the webhook route is registered first |
-| **initData in API calls** | Passing initData as a query parameter (visible in logs, URLs, browser history) | Pass initData in the `Authorization` header: `Authorization: tma <initData>`. Parse and validate in middleware |
-| **@tma.js/sdk-react installation** | Installing both `@tma.js/sdk` and `@tma.js/sdk-react`, causing SDK package duplication and incorrect behavior | Install only `@tma.js/sdk-react` (or current equivalent `@telegram-apps/sdk-react`). It re-exports everything from the base SDK |
-| **Vite dev server + Express** | Running Vite dev server on port 5173 and Express on port 3000, then wondering why initData is empty in dev | In development, proxy API requests from Vite to Express. For Telegram testing, tunnel must point to Express which serves both static and API. Consider Vite middleware mode for dev |
-| **Bot webhook vs Mini App URL** | Setting the Mini App URL to the same domain but forgetting that Telegram sends webhook POSTs to the same server | Webhook is a POST to a specific path (e.g., `/webhook/bot`). Mini App is a GET to a different path (e.g., `/app/grocery`). They coexist fine as long as routes don't conflict |
-| **sendData vs API call confusion** | Using `Telegram.WebApp.sendData()` for grocery list operations, which closes the Mini App and sends data as a bot message | Use your own API calls (`fetch('/api/tma/grocery/check', ...)`) for all CRUD operations. `sendData` is only for keyboard-button Mini Apps that send a single payload and close. Our Mini Apps stay open for interactive use |
-| **Theme CSS variables** | Hardcoding colors in the React app instead of using Telegram's theme variables | Use `var(--tg-theme-bg-color)`, `var(--tg-theme-text-color)`, etc. for all colors. Listen to `themeChanged` event to re-render if user switches dark/light mode while app is open |
-| **Back button handling** | Not implementing BackButton.onClick, so pressing the native back button does nothing (or closes the app) | Show the back button when user navigates deeper (recipe detail, edit mode). Handle `backButtonClicked` to navigate back in your React router. Hide it on the main view |
-| **CORS from Telegram WebView** | Not setting CORS headers on API routes, assuming same-origin because it's the same server | The Mini App may load from a different origin than your API in some Telegram clients. Set `Access-Control-Allow-Origin` for your domain. Include `Access-Control-Allow-Headers: Content-Type, Authorization` |
+| **userId vs chatId in tool handler** | Passing `householdId` as `chatId` to `createToolHandler`, which then passes it to all tool operations. Tools that should be user-scoped (feedback, preferences) incorrectly operate at household scope | Create separate parameters: `createToolHandler({ userId, householdId, ... })`. Tools that read shared data (recipes, plans, grocery) use `householdId`. Tools that write personal data (preferences, feedback) use `userId`. Tools that need both (meal planning that respects allergies) receive both |
+| **Message history mixing users** | Loading conversation history by `householdId` instead of by the user's private chat. User A sees User B's conversation with the bot in their context window | Conversation history MUST remain per private chat (keyed by the user's chat ID with the bot). Never load another user's conversation turns into Claude's context. Shared data (recipes, plans) is loaded via the system prompt, not via conversation history |
+| **Reminder sender targeting wrong chat** | Reminder poller iterates over `reminder_settings` rows. Currently, `chatId` in reminders is used to `bot.api.sendMessage(chatId, ...)`. After migration, if `chatId` was changed to `householdId`, reminders are sent to a non-existent chat (householdId is not a valid Telegram chat ID) | Store BOTH `userId` (for targeting: `bot.api.sendMessage(userId, ...)`) and `householdId` (for data context) in reminder_settings. Or keep `chatId` as the user's private chat ID and add `householdId` as a separate column |
+| **Onboarding middleware vs feedback text handler** | Both onboarding middleware and feedback text handler (`feedbackTextHandler`) intercept messages before the catch-all. If onboarding middleware runs first and swallows all messages during onboarding, feedback replies during onboarding are lost. If feedback handler runs first, it may intercept onboarding answers as feedback | Onboarding middleware MUST be the first interceptor. During onboarding, all messages go to onboarding handler. Feedback text handler should check onboarding state and skip if active. Middleware order in `createBot()` is critical |
+| **Invite deep link vs existing /start** | The `/start` command handler is currently a simple `Composer`. Deep link payloads arrive as `/start PAYLOAD`. If the new invite handler is a separate Composer that only matches `/start` with a payload, the bare `/start` falls through to the old handler (or to the catch-all message handler, causing a Claude call for "/start") | Replace the existing `startHandler` with a unified handler that checks for payload, checks user existence, and routes to the appropriate flow. Do not have two separate `/start` handlers |
+| **Grocery list toggle without ownership check** | The mini-app grocery toggle endpoint (`POST /api/grocery/toggle`) currently does not verify that the item belongs to the requesting user's household. Any authenticated user could toggle any item by ID | Add a check: look up the item's list, verify the list's householdId matches the requesting user's householdId. This is the same pattern already partially implemented in the existing `toggleItem` route (it checks `getListIdForItem` then `getActiveList`) but needs the householdId comparison |
+| **Knowledge changelog missing userId** | The `knowledge_changelog` table has `chatId` but no `userId`. After multi-user, you cannot tell which household member made a change. "Who deleted my recipe?" is unanswerable | Add `userId` column to `knowledge_changelog` during migration. Populate existing rows with the original user's ID |
 
 ---
 
 ## Performance Traps
 
-Patterns that work in development but fail on real iOS hardware.
+Patterns that work for a single user but degrade with multiple users and shared data.
 
 | Trap | Symptoms | Prevention | When It Breaks |
 |------|----------|------------|----------------|
-| Large initial bundle (>300KB) | Mini App shows white screen for 2-5 seconds on open. Users see the Telegram loading spinner, think it's broken, close it | Code-split the 3 Mini Apps. Lazy-load non-critical components. Use Vite's built-in chunking. Target <150KB initial bundle per app | Immediately on first load over cellular connection |
-| Fetching all data on mount (e.g., all 200 recipes at once) | Initial load takes 3+ seconds. Memory usage spikes in iOS WebView | Paginate recipe list (20 at a time). Grocery list is fine to load fully (small dataset). Meal plan loads one week at a time | At 50+ recipes, or any slow network condition |
-| Unoptimized re-renders from theme/viewport events | `themeChanged` and `viewportChanged` fire rapidly during animations. Each triggers React re-render. UI feels janky | Debounce theme and viewport event handlers (200ms). Use `viewportStableHeight` instead of `viewportHeight` for layout calculations | When user drags the sheet up/down or switches themes |
-| Not compressing images in recipe cards | Each recipe thumbnail is a 2MB photo. 20 recipes = 40MB download in the recipe browser | Serve thumbnails as WebP at 200x200. Use lazy loading (`loading="lazy"`) for images below the fold | At 10+ recipes with photos |
-| Polling continues when Mini App is backgrounded | API calls every 5 seconds even when user switched to the chat. Wastes battery, server resources | Pause polling on `visibilitychange` (document.hidden). Resume on focus. Clear intervals on unmount | Always, but especially noticeable on battery-constrained iOS |
+| Loading ALL household members' preferences into system prompt | System prompt grows linearly with household size. At 5 members with 10 preferences each, that is 50 preference summaries injected into every Claude call. Token cost increases significantly | Load current user's preferences fully. Load only allergy/restriction preferences (tagged `severity:allergy` or `severity:restriction`) from other household members. Cap total preference count | At 3+ household members with many preferences. Each Claude call costs more tokens |
+| FTS5 search across household returns too many results | With multiple users adding recipes, the knowledge base grows. FTS5 search for "chicken" returns 30 results instead of 5, overwhelming the two-pass retrieval token budget | Keep the search `LIMIT` at 5-10. Add tag-based filtering (e.g., search only `recipe`-tagged items, not preferences). Consider adding a `household_id` column to the FTS5 join query for scoping |
+| Reminder poller iterates over all users | Currently iterates over `getAllActiveSettings()`. With multiple users per household, the poller processes more settings. Each setting may trigger a Claude call for generating reminder text | The poller is already designed for multiple settings. But ensure `generateReminders` does not make a Claude API call for each user -- it should be plan-based, not user-based. Cache generated text and share across household members with the same plan |
+| Mini-app polling from multiple household members simultaneously | 3 household members with the grocery mini-app open = 3x the polling load. Each polls every 8 seconds = ~22 requests/minute to SQLite | This is fine for SQLite with WAL mode and better-sqlite3's synchronous reads. Only a concern at 10+ concurrent mini-app users, which is unlikely for a household bot |
 
 ---
 
 ## Security Mistakes
 
-Mini App-specific security issues beyond the v1.0 bot security.
+Multi-user-specific security issues beyond the existing single-user security model.
 
 | Mistake | Risk | Prevention |
 |---------|------|------------|
-| Not validating initData server-side | Anyone with the API URL can read/write all user data. initDataUnsafe is trivially forgeable on the client | Validate initData HMAC-SHA256 on every API request. Use `@telegram-apps/init-data-node` for correct implementation |
-| Exposing bot token in client-side code | Bot token in React bundle = attacker controls your bot. Can send messages as your bot, access all user data via Bot API | Bot token must stay server-side only. The React app should never import, reference, or bundle any server-side secrets. Verify with `grep` on the built output |
-| No expiration check on initData | Stolen initData (from logs, network sniffing) remains valid forever | Check `auth_date` in initData validation. Reject if older than 1 hour. Use the `expiresIn` parameter in validation libraries |
-| API endpoints without rate limiting | Malicious or buggy client sends thousands of requests, overloading SQLite | Add basic rate limiting to Mini App API routes (e.g., 60 requests/minute per user). Express middleware like `express-rate-limit` works fine for this |
-| Serving Mini App over HTTP in development tunnel | initData and user data visible to tunnel provider and any network observer | Always use HTTPS tunnels (ngrok provides HTTPS by default). Never use plain HTTP, even in development |
-| Client-side data filtering (showing only "my" recipes based on client-side user ID) | If auth is bypassed, all data is accessible to any client | Filter data server-side in SQL queries using the validated user ID from initData. The API should never return data the user shouldn't see |
+| Household ID enumeration via invite tokens | If invite tokens contain or are derived from household IDs, an attacker can enumerate households by trying sequential IDs | Use cryptographically random tokens with no relationship to household IDs. Tokens are opaque lookup keys only |
+| Cross-household data access via direct item ID | A user in Household A guesses an item ID (e.g., knowledge item #42) that belongs to Household B. If the API does not check household membership, they can read or modify it | EVERY data access must verify `householdId` matches. Never trust item IDs from the client without scoping them to the household. This is already done for `chatId` in the knowledge repository (`getById(id, chatId)`) -- just ensure it is updated to `householdId` |
+| Invite link shared publicly allows unlimited household growth | A user shares their invite link on social media. 100 strangers join the household and access all recipes, plans, and preferences | Set `maxUses` on invite tokens (default: 5). Add a household member cap (e.g., 10 members). Allow the household owner to remove members |
+| No way to revoke access after household member is removed | User B is removed from the household but has cached mini-app data. Or their ongoing Claude conversation still has system prompt context from the household | When a user is removed from a household: (1) their `householdId` association is deleted, (2) their next bot interaction resolves to "no household" and shows a gated message, (3) their mini-app API calls return 403. Cached data in the mini-app is stale but read-only -- acceptable |
+| Admin commands accessible to non-admin household members | Currently, `/costs` is presumably admin-only. In a multi-user household, who is the admin? If all members can see API costs, that may be acceptable. But if admin commands include "delete all data" or "remove member," access control matters | Define a `role` column in the users-households association table: `owner`, `member`. Gate admin commands behind `role === 'owner'`. For v1.2, the person who creates the household is the owner |
 
 ---
 
 ## UX Pitfalls
 
-Telegram Mini App-specific user experience mistakes.
+User experience issues specific to these new features.
 
 | Pitfall | User Impact | Better Approach |
 |---------|-------------|-----------------|
-| Mini App opens in minimized (half-screen) state | User sees half the grocery list, has to manually drag up. Feels broken | Call `Telegram.WebApp.expand()` immediately after `ready()`. May need a small delay (50-100ms) on some iOS versions. Use `requestFullscreen()` if truly immersive content is needed |
-| No loading state while data fetches | User sees empty white screen for 0.5-2 seconds after Mini App opens. Thinks it failed to load | Show a skeleton/spinner immediately. Call `Telegram.WebApp.ready()` only after the skeleton is rendered, not after data loads. This tells Telegram "I'm ready to show" |
-| Theme mismatch -- Mini App looks different from Telegram | Jarring visual discontinuity. App feels foreign, not native. Especially bad when user is in dark mode and Mini App shows white background | Use Telegram's CSS variables (`--tg-theme-bg-color`, `--tg-theme-text-color`, etc.) for ALL visual styling. Never hardcode colors. Test in both light and dark mode |
-| No haptic feedback on interactions | Tapping buttons and checkboxes feels "dead" compared to native Telegram UI | Use `Telegram.WebApp.HapticFeedback.impactOccurred('light')` on checkbox toggles and button taps. Use `notificationOccurred('success')` for completed actions |
-| Ignoring safe area insets on iOS | Content overlaps with the notch at top or home indicator at bottom. Especially visible on iPhone with Dynamic Island | Use `contentSafeAreaInset` from the Telegram WebApp object, not `env(safe-area-inset-*)` which does not work in Telegram's WebView. Apply padding to your root container |
-| No closing confirmation on grocery list | User accidentally swipes closed during shopping, losing checked state. Has to reopen and re-check items (if writes were deferred) | Enable closing confirmation via `web_app_setup_closing_behavior` for the grocery list. Disable it for read-only views (recipe browser) |
-| Back button not implemented for navigation | User taps recipe in recipe browser, sees detail view, taps Telegram's back button -- nothing happens. Only option is to close and reopen | Show `BackButton` when navigated deeper than root. Handle `backButtonClicked` to call `router.back()`. Hide on root view |
-| Mini App link opens but shows blank on older Telegram versions | User has not updated Telegram. Mini App uses Bot API 7.7+ features that don't exist in their client | Check `Telegram.WebApp.version` on load. If below required version, show a message: "Please update Telegram to use this feature" instead of a broken UI |
+| Onboarding asks too many questions upfront | User abandons onboarding at question 4 of 8. They wanted to try the bot, not fill out a survey | Ask 3 essential questions max: (1) dietary restrictions/allergies, (2) household size, (3) store preference. Make everything else discoverable through conversation. "You can always tell me more preferences as we go!" |
+| No way to skip onboarding | User knows what they want and does not need guided setup. But the bot forces 5 minutes of Q&A before they can say "plan my meals" | Add a "Skip setup" option at the start of onboarding. Seed with safe defaults (no restrictions, 2 servings, generic store). Add a `/preferences` reminder after first plan generation |
+| Invite flow is confusing for non-technical users | User receives a `https://t.me/HeySousBot?start=abc123...` link. They do not know what to do with it. They paste it into the bot chat instead of opening it in a browser | When generating an invite link, also send a short explanation: "Share this link with your household member. When they tap it, they'll be added to your household automatically." On the receiving end, confirm clearly: "You've been invited to join [Inviter Name]'s household. Welcome!" |
+| No feedback that household data is shared | User A saves a recipe. User B asks the bot about recipes and sees User A's recipe. User B is confused about where it came from | When displaying shared data, attribute it: "Chicken Parmesan (added by User A)". When saving new items, confirm: "Saved to your household's recipes (visible to all members)." |
+| Feedback system overwhelms new users | New user completes onboarding, cooks their first meal, and gets hit with a feedback check-in prompt. They do not yet have the context to give meaningful feedback | Delay feedback check-ins until the user has completed at least 2-3 meal plans. Set a `firstFeedbackAfter` timestamp during onboarding. Feedback for new users should be opt-in via conversation, not proactive via reminders |
+| Onboarding preferences not reflected immediately | User tells onboarding they are vegetarian. Their first meal plan includes chicken. Preferences were saved to the knowledge store but the system prompt did not load them for the plan generation call | After onboarding completes, explicitly verify that preferences are saved AND retrievable. Run a test query: load preferences for this user, confirm the allergy/restriction is present. Log a warning if preferences are empty after onboarding |
 
 ---
 
@@ -234,18 +351,18 @@ Telegram Mini App-specific user experience mistakes.
 
 Things that appear complete but are missing critical pieces.
 
-- [ ] **initData validation works** -- but does it reject expired data? Test with `auth_date` from yesterday
-- [ ] **Grocery list renders** -- but does checking an item persist immediately to the database, or only on close? If on close, data is lost when the user swipes away
-- [ ] **Theme CSS variables applied** -- but did you test theme change mid-session? Open Mini App in light mode, switch Telegram to dark mode while Mini App is open. Does it update?
-- [ ] **Back button works** -- but does it hide when on the root view? Visible back button on root view with no handler = confused user
-- [ ] **expand() called** -- but did you test on a fresh open? Some iOS versions need a small delay between `ready()` and `expand()`. A race condition here means the app opens minimized
-- [ ] **API routes work** -- but did you test when the bot is also writing? Check a grocery item in the Mini App while the bot is generating a meal plan. Does either fail?
-- [ ] **Vertical swipes disabled** -- but only on the main view? Did you test scrolling within a modal or overlay? Nested scrollable containers may still trigger collapse
-- [ ] **Recipe browser loads** -- but did you test with 0 recipes? The empty state should say "No recipes yet. Add some via the bot!" not crash or show a blank list
-- [ ] **Mini App URL set in BotFather** -- but is it the HTTPS production URL? Using the dev tunnel URL in production means your Mini App dies when the tunnel closes
-- [ ] **Vite build serves from Express** -- but does the build include proper cache-busting hashes in filenames? Without content hashes, Telegram's WebView will cache stale JS and CSS across deployments
-- [ ] **Polling for fresh data works** -- but does it stop when the Mini App is hidden/backgrounded? Check with `document.hidden` -- a Mini App that polls in the background wastes battery and server resources
-- [ ] **iOS safe areas handled** -- but did you test on an iPhone with Dynamic Island? The `contentSafeAreaInset` may differ from standard notch phones
+- [ ] **Users table exists** -- but does the existing user have a row? If the migration did not seed the existing user, they are treated as a new user and blocked by the invite gate
+- [ ] **Household sharing works** -- but can User B see recipes that User A added BEFORE User B joined? If the join date is checked against recipe creation date, pre-existing recipes may be invisible
+- [ ] **Invite link generates** -- but does it work when the recipient has never interacted with the bot before? Telegram's `/start` with payload only works if the user has not blocked the bot
+- [ ] **Onboarding saves preferences** -- but does the system prompt builder load them? Check that `getPreferenceSummaries()` is called with the correct userId/householdId, not the old chatId
+- [ ] **Multi-user data isolation works** -- but does the FTS5 search respect household boundaries? The FTS5 query joins on `knowledge_items.chat_id` -- verify this is updated to `household_id`
+- [ ] **Reminders work for multiple users** -- but do they send to the correct private chat? `bot.api.sendMessage()` needs the user's Telegram chat ID, not the household ID
+- [ ] **Mini-app shows household data** -- but does the auth middleware resolve householdId? If `res.locals.chatId` is still set to the user's Telegram ID, queries against `household_id`-scoped tables return empty
+- [ ] **Onboarding can be skipped** -- but are defaults actually set? A skipped onboarding with no defaults means the system prompt has no preferences, and Claude does not know about dietary restrictions
+- [ ] **Feedback system works** -- but is it per-user or per-household? If check-ins are per-household, User B gets asked about User A's dinner. If per-user, each user needs their own feedback schedule
+- [ ] **Knowledge changelog has userId** -- but does the existing data have the original user's ID backfilled? If existing changelog rows have NULL userId, audit trails are incomplete
+- [ ] **Invite tokens expire** -- but what happens when an expired token is used? Does the user get a helpful message, or a generic "invalid invite" error?
+- [ ] **Grocery list toggle verifies household** -- but what about the grocery callback handler in the bot? `createGroceryCallbackHandler` toggles items without any household check. A user could craft a callback with another household's item ID
 
 ---
 
@@ -255,15 +372,14 @@ When pitfalls occur despite prevention, how to recover.
 
 | Pitfall | Recovery Cost | Recovery Steps |
 |---------|---------------|----------------|
-| No initData validation (security) | LOW | Add validation middleware to all API routes. No data migration needed. But audit logs for unauthorized access during the unprotected window |
-| iOS scrolling collapse | LOW | Add `disableVerticalSwipes()` call. One line of code, instant fix. But users may have already learned to avoid the Mini App |
-| Keyboard covering inputs | MEDIUM | Requires repositioning input fields from bottom to top. Layout rework affects all 3 Mini Apps. Better to get it right initially |
-| SQLite locking errors | LOW | Enable WAL mode (`PRAGMA journal_mode=WAL`) and set `busy_timeout`. Can be done without data migration. May need to restart the process |
-| Stale data / no sync | MEDIUM | Add polling to Mini App components. Must add `visibilitychange` handlers, loading states for re-fetches, and handle merge conflicts if user edited stale data |
-| Hardcoded colors (no theming) | MEDIUM | Replace all color values with CSS variables. Tedious but straightforward find-and-replace across all components. More work the longer you wait |
-| WebView caching stale builds | LOW-MEDIUM | Add content hashes to Vite build output (default behavior). Set `Cache-Control: no-cache` on HTML files from Express. For users with stale cache: they must clear Telegram data or wait |
-| localStorage data loss | HIGH | If grocery checks were stored in localStorage and lost, they cannot be recovered. Must migrate to server-side persistence and re-enter lost data. Design for server-first from the start |
-| `sendData` used instead of API calls | HIGH | Requires rearchitecting the data flow. `sendData` closes the Mini App on each call, so the UX is fundamentally different from a persistent interactive app. Must switch to fetch-based API calls and rewrite all data mutations |
+| chatId-to-householdId migration incomplete (some tables not updated) | MEDIUM | Write a remediation migration that backfills missing `household_id` values from the users-households mapping. Run `UPDATE table SET household_id = (SELECT household_id FROM user_households WHERE user_id = table.chat_id)` for each affected table. Rebuild FTS5 index |
+| Existing user's data orphaned | LOW | Single SQL statement: `UPDATE knowledge_items SET household_id = chat_id WHERE household_id IS NULL`. Same for all other tables. Run immediately upon detection |
+| FTS5 triggers lost after migration | LOW | Re-run `initializeFts(sqlite)` which re-creates all three triggers. Then run `INSERT INTO knowledge_fts(knowledge_fts) VALUES('rebuild')` to rebuild the index. No data loss |
+| Invite tokens leaked publicly | LOW | Add an `/admin revoke_invites` command that deletes all pending invite tokens for the household. Generate a new token. Existing members are not affected (they are already joined) |
+| /start handler locks out existing user | LOW | Manually insert the existing user into the `users` table: `INSERT INTO users (id, telegram_id, ...) VALUES (...)`. Or deploy a hotfix that adds a fallback: if user has data but no `users` row, create the row automatically |
+| Cross-household data leak via item ID | HIGH | Audit all data access paths for household scoping. Add `household_id` checks to every repository function that accepts an item ID. For any exposed data, notify affected users (GDPR/privacy concern). Run `SELECT * FROM knowledge_items ki WHERE NOT EXISTS (SELECT 1 FROM user_households uh WHERE uh.household_id = ki.household_id AND uh.user_id = ?)` to find any items accessed outside their household |
+| Onboarding state lost on restart | LOW | If state is in the database (as recommended), no recovery needed -- it persists. If state was in memory (pitfall occurred), the user restarts onboarding from step 1. Add a welcome-back message: "Looks like we got interrupted! Let's pick up where we left off" |
+| System prompt has wrong user's preferences | MEDIUM | Fix the system prompt builder to separate household vs personal preferences. No data migration needed. But any meals planned with wrong preferences should be flagged for review with the user |
 
 ---
 
@@ -273,107 +389,64 @@ How roadmap phases should address these pitfalls.
 
 | Pitfall | Prevention Phase | Verification |
 |---------|------------------|--------------|
-| initData validation | Phase 1: API Foundation | Call an API endpoint from curl without initData header -- should return 401. Call with valid initData -- should return 200 |
-| iOS scrolling collapse | Phase 1: Mini App Scaffold | Open any Mini App on iOS Telegram, swipe down at top of content -- app should NOT close |
-| iOS keyboard viewport | Phase 1: UI Layout | Tap every input field on iOS Telegram. Input should remain visible above the keyboard. No content should be hidden |
-| SQLite concurrent access | Phase 1: API Foundation | Run `PRAGMA journal_mode` and verify WAL. Simultaneously write from bot handler and API endpoint -- neither should error |
-| State sync (bot + Mini App) | Phase 2: Grocery List Feature | Open grocery Mini App, message bot "add eggs", wait 10 seconds -- eggs should appear in Mini App without manual refresh |
-| Theme handling | Phase 1: Mini App Scaffold | Open Mini App in light mode. Switch Telegram to dark mode. Mini App colors should update. No hardcoded white backgrounds |
-| Safe area insets | Phase 1: UI Layout | Open on iPhone with notch/Dynamic Island. No content should be hidden behind system UI. Check top and bottom |
-| Back button navigation | Phase 2: Recipe Browser | Navigate to recipe detail, tap back button -- should return to list. On root view, back button should not be visible |
-| Closing confirmation | Phase 2: Grocery List | Open grocery list, check some items, try to close -- should see "Changes may not be saved" dialog |
-| WebView caching | Phase 3: Deployment | Deploy a change, open Mini App immediately -- should see updated version, not stale cached version |
-| Bundle size | Phase 1: Build Setup | Run `vite build` and check output. Initial chunk should be <150KB gzipped. Use `rollup-plugin-visualizer` to spot bloat |
-| CORS configuration | Phase 1: API Foundation | Open Mini App from Telegram iOS -- API calls should succeed. Check for CORS errors in Eruda console |
-| Development debugging | Phase 1: Build Setup | Include Eruda in dev builds. Verify you can see console.log output on iOS Telegram without macOS Safari |
+| chatId-to-userId migration | Phase 1: Data Model | Run `SELECT COUNT(*) FROM knowledge_items WHERE household_id IS NULL` -- must be 0. Same for all tables |
+| Existing user data orphaned | Phase 1: Data Model | After migration, log in as existing user. Verify `/preferences` shows saved preferences. Verify recipe search returns existing recipes |
+| FTS5 triggers lost | Phase 1: Data Model | `SELECT * FROM sqlite_master WHERE type='trigger' AND tbl_name='knowledge_items'` -- must show 3 triggers. Search for an existing recipe -- must return results |
+| Deep link token security | Phase 2: Invite System | Generate 10 invite tokens -- verify none contain household ID or sequential patterns. Verify expired tokens are rejected with friendly message |
+| /start handler regression | Phase 2: Invite System | Test all 4 scenarios: existing user bare /start, existing user with invite payload, new user bare /start (should be gated), new user with valid invite (should onboard) |
+| Household permission model | Phase 1: Data Model (schema), Phase 2: Invite System (enforcement) | User A saves a recipe, User B queries recipes -- User B sees it. User A saves an allergy preference -- only User A can edit it |
+| Onboarding state machine | Phase 3: Onboarding | Start onboarding, send a non-answer message ("hello"), verify bot redirects to the current onboarding question. Restart bot mid-onboarding, verify state is preserved |
+| Message queue keying | Phase 1: Data Model (design decision) | Two users message the bot simultaneously in their private chats. Verify each gets their own response, not a mixed response |
+| System prompt injection | Phase 1: Data Model (schema), Phase 3-4 (implementation) | User A has shellfish allergy. User B has no allergy. Verify User A's meal plan avoids shellfish. Verify User B's plan may include shellfish |
+| Mini-app auth identity mismatch | Phase 1: Data Model | After migration, open grocery mini-app -- verify items are visible. Open recipe browser -- verify recipes are visible. New user joins household and opens mini-app -- verify they see household data |
+| Grocery toggle cross-household | Phase 2: Invite System | Manually call toggle API with an item ID from another household -- verify 403 response |
+| Invite link UX confusion | Phase 2: Invite System | Send invite link to a non-technical tester. Observe whether they can successfully join without help |
+| Onboarding preferences not reflected | Phase 3: Onboarding | Complete onboarding stating "vegetarian." Immediately ask for a meal plan. Verify plan contains no meat |
+| Feedback timing for new users | Phase 4: Feedback | New user completes onboarding. Cook one meal. Verify no proactive feedback check-in for the first week |
 
 ---
 
-## Telegram Mini App Platform-Specific Gotchas
+## SQLite-Specific Migration Pitfalls
 
-Issues unique to the Telegram Mini App platform that don't exist in normal web development.
+Issues unique to adding columns and tables in SQLite (relevant because HeySous uses better-sqlite3).
 
-### Gotcha 1: WebView Cache Is Independent of Telegram Cache
+### SQLite Pitfall 1: ALTER TABLE Limitations
 
-**What happens:** Telegram's "Clear Cache" button does NOT clear the WebView (wvbots) cache where your Mini App files live. Users (and you during development) will see stale JavaScript/CSS even after clearing cache. On desktop, the cache is at `~/.local/share/TelegramDesktop/tdata/user_data/wvbots/cache` and must be manually deleted.
+**What happens:** SQLite only supports `ADD COLUMN` and `RENAME COLUMN` via ALTER TABLE. You cannot add NOT NULL columns without a default, add UNIQUE constraints, change column types, or drop columns (before SQLite 3.35.0). Adding `household_id TEXT NOT NULL` requires either: (a) a default value, or (b) a table rebuild (create new, copy, drop old, rename).
 
-**Prevention:** Use Vite's default content-hashed filenames for JS/CSS assets. Set `Cache-Control: no-store, must-revalidate` on the HTML entry point served from Express. Never cache the `index.html`.
+**Prevention:** Add columns as nullable first: `ALTER TABLE knowledge_items ADD COLUMN household_id TEXT`. Backfill with `UPDATE`. Then enforce NOT NULL in application code (not schema). Or use a table rebuild wrapped in a transaction, but beware of FTS5 trigger breakage (see Pitfall 3).
 
-**Source:** [telegramdesktop/tdesktop #30127](https://github.com/telegramdesktop/tdesktop/issues/30127)
+### SQLite Pitfall 2: No Concurrent Schema Changes
 
-### Gotcha 2: `env(safe-area-inset-*)` Does Not Work in Telegram WebView
+**What happens:** While the migration is running (in a transaction), all other database operations are blocked. If the bot is running and processing messages during migration, those operations will get `SQLITE_BUSY` errors.
 
-**What happens:** Standard CSS `env(safe-area-inset-bottom)` that works in Safari and Chrome returns 0 inside Telegram's WebView on iOS. Content overlaps with the home indicator.
+**Prevention:** Run migrations at startup, BEFORE the bot starts accepting messages. The current `createDatabase()` function initializes tables on startup -- add migration logic to the same flow. Ensure the bot webhook is not set until after migration completes.
 
-**Prevention:** Use Telegram's own `contentSafeAreaInset` and `safeAreaInset` objects from the WebApp API instead of CSS environment variables. Apply padding from JavaScript, not CSS.
+### SQLite Pitfall 3: Foreign Key Checks During Migration
 
-**Source:** [TelegramMessenger/Telegram-iOS #1377](https://github.com/TelegramMessenger/Telegram-iOS/issues/1377)
+**What happens:** The new `users` and `households` tables reference each other (or are referenced by other tables). If foreign keys are enabled (`PRAGMA foreign_keys = ON`, which they are in HeySous), inserting data in the wrong order causes constraint violations.
 
-### Gotcha 3: `viewportHeight` Does Not Account for iOS Keyboard
-
-**What happens:** When the virtual keyboard is open, `Telegram.WebApp.viewportHeight` reports the full height as if the keyboard were not there. CSS layouts using this value will be wrong.
-
-**Prevention:** Use `window.visualViewport.height` for layouts that must account for the keyboard. Listen to `visualViewport.resize` events.
-
-**Source:** [TelegramMessenger/Telegram-iOS #1296](https://github.com/TelegramMessenger/Telegram-iOS/issues/1296)
-
-### Gotcha 4: Bottom Bar Flickering on iOS Scroll
-
-**What happens:** Fixed-position elements at the bottom of the screen flicker during scroll on iOS. The element appears to "bounce" or disappear momentarily during fast scrolls.
-
-**Prevention:** Avoid fixed-position bottom bars. Use CSS `transform: translateZ(0)` or `will-change: transform` as a hint to the compositor. Better yet, use sticky positioning or keep action buttons inline in the scroll flow.
-
-**Source:** [Telegram-Mini-Apps/issues #50](https://github.com/Telegram-Mini-Apps/issues/issues/50)
-
-### Gotcha 5: initData Caching on Desktop Client
-
-**What happens:** The Telegram desktop client caches initData between sessions. The `auth_date` may be hours or days old, failing your expiration check even though the user just opened the Mini App fresh.
-
-**Prevention:** Set a generous expiration window (1-2 hours, not minutes) for initData validation, or handle the "expired" case gracefully by prompting the user to close and reopen the Mini App. Do not set expiration to 0 (disabled) as that defeats the purpose.
-
-**Source:** [telegramdesktop/tdesktop #28303](https://github.com/telegramdesktop/tdesktop/issues/28303)
-
----
-
-## Deployment-Specific Pitfalls (Railway)
-
-Issues specific to deploying on Railway with persistent volumes.
-
-### Railway Pitfall 1: Volume Data Written at Build Time Does Not Persist
-
-**What happens:** If your Dockerfile or build step writes to the volume mount path, that data is lost. Railway volumes only persist data written at runtime. If you pre-populate the SQLite database during build, it will be empty after the first deploy.
-
-**Prevention:** The SQLite database (and any persistent data) must be created at runtime, not build time. Drizzle migrations should run on process start, not during the Docker build step.
-
-**Source:** [Railway Volumes docs](https://docs.railway.com/volumes)
-
-### Railway Pitfall 2: Volume Mount Path Must Include `/app` Prefix
-
-**What happens:** Railway's Nixpacks puts your application in `/app`. If you write to `./data/heysous.db` and mount a volume at `/data`, the volume is empty because your app writes to `/app/data/heysous.db`.
-
-**Prevention:** Mount the volume at `/app/data` (including the `/app` prefix). Or use absolute paths in your database configuration.
-
-### Railway Pitfall 3: Single Server = Mini App Downtime During Deploys
-
-**What happens:** Railway restarts your container on each deploy. During the ~10-30 second restart window, both the bot webhook AND the Mini App are down. If a user has the grocery list open during a deploy, their API calls fail. If they were mid-edit, data may be lost.
-
-**Prevention:** Enable closing confirmation on the grocery list so users save before closing. Keep deploys off peak usage times. For the bot, Telegram will retry the webhook delivery after the restart (within 60s). For the Mini App, show a "reconnecting..." state when API calls fail.
+**Prevention:** Temporarily disable foreign keys during migration: `PRAGMA foreign_keys = OFF`, run migration, `PRAGMA foreign_keys = ON`. Or carefully order inserts: create tables first, insert parent rows before child rows.
 
 ---
 
 ## Sources
 
-- [Telegram Mini Apps official documentation](https://core.telegram.org/bots/webapps) -- HTTPS requirements, initData, viewport, events, theme, closing behavior, keyboard
-- [Telegram Mini Apps community docs](https://docs.telegram-mini-apps.com/platform/init-data) -- initData validation, theming, viewport, debugging, navigation
-- [@telegram-apps/sdk-react npm](https://www.npmjs.com/package/@tma.js/sdk-react) -- React SDK integration, version 3.x
-- [Telegram-Mini-Apps/issues GitHub](https://github.com/Telegram-Mini-Apps/issues/issues) -- viewport #16, iOS safe area #39, bottom bar flicker #50, keyboard #33
-- [TelegramMessenger/Telegram-iOS GitHub](https://github.com/TelegramMessenger/Telegram-iOS/issues) -- keyboard #1410, viewport height #1296, expand #1302, scrolling collapse #1447, safe area #1377, viewport shift #1298, keyboard buggy #1637
-- [telegramdesktop/tdesktop GitHub](https://github.com/telegramdesktop/tdesktop/issues) -- initData caching #28303, WebView cache #30127
-- [Scrolling collapse fix article](https://dev.to/nimaxin/how-to-fix-the-telegram-mini-app-scrolling-collapse-issue-a-handy-trick-1abe) -- scrolling collapse root cause and fix
-- [Railway Volumes documentation](https://docs.railway.com/volumes) -- volume mount behavior, Nixpacks paths
-- [Telegram Webhook guide](https://core.telegram.org/bots/webhooks) -- port restrictions, timeout behavior, certificate requirements
-- [SQLite WAL mode documentation](https://www.sqlite.org/wal.html) -- concurrent access patterns
+- **Codebase audit:** All 47 source files with `chatId`/`chat_id` usage reviewed, including all schema definitions, repository functions, tool handler, pipeline processor, message queue, mini-app routes, and auth middleware
+- **Telegram Bot API deep linking:** Training data knowledge of `/start PAYLOAD` mechanism, 64-character base64url payload limit, deep link format `https://t.me/BotName?start=PAYLOAD`
+- **SQLite documentation:** ALTER TABLE limitations, WAL mode concurrent access, foreign key enforcement during migrations, FTS5 external content mode trigger behavior
+- **Drizzle ORM:** better-sqlite3 synchronous API, schema push behavior for complex changes (table rebuilds)
+- **Multi-tenant data isolation patterns:** Row-level security, scope-based query filtering, composite key strategies for shared-data systems
+- **Telegram user/chat ID relationship:** In private chats, `user.id === chat.id`. In groups, `chat.id` is the group ID, `from.id` is the user. Mini-app initData provides `user.id` only
+- **Previous research:** `.planning/research/PITFALLS.md` (v1.1 Mini Apps), `.planning/research/ARCHITECTURE.md` (v1.1 system architecture) -- existing patterns for auth middleware, repository reuse, and Express routing
+
+**Confidence notes:**
+- HIGH confidence on all codebase-specific pitfalls (direct code audit)
+- HIGH confidence on SQLite migration pitfalls (well-documented behavior)
+- HIGH confidence on Telegram deep linking mechanics (core Bot API feature)
+- MEDIUM confidence on optimal household permission model (design decision, not a technical fact)
+- LOW confidence on specific grammY deep link payload parsing (training data only, should verify at implementation time that `ctx.match` or `ctx.message.text` correctly extracts the payload)
 
 ---
-*Pitfalls research for: Adding Telegram Mini Apps to HeySous (v1.1)*
-*Researched: 2026-02-09*
+*Pitfalls research for: Adding multi-user support, household sharing, invite systems, onboarding flows, and feedback mechanisms to HeySous (v1.2)*
+*Researched: 2026-02-10*

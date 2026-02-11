@@ -70,8 +70,8 @@ async function main(): Promise<void> {
   logger.info({ botUsername }, "Bot info fetched");
 
   // Initialize access gate and identity handlers
-  const { middleware: accessGate, addToCache } = createAccessGate({ sqlite });
-  const startHandler = createStartHandler({ sqlite, addToCache });
+  const { middleware: accessGate, addToCache, refreshUserCache } = createAccessGate({ sqlite });
+  const startHandler = createStartHandler({ sqlite, db, addToCache });
   const inviteHandler = createInviteHandler({ sqlite, botUsername });
 
   // Initialize Claude client
@@ -144,6 +144,7 @@ async function main(): Promise<void> {
     generateRemindersFn: regenerateReminders,
     feedbackRepository,
     clock,
+    refreshUserCache,
   });
 
   // Late-bound pollerTick -- set after poller is created below

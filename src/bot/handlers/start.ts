@@ -12,12 +12,15 @@ import { Composer } from "grammy";
 import type BetterSqlite3 from "better-sqlite3";
 import type { BotContext } from "../context.js";
 import type { User } from "../../users/types.js";
-import { getUserByTelegramId, createUser, updateHouseholdName, getAdmin } from "../../users/repository.js";
+import type { DrizzleDatabase } from "../../db/index.js";
+import { getUserByTelegramId, createUser, updateHouseholdName, getAdmin, getHouseholdMembers } from "../../users/repository.js";
 import { getAndRedeemToken } from "../../invites/repository.js";
+import { messages } from "../../db/schema.js";
 import { logger } from "../../logger.js";
 
 interface StartHandlerDeps {
   sqlite: BetterSqlite3.Database;
+  db: DrizzleDatabase;
   addToCache: (user: User) => void;
 }
 
@@ -47,6 +50,11 @@ export function createStartHandler(deps: StartHandlerDeps): Composer<BotContext>
       const redeemed = getAndRedeemToken(deps.sqlite, token, telegramId);
 
       if (redeemed) {
+        // Determine onboarding path based on existing household members
+        const existingMembers = getHouseholdMembers(deps.sqlite, redeemed.householdId);
+        const isJoiningExisting = existingMembers.length > 0;
+        const onboardingState = isJoiningExisting ? "tour_only" as const : "preferences" as const;
+
         // Valid token -- register user
         const newUser = createUser(deps.sqlite, {
           telegramId,
@@ -54,7 +62,7 @@ export function createStartHandler(deps: StartHandlerDeps): Composer<BotContext>
           username,
           householdId: redeemed.householdId,
           role: "member",
-          onboardingState: "complete",
+          onboardingState,
         });
 
         // Cache immediately so access gate passes on next message
@@ -64,14 +72,24 @@ export function createStartHandler(deps: StartHandlerDeps): Composer<BotContext>
         updateHouseholdName(deps.sqlite, redeemed.householdId);
 
         logger.info(
-          { telegramId, householdId: redeemed.householdId, inviteType: redeemed.inviteType },
+          { telegramId, householdId: redeemed.householdId, inviteType: redeemed.inviteType, onboardingState, isJoiningExisting },
           "New user registered via invite",
         );
 
-        // Warm greeting
-        await ctx.reply(
-          `Hey ${displayName}! Welcome to HeySous! I'm your meal planning assistant -- I remember recipes, plan weekly dinners, build grocery lists, and send prep reminders. Tell me about a recipe you love, or ask me to plan your week!`,
-        );
+        // Welcome message varies by onboarding path
+        const welcomeText = isJoiningExisting
+          ? `Hey ${displayName}! Welcome aboard. I'm Sous, your household's kitchen sidekick.`
+          : `Hey ${displayName}! I'm Sous, your new kitchen sidekick. I'd love to get to know your cooking style so I can be actually helpful. Mind if I ask a few questions?`;
+
+        await ctx.reply(welcomeText);
+
+        // Save welcome message to messages table for Claude conversation context
+        deps.db.insert(messages).values({
+          chatId: String(ctx.chat?.id ?? ""),
+          userId: telegramId,
+          text: welcomeText,
+          direction: "out" as const,
+        }).run();
 
         // Notify admin (if different from the new user)
         try {

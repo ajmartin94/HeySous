@@ -20,6 +20,7 @@ interface AccessGateDeps {
 interface AccessGateResult {
   middleware: MiddlewareFn<BotContext>;
   addToCache: (user: User) => void;
+  refreshUserCache: (user: User) => void;
 }
 
 export function createAccessGate(deps: AccessGateDeps): AccessGateResult {
@@ -63,5 +64,10 @@ export function createAccessGate(deps: AccessGateDeps): AccessGateResult {
     return next();
   };
 
-  return { middleware, addToCache };
+  /** Semantic alias for addToCache -- makes pipeline call sites clearer. */
+  function refreshUserCache(user: User): void {
+    addToCache(user);
+  }
+
+  return { middleware, addToCache, refreshUserCache };
 }

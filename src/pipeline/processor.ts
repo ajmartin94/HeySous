@@ -40,6 +40,10 @@ import { formatGroceryList } from "../grocery/formatter.js";
 import { buildGroceryKeyboard } from "../grocery/buttons.js";
 import { getPreferenceSummaries } from "../knowledge/preferences.js";
 import { buildSystemPrompt } from "../ai/system-prompt.js";
+import { extractOnboardingMarker, getNextOnboardingState } from "../onboarding/state.js";
+import { buildOnboardingPrompt } from "../onboarding/prompt.js";
+import { updateOnboardingState } from "../users/repository.js";
+import type { User } from "../users/types.js";
 import type { DrizzleDatabase } from "../db/index.js";
 import type { Logger } from "pino";
 
@@ -74,6 +78,7 @@ interface ProcessorDeps {
   generateRemindersFn?: (householdId: string) => void;
   feedbackRepository?: ReturnType<typeof import("../feedback/repository.js").createFeedbackRepository>;
   clock: Clock;
+  refreshUserCache?: (user: User) => void;
 }
 
 /**
@@ -178,7 +183,13 @@ export function createProcessor(deps: ProcessorDeps) {
       // h. Load user preferences for system prompt injection
       const preferences = getPreferenceSummaries(deps.sqlite, householdId);
       const userName = ctx.user?.displayName;
-      const systemPrompt = buildSystemPrompt(preferences, planContext, groceryContext, reminderContext, feedbackContext, userName);
+
+      // h2. Build onboarding context if user is in onboarding
+      const onboardingContext = ctx.user && ctx.user.onboardingState !== "complete"
+        ? buildOnboardingPrompt(ctx.user.onboardingState)
+        : "";
+
+      const systemPrompt = buildSystemPrompt(preferences, planContext, groceryContext, reminderContext, feedbackContext, userName, onboardingContext);
 
       // i. 30-second timeout warning timer
       let timeoutFired = false;
@@ -251,15 +262,33 @@ export function createProcessor(deps: ProcessorDeps) {
       const requestDurationMs = Date.now() - startTime;
       clearTimeout(timeoutTimer);
 
-      // k. Send response via formatted sender
-      await sendFormattedMessage(ctx, response.text);
+      // k. Extract onboarding marker (if any) BEFORE sending to user
+      const { text: cleanText, completedPhase } = extractOnboardingMarker(response.text);
+
+      // k2. Advance onboarding state if marker was found
+      if (completedPhase !== null && ctx.user && ctx.user.onboardingState !== "complete") {
+        const fromState = ctx.user.onboardingState;
+        const nextState = getNextOnboardingState(ctx.user.onboardingState, completedPhase);
+        updateOnboardingState(deps.sqlite, ctx.user.telegramId, nextState);
+        log.info(
+          { telegramId: ctx.user.telegramId, fromState, toState: nextState, completedPhase },
+          "Onboarding state advanced",
+        );
+        ctx.user.onboardingState = nextState;
+        if (deps.refreshUserCache) {
+          deps.refreshUserCache(ctx.user);
+        }
+      }
+
+      // k3. Send cleaned response via formatted sender (marker stripped)
+      await sendFormattedMessage(ctx, cleanText);
 
       // l. Save outgoing response to messages table for conversation continuity
       db.insert(messages)
         .values({
           chatId,
           userId,
-          text: response.text,
+          text: cleanText,
           direction: "out" as const,
         })
         .run();

@@ -8,6 +8,9 @@ import { initializePlanning } from "../planning/history.js";
 import { initializeGrocery } from "../grocery/init.js";
 import { initializeReminders } from "../reminders/init.js";
 import { initializeFeedback } from "../feedback/init.js";
+import { initializeUsers } from "../users/init.js";
+import { initializeInvites } from "../invites/init.js";
+import { config } from "../config.js";
 
 export type DrizzleDatabase = ReturnType<typeof createDatabase>;
 
@@ -38,6 +41,12 @@ export function createDatabase(dbPath: string) {
 
   // Initialize feedback check-in tables
   initializeFeedback(sqlite);
+
+  // Initialize users and households tables (+ admin seeding)
+  initializeUsers(sqlite, config.adminUserId);
+
+  // Initialize invite tokens table (must come after users/households)
+  initializeInvites(sqlite);
 
   // Return Drizzle ORM instance with schema
   return drizzle(sqlite, { schema });

@@ -49,3 +49,7 @@ export {
   reminderSettings,
   reminders,
 } from "../reminders/schema.js";
+
+export { households, users } from "../users/schema.js";
+
+export { inviteTokens } from "../invites/schema.js";

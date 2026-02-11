@@ -29,7 +29,7 @@ See .planning/milestones/v1.1-ROADMAP.md for full phase history.
 **Milestone Goal:** Enable multi-user access with gated invitations, guided onboarding for new users, full household sharing, and an app feedback system.
 
 - [x] **Phase 15: Users, Households, and Invites** - Multi-user identity with invite-gated access (completed 2026-02-11)
-- [ ] **Phase 16: Household Data Migration** - Migrate all data paths from chatId to householdId for shared data
+- [x] **Phase 16: Household Data Migration** - Migrate all data paths from chatId to householdId for shared data (completed 2026-02-11)
 - [ ] **Phase 17: Guided Onboarding** - Claude-driven first-run experience for new users
 - [ ] **Phase 18: App Feedback** - Feedback collection, sentiment scoring, and admin dashboard
 
@@ -65,7 +65,7 @@ Plans:
 
 Plans:
 - [x] 16-01-PLAN.md -- Database migration + data layer rename (schema, types, repositories, context builders)
-- [ ] 16-02-PLAN.md -- Handler + pipeline + delivery + mini-app migration (handlers, senders, system prompt, mini-app)
+- [x] 16-02-PLAN.md -- Handler + pipeline + delivery + mini-app migration (handlers, senders, system prompt, mini-app)
 
 ### Phase 17: Guided Onboarding
 **Goal**: New users are guided through a conversational first-run experience that captures preferences, demonstrates capabilities, and seeds initial recipes
@@ -112,6 +112,6 @@ Plans:
 | 13. Recipe Browser | v1.1 | 2/2 | Complete | 2026-02-10 |
 | 14. Meal Plan Viewer | v1.1 | 2/2 | Complete | 2026-02-10 |
 | 15. Users, Households, and Invites | v1.2 | 2/2 | Complete | 2026-02-11 |
-| 16. Household Data Migration | v1.2 | 0/2 | Planned | - |
+| 16. Household Data Migration | v1.2 | 2/2 | Complete | 2026-02-11 |
 | 17. Guided Onboarding | v1.2 | 0/TBD | Not started | - |
 | 18. App Feedback | v1.2 | 0/TBD | Not started | - |

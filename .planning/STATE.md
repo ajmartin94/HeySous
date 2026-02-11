@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-02-10)
 
 ## Current Position
 
-Phase: 16 of 18 (Household Data Migration)
-Plan: 1 of 2 complete
-Status: In progress
-Last activity: 2026-02-11 -- Completed 16-01 Data Layer Migration (schemas, types, repos, context builders)
+Phase: 16 of 18 (Household Data Migration) -- COMPLETE
+Plan: 2 of 2 complete
+Status: Phase complete
+Last activity: 2026-02-11 -- Completed 16-02 Handler and Pipeline Layer Migration
 
-Progress: [███░░░░░░░] 28% (v1.2)
+Progress: [████░░░░░░] 33% (v1.2)
 
 ## Performance Metrics
 
@@ -32,6 +32,7 @@ Progress: [███░░░░░░░] 28% (v1.2)
 - 15-01: 4 min (2 tasks, 12 files)
 - 15-02: 3 min (3 tasks, 6 files)
 - 16-01: 10 min (2 tasks, 25 files)
+- 16-02: 8 min (2 tasks, 22 files)
 
 ## Accumulated Context
 
@@ -56,6 +57,12 @@ All v1.0 and v1.1 decisions documented with outcomes.
 - All 9 column renames in single SQLite transaction for atomicity
 - listByChatId renamed to listByHouseholdId for semantic clarity
 
+**Phase 16-02:**
+- System prompt injects userName naturally, no household references
+- Fan-out senders deliver to all household members via getHouseholdMembers
+- Mini-app auth converted to factory pattern with user lookup for householdId
+- Message queue debounce key stays per-Telegram-chat (correct multi-user behavior)
+
 ### Key Research Findings (v1.2)
 
 - Zero new npm dependencies needed for v1.2
@@ -76,5 +83,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-11
-Stopped at: Completed 16-01-PLAN.md (Data Layer Migration -- schemas, types, repos, context builders)
-Next action: Execute 16-02-PLAN.md (Handler and pipeline layer migration)
+Stopped at: Completed 16-02-PLAN.md (Handler and Pipeline Layer Migration -- Phase 16 complete)
+Next action: Plan Phase 17 (Onboarding Flow)

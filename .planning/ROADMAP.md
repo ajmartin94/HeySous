@@ -31,7 +31,7 @@ See .planning/milestones/v1.1-ROADMAP.md for full phase history.
 - [x] **Phase 15: Users, Households, and Invites** - Multi-user identity with invite-gated access (completed 2026-02-11)
 - [x] **Phase 16: Household Data Migration** - Migrate all data paths from chatId to householdId for shared data (completed 2026-02-11)
 - [x] **Phase 17: Guided Onboarding** - Claude-driven first-run experience for new users (completed 2026-02-11)
-- [ ] **Phase 18: App Feedback** - Feedback collection, sentiment scoring, and admin dashboard
+- [ ] **Phase 18: App Feedback** - Feedback collection through command, implicit AI detection, Mini App form, and proactive prompting
 
 ## Phase Details
 
@@ -84,7 +84,7 @@ Plans:
 - [x] 17-02-PLAN.md -- Start handler, pipeline, and system prompt integration with human verification
 
 ### Phase 18: App Feedback
-**Goal**: Users can share feedback about the bot experience, and the admin can review all collected feedback with categorization and sentiment
+**Goal**: Users can share feedback about the bot experience through four channels (command, implicit AI detection, Mini App form, proactive prompting), all stored in a unified feedback table for later analysis
 **Depends on**: Phase 15 (needs user identity; does not depend on Phase 16/17)
 **Requirements**: FEED-01, FEED-02, FEED-03, FEED-04, FEED-05, FEED-06, FEED-07, FEED-08
 **Success Criteria** (what must be TRUE):
@@ -93,11 +93,11 @@ Plans:
   3. The Mini App hub includes a "Give Feedback" button that opens a text input, and submitted feedback is saved
   4. The bot proactively asks "how am I doing?" every 2 weeks, and the user's response is captured as feedback
   5. Admin can view all feedback filtered by category and sentiment via command or Mini App dashboard
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 18-01: TBD
-- [ ] 18-02: TBD
+- [ ] 18-01-PLAN.md -- App feedback data layer, /feedback command, Claude tool for implicit detection, proactive prompt mechanism
+- [ ] 18-02-PLAN.md -- Mini App feedback form page and Hub card with server-side API endpoint
 
 ## Progress
 
@@ -113,4 +113,4 @@ Plans:
 | 15. Users, Households, and Invites | v1.2 | 2/2 | Complete | 2026-02-11 |
 | 16. Household Data Migration | v1.2 | 2/2 | Complete | 2026-02-11 |
 | 17. Guided Onboarding | v1.2 | 2/2 | Complete | 2026-02-11 |
-| 18. App Feedback | v1.2 | 0/TBD | Not started | - |
+| 18. App Feedback | v1.2 | 0/2 | Not started | - |

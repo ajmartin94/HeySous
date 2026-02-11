@@ -20,9 +20,10 @@
  * 13. groceryHandler (/grocery grocery list display)
  * 14. appFeedbackHandler (/feedback app feedback submission)
  * 15. remindersHandler (/reminders reminder settings display)
- * 16. feedbackTextHandler (free-text feedback replies -- before catch-all)
- * 17. messageHandler (catch-all message:text -- MUST be last)
- * 18. error boundary
+ * 16. helpHandler (/help command -- help page deep link)
+ * 17. feedbackTextHandler (free-text feedback replies -- before catch-all)
+ * 18. messageHandler (catch-all message:text -- MUST be last)
+ * 19. error boundary
  */
 
 import { Bot, type Composer, type MiddlewareFn } from "grammy";
@@ -45,6 +46,7 @@ interface CreateBotOptions {
   feedbackCallbackHandler: Composer<BotContext>;
   appFeedbackHandler: Composer<BotContext>;
   remindersHandler: Composer<BotContext>;
+  helpHandler: Composer<BotContext>;
   messageHandler: Composer<BotContext>;
   feedbackTextHandler?: Composer<BotContext>;
   db: DrizzleDatabase;
@@ -67,6 +69,7 @@ export function createBot(
     feedbackCallbackHandler,
     appFeedbackHandler,
     remindersHandler,
+    helpHandler,
     messageHandler,
     feedbackTextHandler,
     db,
@@ -100,6 +103,7 @@ export function createBot(
   bot.use(groceryHandler); // /grocery command -- grocery list display
   bot.use(appFeedbackHandler); // /feedback command -- app feedback submission
   bot.use(remindersHandler); // /reminders command -- reminder settings display
+  bot.use(helpHandler); // /help command -- help page deep link
   if (feedbackTextHandler) {
     bot.use(feedbackTextHandler); // free-text feedback replies -- must be before catch-all
   }

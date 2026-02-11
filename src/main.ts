@@ -27,6 +27,7 @@ import { createPreferencesHandler } from "./bot/handlers/preferences.js";
 import { createPlanHandler } from "./bot/handlers/plan.js";
 import { createGroceryHandler, createGroceryCallbackHandler } from "./bot/handlers/grocery.js";
 import { createRemindersHandler } from "./bot/handlers/reminders.js";
+import { createHelpHandler } from "./bot/handlers/help.js";
 import { createRetrievalService } from "./knowledge/retrieval.js";
 import { createKnowledgeRepository } from "./knowledge/repository.js";
 import { createPlanRepository } from "./planning/repository.js";
@@ -178,6 +179,7 @@ async function main(): Promise<void> {
   const feedbackCallbackHandler = createFeedbackCallbackHandler({ sqlite, feedbackRepository, knowledgeRepository, db, clock });
   const feedbackTextHandler = createFeedbackTextHandler({ sqlite, feedbackRepository, knowledgeRepository, db, claudeClient, clock });
   const appFeedbackHandler = createAppFeedbackHandler(sqlite);
+  const helpHandler = createHelpHandler();
   const messageHandler = createMessageHandler(queue, processBatch);
 
   // Create bot instance with all dependencies
@@ -194,6 +196,7 @@ async function main(): Promise<void> {
     feedbackCallbackHandler,
     appFeedbackHandler,
     remindersHandler,
+    helpHandler,
     messageHandler,
     feedbackTextHandler,
     db,

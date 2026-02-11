@@ -80,7 +80,7 @@ All v1.0 and v1.1 decisions documented with outcomes.
 
 ### Pending Todos
 
-None.
+1. Fix start_cooking reminder to account for prep time (reminders) — `.planning/todos/pending/2026-02-11-fix-start-cooking-reminder-to-account-for-prep-time.md`
 
 ### Blockers/Concerns
 

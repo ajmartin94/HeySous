@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-10)
 
 **Core value:** The recipe brain -- an AI agent that remembers everything about your meals and reasons over that knowledge to help you plan.
-**Current focus:** v1.2 Onboarding and Feedback -- Phase 15 (Users, Households, and Invites)
+**Current focus:** v1.2 Onboarding and Feedback -- Phase 15 complete, ready for Phase 16
 
 ## Current Position
 
-Phase: 15 of 18 (Users, Households, and Invites)
-Plan: 1 of 2 complete
-Status: Executing
-Last activity: 2026-02-11 -- Completed 15-01 Identity Data Layer
+Phase: 15 of 18 (Users, Households, and Invites) -- COMPLETE
+Plan: 2 of 2 complete
+Status: Phase complete
+Last activity: 2026-02-11 -- Completed 15-02 Bot Integration (access gate, /start, /invite)
 
-Progress: [█░░░░░░░░░] 10% (v1.2)
+Progress: [██░░░░░░░░] 14% (v1.2)
 
 ## Performance Metrics
 
@@ -30,6 +30,7 @@ Progress: [█░░░░░░░░░] 10% (v1.2)
 
 **v1.2 Velocity:**
 - 15-01: 4 min (2 tasks, 12 files)
+- 15-02: 3 min (3 tasks, 6 files)
 
 ## Accumulated Context
 
@@ -42,6 +43,11 @@ All v1.0 and v1.1 decisions documented with outcomes.
 - Admin household_id = admin telegram_id (Phase 16 chatId migration compatibility)
 - Repository uses standalone function exports (not factory), takes sqlite as first param
 - Invite tokens: crypto.randomBytes(24).toString('base64url') -- 32-char, zero new deps
+
+**Phase 15-02:**
+- Access gate returns { middleware, addToCache } for shared cache with /start handler
+- Used grammy Api class for botUsername fetch before createBot (avoids chicken-and-egg)
+- /invite admin check uses ctx.user.role from access gate, not config.adminUserIds
 
 ### Key Research Findings (v1.2)
 
@@ -63,5 +69,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-11
-Stopped at: Completed 15-01-PLAN.md (Identity Data Layer)
-Next action: Execute 15-02-PLAN.md (access gate, /start handler, /invite command)
+Stopped at: Completed 15-02-PLAN.md (Bot Integration -- access gate, /start, /invite)
+Next action: Plan Phase 16 (chatId -> householdId data migration)

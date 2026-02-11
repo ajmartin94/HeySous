@@ -1,5 +1,5 @@
 ---
-status: complete
+status: diagnosed
 phase: 15-users-households-invites
 source: [15-01-SUMMARY.md, 15-02-SUMMARY.md]
 started: 2026-02-11T14:30:00Z
@@ -57,7 +57,13 @@ skipped: 0
   reason: "User reported: admin account did not get a message saying the invited user was added and there's an error on the server"
   severity: major
   test: 5
-  root_cause: ""
-  artifacts: []
-  missing: []
-  debug_session: ""
+  root_cause: "Two issues: (1) admin.telegramId is a string but ctx.api.sendMessage needs a number for private chats, (2) global HTML parse mode chokes on unescaped display names"
+  artifacts:
+    - path: "src/bot/handlers/start.ts"
+      issue: "Lines 76-87: notification uses string chat_id and no HTML safety"
+    - path: "src/bot/index.ts"
+      issue: "Line 74: global HTML parse mode transformer affects all sendMessage calls"
+  missing:
+    - "Convert admin.telegramId to Number() before sendMessage"
+    - "Override parse_mode to undefined for plain-text notification"
+  debug_session: ".planning/debug/admin-notification-invite-join.md"

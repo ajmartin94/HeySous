@@ -11,6 +11,7 @@ import { initializeReminders } from "../reminders/init.js";
 import { initializeFeedback } from "../feedback/init.js";
 import { initializeUsers } from "../users/init.js";
 import { initializeInvites } from "../invites/init.js";
+import { initializeAppFeedback } from "../app-feedback/init.js";
 import { config } from "../config.js";
 
 export type DrizzleDatabase = ReturnType<typeof createDatabase>;
@@ -51,6 +52,9 @@ export function createDatabase(dbPath: string) {
 
   // Initialize invite tokens table (must come after users/households)
   initializeInvites(sqlite);
+
+  // Initialize app feedback tables (feedback + proactive prompt tracking)
+  initializeAppFeedback(sqlite);
 
   // Return Drizzle ORM instance with schema
   return drizzle(sqlite, { schema });

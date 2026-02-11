@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-10)
 
 **Core value:** The recipe brain -- an AI agent that remembers everything about your meals and reasons over that knowledge to help you plan.
-**Current focus:** Phase 19 -- User Help Functionality
+**Current focus:** v1.2 Onboarding and Feedback -- Phase 19 complete
 
 ## Current Position
 
 Phase: 19 of 19 (User Help Functionality)
-Plan: 1 of 2 complete
-Status: In Progress
-Last activity: 2026-02-11 -- Completed 19-01 Help Command and System Prompt
+Plan: 2 of 2 complete
+Status: Phase Complete
+Last activity: 2026-02-11 -- Completed 19-02 Mini App Help Page
 
-Progress: [█████████░] 95%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -38,6 +38,7 @@ Progress: [█████████░] 95%
 - 18-01: 4 min (2 tasks, 11 files)
 - 18-02: 3 min (2 tasks, 5 files)
 - 19-01: 2 min (2 tasks, 4 files)
+- 19-02: 3 min (2 tasks, 6 files)
 
 ## Accumulated Context
 
@@ -92,6 +93,11 @@ All v1.0 and v1.1 decisions documented with outcomes.
 - Help handler has no DB dependencies -- uses only config.miniAppUrl for webApp button
 - HELP_PROMPT positioned after APP_FEEDBACK_PROMPT and before onboarding/appFeedback context injections
 
+**Phase 19-02:**
+- Admin section at bottom of Help page to avoid layout shift during role fetch
+- Default to non-admin on /api/me error for safe degradation
+- /api/me uses chatId from auth middleware, returns { role: "admin" | "member" }
+
 ### Key Research Findings (v1.2)
 
 - Zero new npm dependencies needed for v1.2
@@ -116,5 +122,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-11
-Stopped at: Completed 19-01-PLAN.md (Help Command and System Prompt)
-Next action: Execute 19-02-PLAN.md
+Stopped at: Completed 19-02-PLAN.md (Mini App Help Page)
+Next action: Phase 19 complete -- all plans done, ready for phase transition

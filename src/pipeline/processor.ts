@@ -71,7 +71,7 @@ interface ProcessorDeps {
   sqlite: BetterSqlite3.Database;
   groceryRepository?: ReturnType<typeof createGroceryRepository>;
   reminderRepository?: ReturnType<typeof createReminderRepository>;
-  generateRemindersFn?: (chatId: string) => void;
+  generateRemindersFn?: (householdId: string) => void;
   feedbackRepository?: ReturnType<typeof import("../feedback/repository.js").createFeedbackRepository>;
   clock: Clock;
 }
@@ -88,6 +88,7 @@ export function createProcessor(deps: ProcessorDeps) {
   return async function processBatch(batch: PendingBatch): Promise<void> {
     const ctx = batch.ctx as BotContext;
     const { chatId, userId } = batch;
+    const householdId = ctx.householdId!;
 
     try {
       // a. Start typing indicator (non-blocking)
@@ -144,7 +145,7 @@ export function createProcessor(deps: ProcessorDeps) {
         retrievalService,
         knowledgeRepository,
         db,
-        chatId,
+        householdId,
         planRepository,
         sqlite: deps.sqlite,
         groceryRepository: deps.groceryRepository,
@@ -154,29 +155,30 @@ export function createProcessor(deps: ProcessorDeps) {
       });
 
       // g2. Auto-mark past planned meals as cooked before Claude processes
-      autoMarkCookedMeals(deps.sqlite, chatId, deps.clock);
+      autoMarkCookedMeals(deps.sqlite, householdId, deps.clock);
 
       // g3. Load active plan context for system prompt injection
-      const activePlans = planRepository.getActivePlans(chatId);
-      const cookingHistoryEntries = getCookingHistory(deps.sqlite, chatId, deps.clock);
+      const activePlans = planRepository.getActivePlans(householdId);
+      const cookingHistoryEntries = getCookingHistory(deps.sqlite, householdId, deps.clock);
       const planContext = buildPlanContext(activePlans, cookingHistoryEntries);
 
       // g4. Load active grocery list context for system prompt injection
       const groceryContext = deps.groceryRepository
-        ? buildGroceryContext(deps.sqlite, chatId)
+        ? buildGroceryContext(deps.sqlite, householdId)
         : "";
 
       // g5. Load reminder settings context for system prompt injection
       const reminderContext = deps.reminderRepository
-        ? buildReminderContext(deps.sqlite, chatId, deps.clock)
+        ? buildReminderContext(deps.sqlite, householdId, deps.clock)
         : "";
 
       // g6. Load feedback context for system prompt injection
-      const feedbackContext = buildFeedbackContext(deps.sqlite, chatId, deps.clock);
+      const feedbackContext = buildFeedbackContext(deps.sqlite, householdId, deps.clock);
 
       // h. Load user preferences for system prompt injection
-      const preferences = getPreferenceSummaries(deps.sqlite, chatId);
-      const systemPrompt = buildSystemPrompt(preferences, planContext, groceryContext, reminderContext, feedbackContext);
+      const preferences = getPreferenceSummaries(deps.sqlite, householdId);
+      const userName = ctx.user?.displayName;
+      const systemPrompt = buildSystemPrompt(preferences, planContext, groceryContext, reminderContext, feedbackContext, userName);
 
       // i. 30-second timeout warning timer
       let timeoutFired = false;
@@ -265,7 +267,7 @@ export function createProcessor(deps: ProcessorDeps) {
       // l2. Edit grocery list message if tools modified it
       if (deps.groceryRepository) {
         try {
-          const activeList = deps.groceryRepository.getActiveList(chatId);
+          const activeList = deps.groceryRepository.getActiveList(householdId);
           if (activeList && activeList.messageId) {
             const groceryItems = deps.groceryRepository.getListItems(activeList.id);
             const formattedList = formatGroceryList(groceryItems);
@@ -289,7 +291,7 @@ export function createProcessor(deps: ProcessorDeps) {
       const estimatedCost = calculateCost(response.model, response.usage);
 
       await db.insert(tokenUsage).values({
-        chatId,
+        householdId,
         userId,
         model: response.model,
         conversationType: "chat",

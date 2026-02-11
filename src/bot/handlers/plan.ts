@@ -29,7 +29,7 @@ interface PlanRow {
  */
 function getCurrentWeekPlan(
   sqlite: BetterSqlite3.Database,
-  chatId: string,
+  householdId: string,
 ): PlanRow[] {
   const weekStart = getWeekStartDate();
 
@@ -39,11 +39,11 @@ function getCurrentWeekPlan(
       SELECT mpe.recipe_name, mpe.day_of_week, mpe.meal_type
       FROM meal_plans mp
       JOIN meal_plan_entries mpe ON mpe.plan_id = mp.id
-      WHERE mp.chat_id = ? AND mp.week_start_date = ?
+      WHERE mp.household_id = ? AND mp.week_start_date = ?
       ORDER BY mpe.day_of_week ASC, mpe.meal_type ASC
       `,
     )
-    .all(chatId, weekStart) as PlanRow[];
+    .all(householdId, weekStart) as PlanRow[];
 }
 
 /**
@@ -107,8 +107,8 @@ export function createPlanHandler(
   const planHandler = new Composer<BotContext>();
 
   planHandler.command("plan", async (ctx) => {
-    const chatId = String(ctx.chat.id);
-    const entries = getCurrentWeekPlan(sqlite, chatId);
+    const householdId = ctx.householdId!;
+    const entries = getCurrentWeekPlan(sqlite, householdId);
 
     if (entries.length === 0) {
       await ctx.reply(

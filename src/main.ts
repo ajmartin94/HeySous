@@ -108,14 +108,14 @@ async function main(): Promise<void> {
   const feedbackRepository = createFeedbackRepository(sqlite);
   logger.info("Feedback repository initialized");
 
-  // Helper to regenerate reminders for a given chat (used by tool handler and startup)
-  const regenerateReminders = (chatId: string): void => {
-    const settings = reminderRepository.getOrCreateSettings(chatId);
+  // Helper to regenerate reminders for a given household (used by tool handler and startup)
+  const regenerateReminders = (householdId: string): void => {
+    const settings = reminderRepository.getOrCreateSettings(householdId);
     generateReminders({
       reminderRepository,
       planRepository,
       sqlite,
-      chatId,
+      householdId,
       settings,
       clock,
     });
@@ -124,7 +124,7 @@ async function main(): Promise<void> {
       reminderRepository,
       planRepository,
       sqlite,
-      chatId,
+      householdId,
       settings,
       clock,
     });
@@ -206,7 +206,7 @@ async function main(): Promise<void> {
   // Regenerate reminders for all active chats on startup (restart-safe)
   const activeSettings = reminderRepository.getAllActiveSettings();
   for (const settings of activeSettings) {
-    regenerateReminders(settings.chatId);
+    regenerateReminders(settings.householdId);
   }
   if (activeSettings.length > 0) {
     logger.info({ chatCount: activeSettings.length }, "Reminders regenerated for active chats on startup");

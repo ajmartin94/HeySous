@@ -27,8 +27,8 @@ export function createRemindersHandler(
   const handler = new Composer<BotContext>();
 
   handler.command("reminders", async (ctx) => {
-    const chatId = String(ctx.chat.id);
-    const settings = reminderRepository.getOrCreateSettings(chatId);
+    const householdId = ctx.householdId!;
+    const settings = reminderRepository.getOrCreateSettings(householdId);
 
     const morningStatus = settings.morningEnabled ? "ON" : "OFF";
     const prepStatus = settings.prepAlertsEnabled ? "ON" : "OFF";

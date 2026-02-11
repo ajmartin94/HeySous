@@ -25,7 +25,7 @@ interface DebugHandlerDeps {
   clock: Clock;
   isDev: boolean;
   pollerTick?: () => Promise<void>;
-  regenerateReminders?: (chatId: string) => void;
+  regenerateReminders?: (householdId: string) => void;
 }
 
 function isTestClock(clock: Clock): clock is TestClock {
@@ -110,12 +110,13 @@ export function createDebugHandler(deps: DebugHandlerDeps): Composer<BotContext>
   const debugHandler = new Composer<BotContext>();
 
   debugHandler.command("debug", async (ctx) => {
+    const householdId = ctx.householdId!;
     const chatId = String(ctx.chat.id);
     const args = (ctx.match as string || "").trim();
 
     // Look up user's timezone (used by time subcommands)
     const getUserTimezone = (): string => {
-      const settings = reminderRepository.getSettings(chatId);
+      const settings = reminderRepository.getSettings(householdId);
       return settings?.timezone ?? "UTC";
     };
 
@@ -137,10 +138,10 @@ export function createDebugHandler(deps: DebugHandlerDeps): Composer<BotContext>
       const dueBefore = sqlite
         .prepare(
           `SELECT id, type, status, due_at FROM reminders
-           WHERE chat_id = ? AND status = 'pending' AND due_at <= ?
+           WHERE household_id = ? AND status = 'pending' AND due_at <= ?
            ORDER BY due_at ASC`,
         )
-        .all(chatId, nowSec) as Array<{ id: number; type: string; status: string; due_at: number }>;
+        .all(householdId, nowSec) as Array<{ id: number; type: string; status: string; due_at: number }>;
 
       await pollerTick();
 
@@ -169,10 +170,10 @@ export function createDebugHandler(deps: DebugHandlerDeps): Composer<BotContext>
         const allPending = sqlite
           .prepare(
             `SELECT id, type, due_at FROM reminders
-             WHERE chat_id = ? AND status = 'pending'
+             WHERE household_id = ? AND status = 'pending'
              ORDER BY due_at ASC LIMIT 5`,
           )
-          .all(chatId) as Array<{ id: number; type: string; due_at: number }>;
+          .all(householdId) as Array<{ id: number; type: string; due_at: number }>;
 
         if (allPending.length > 0) {
           lines.push("Pending (not yet due):");
@@ -202,10 +203,10 @@ export function createDebugHandler(deps: DebugHandlerDeps): Composer<BotContext>
       const rows = sqlite
         .prepare(
           `SELECT id, type, status, due_at, context_json
-           FROM reminders WHERE chat_id = ?
+           FROM reminders WHERE household_id = ?
            ORDER BY due_at ASC LIMIT 20`,
         )
-        .all(chatId) as Array<{
+        .all(householdId) as Array<{
         id: number;
         type: string;
         status: string;
@@ -242,7 +243,7 @@ export function createDebugHandler(deps: DebugHandlerDeps): Composer<BotContext>
         await ctx.reply("Regenerate function not available.");
         return;
       }
-      regenerateReminders(chatId);
+      regenerateReminders(householdId);
       const tz = getUserTimezone();
       const localTime = formatInTimezone(clock.date(), tz);
       await ctx.reply(`Reminders regenerated for this chat at ${localTime} (${tz}).`);
@@ -325,7 +326,7 @@ export function createDebugHandler(deps: DebugHandlerDeps): Composer<BotContext>
     }
 
     // Default: knowledge retrieval stats (original behavior)
-    const metrics = retrievalService.getMetrics(chatId);
+    const metrics = retrievalService.getMetrics(householdId);
 
     if (
       metrics.itemsSearched === 0 &&

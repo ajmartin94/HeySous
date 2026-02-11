@@ -25,15 +25,15 @@ export function createToolHandler(deps: {
   retrievalService: ReturnType<typeof createRetrievalService>;
   knowledgeRepository: ReturnType<typeof createKnowledgeRepository>;
   db: DrizzleDatabase;
-  chatId: string;
+  householdId: string;
   planRepository?: ReturnType<typeof createPlanRepository>;
   sqlite?: BetterSqlite3.Database;
   groceryRepository?: ReturnType<typeof createGroceryRepository>;
   reminderRepository?: ReturnType<typeof createReminderRepository>;
-  generateRemindersFn?: (chatId: string) => void;
+  generateRemindersFn?: (householdId: string) => void;
   clock: Clock;
 }) {
-  const { retrievalService, knowledgeRepository, db, chatId, planRepository, sqlite, groceryRepository, reminderRepository, generateRemindersFn, clock } = deps;
+  const { retrievalService, knowledgeRepository, db, householdId, planRepository, sqlite, groceryRepository, reminderRepository, generateRemindersFn, clock } = deps;
 
   return {
     /**
@@ -53,7 +53,7 @@ export function createToolHandler(deps: {
           const query = input.query as string;
           const limit = input.limit as number | undefined;
           const { results, metrics } = retrievalService.search(
-            chatId,
+            householdId,
             query,
             limit,
           );
@@ -72,7 +72,7 @@ export function createToolHandler(deps: {
 
         case "get_knowledge_item": {
           const id = input.id as number;
-          const item = retrievalService.getItem(id, chatId);
+          const item = retrievalService.getItem(id, householdId);
 
           if (!item) {
             return `No item found with ID ${id}`;
@@ -95,7 +95,7 @@ export function createToolHandler(deps: {
           const tags = input.tags as string[];
 
           try {
-            const item = knowledgeRepository.create(chatId, {
+            const item = knowledgeRepository.create(householdId, {
               title,
               summary,
               content,
@@ -105,7 +105,7 @@ export function createToolHandler(deps: {
             db.insert(knowledgeChangelog)
               .values({
                 knowledgeItemId: item.id,
-                chatId,
+                householdId,
                 action: "create",
                 changeDescription: "Created: " + title,
               })
@@ -133,7 +133,7 @@ export function createToolHandler(deps: {
 
           try {
             // Get current item for changelog snapshot
-            const previous = knowledgeRepository.getById(id, chatId);
+            const previous = knowledgeRepository.getById(id, householdId);
             if (!previous) {
               return JSON.stringify({ error: `No item found with ID ${id}` });
             }
@@ -145,7 +145,7 @@ export function createToolHandler(deps: {
             if (content !== undefined) changes.content = content;
             if (tags !== undefined) changes.tags = tags;
 
-            const updated = knowledgeRepository.update(id, chatId, changes);
+            const updated = knowledgeRepository.update(id, householdId, changes);
             if (!updated) {
               return JSON.stringify({ error: `Failed to update item ${id}` });
             }
@@ -158,7 +158,7 @@ export function createToolHandler(deps: {
             db.insert(knowledgeChangelog)
               .values({
                 knowledgeItemId: id,
-                chatId,
+                householdId,
                 action: "update",
                 changeDescription: description,
                 previousContent: previous.content,
@@ -180,12 +180,12 @@ export function createToolHandler(deps: {
 
           try {
             // Get current item for changelog snapshot
-            const previous = knowledgeRepository.getById(id, chatId);
+            const previous = knowledgeRepository.getById(id, householdId);
             if (!previous) {
               return JSON.stringify({ error: `No item found with ID ${id}` });
             }
 
-            const deleted = knowledgeRepository.delete(id, chatId);
+            const deleted = knowledgeRepository.delete(id, householdId);
             if (!deleted) {
               return JSON.stringify({ error: `Failed to delete item ${id}` });
             }
@@ -193,7 +193,7 @@ export function createToolHandler(deps: {
             db.insert(knowledgeChangelog)
               .values({
                 knowledgeItemId: id,
-                chatId,
+                householdId,
                 action: "delete",
                 changeDescription: "Deleted: " + previous.title,
                 previousContent: previous.content,
@@ -230,7 +230,7 @@ export function createToolHandler(deps: {
             knowledgeItemId: e.knowledge_item_id,
           }));
 
-          const plan = planRepository.savePlan(chatId, weekStartDate, entries);
+          const plan = planRepository.savePlan(householdId, weekStartDate, entries);
 
           return JSON.stringify({
             message: `Saved plan for week of ${weekStartDate}`,
@@ -256,7 +256,7 @@ export function createToolHandler(deps: {
             (input.week_start_date as string | undefined) ??
             getWeekStartDate();
 
-          const plan = planRepository.getPlan(chatId, weekStartDate);
+          const plan = planRepository.getPlan(householdId, weekStartDate);
 
           if (!plan) {
             return JSON.stringify({
@@ -293,7 +293,7 @@ export function createToolHandler(deps: {
           const notes = input.notes as string | undefined;
 
           logMeal(sqlite, {
-            chatId,
+            householdId,
             recipeName,
             cookedDate,
             mealType,
@@ -317,7 +317,7 @@ export function createToolHandler(deps: {
 
           const history = getCookingHistory(
             sqlite,
-            chatId,
+            householdId,
             clock,
             startDate,
             endDate,
@@ -346,7 +346,7 @@ export function createToolHandler(deps: {
             section: string;
           }>;
 
-          const list = groceryRepository.createList(chatId);
+          const list = groceryRepository.createList(householdId);
           groceryRepository.addItems(list.id, items);
 
           return JSON.stringify({
@@ -361,7 +361,7 @@ export function createToolHandler(deps: {
             return JSON.stringify({ error: "Grocery tools not available" });
           }
 
-          const activeList = groceryRepository.getActiveList(chatId);
+          const activeList = groceryRepository.getActiveList(householdId);
           if (!activeList) {
             return JSON.stringify({
               error: "No active grocery list. Use save_grocery_list to create one first.",
@@ -415,7 +415,7 @@ export function createToolHandler(deps: {
             return JSON.stringify({ error: "Grocery tools not available" });
           }
 
-          const currentList = groceryRepository.getActiveList(chatId);
+          const currentList = groceryRepository.getActiveList(householdId);
           if (!currentList) {
             return JSON.stringify({ message: "No active grocery list" });
           }
@@ -441,7 +441,7 @@ export function createToolHandler(deps: {
             return JSON.stringify({ error: "Reminder tools not available" });
           }
 
-          const settings = reminderRepository.getOrCreateSettings(chatId);
+          const settings = reminderRepository.getOrCreateSettings(householdId);
 
           return JSON.stringify({
             timezone: settings.timezone,
@@ -486,11 +486,11 @@ export function createToolHandler(deps: {
             }
           }
 
-          const updated = reminderRepository.upsertSettings(chatId, updates);
+          const updated = reminderRepository.upsertSettings(householdId, updates);
 
           // Regenerate reminders after settings change
           if (generateRemindersFn) {
-            generateRemindersFn(chatId);
+            generateRemindersFn(householdId);
           }
 
           return JSON.stringify({
@@ -511,7 +511,7 @@ export function createToolHandler(deps: {
             return JSON.stringify({ error: "Reminder tools not available" });
           }
 
-          generateRemindersFn(chatId);
+          generateRemindersFn(householdId);
 
           return JSON.stringify({
             message: "Reminders regenerated from current meal plans",
@@ -533,7 +533,7 @@ export function createToolHandler(deps: {
             });
           }
 
-          const item = knowledgeRepository.getById(knowledgeItemId, chatId);
+          const item = knowledgeRepository.getById(knowledgeItemId, householdId);
           if (!item) {
             return JSON.stringify({
               message: `Feedback noted for "${recipeName}" (${sentiment}), but recipe ID ${knowledgeItemId} not found.`,
@@ -557,14 +557,14 @@ export function createToolHandler(deps: {
             updatedContent = item.content + "\n\nFeedback:\n" + annotation;
           }
 
-          knowledgeRepository.update(knowledgeItemId, chatId, {
+          knowledgeRepository.update(knowledgeItemId, householdId, {
             content: updatedContent,
           });
 
           db.insert(knowledgeChangelog)
             .values({
               knowledgeItemId,
-              chatId,
+              householdId,
               action: "update",
               changeDescription: `Feedback annotation added: ${sentiment}`,
               previousContent: item.content,

@@ -92,10 +92,10 @@ export function createFeedbackTextHandler(
       return;
     }
 
-    const chatId = String(ctx.chat.id);
+    const householdId = ctx.householdId!;
 
     // Check if this is a reply to a feedback check-in message
-    const pendingCheckins = feedbackRepository.getPendingSentCheckins(chatId);
+    const pendingCheckins = feedbackRepository.getPendingSentCheckins(householdId);
 
     if (pendingCheckins.length === 0) {
       await next();
@@ -138,7 +138,7 @@ export function createFeedbackTextHandler(
       for (const meal of meals) {
         if (!meal.knowledgeItemId) continue;
 
-        const item = knowledgeRepository.getById(meal.knowledgeItemId, chatId);
+        const item = knowledgeRepository.getById(meal.knowledgeItemId, householdId);
         if (!item) continue;
 
         const updatedContent = appendFeedbackAnnotation(
@@ -148,14 +148,14 @@ export function createFeedbackTextHandler(
           notes || null,
         );
 
-        knowledgeRepository.update(meal.knowledgeItemId, chatId, {
+        knowledgeRepository.update(meal.knowledgeItemId, householdId, {
           content: updatedContent,
         });
 
         db.insert(knowledgeChangelog)
           .values({
             knowledgeItemId: meal.knowledgeItemId,
-            chatId,
+            householdId,
             action: "update",
             changeDescription: `Feedback annotation added: ${sentiment}${notes ? ` - ${notes}` : ""}`,
             previousContent: item.content,

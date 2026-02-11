@@ -137,8 +137,8 @@ export function createPreferencesHandler(
   const preferencesHandler = new Composer<BotContext>();
 
   preferencesHandler.command("preferences", async (ctx) => {
-    const chatId = String(ctx.chat.id);
-    const prefs = getPreferenceSummaries(sqlite, chatId);
+    const householdId = ctx.householdId!;
+    const prefs = getPreferenceSummaries(sqlite, householdId);
 
     if (prefs.length === 0) {
       await ctx.reply(

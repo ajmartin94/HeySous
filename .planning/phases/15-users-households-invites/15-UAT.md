@@ -1,5 +1,5 @@
 ---
-status: complete
+status: diagnosed
 phase: 15-users-households-invites
 source: [15-01-SUMMARY.md, 15-02-SUMMARY.md]
 started: 2026-02-11T13:15:00Z
@@ -63,7 +63,17 @@ skipped: 6
   reason: "User reported: my user ID is in the admin env field, but i'm getting blocked when i message"
   severity: major
   test: 1
-  root_cause: ""
-  artifacts: []
-  missing: []
-  debug_session: ""
+  root_cause: "ADMIN_USER_IDS accepts usernames but access gate looks up by numeric Telegram user ID. Admin seeded with username string, gate queries with numeric ID — no match."
+  artifacts:
+    - path: "src/bot/middlewares/access-gate.ts"
+      issue: "Looks up by ctx.from.id (numeric) — correct behavior"
+    - path: "src/users/init.ts"
+      issue: "Seeds admin with verbatim config value (could be username string)"
+    - path: "src/config.ts"
+      issue: "No validation that admin IDs are numeric"
+    - path: ".env.example"
+      issue: "Comment misleadingly says usernames are accepted"
+  missing:
+    - "Validate ADMIN_USER_IDS are numeric in config.ts"
+    - "Fix .env.example comment to say numeric IDs only"
+  debug_session: ".planning/debug/admin-blocked-by-access-gate.md"

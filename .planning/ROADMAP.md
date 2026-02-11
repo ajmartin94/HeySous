@@ -77,12 +77,11 @@ Plans:
   3. A user can type "skip" at any point during onboarding and immediately use the bot with default settings
   4. A user joining an existing household gets abbreviated onboarding (personal preferences only) and immediately sees the household's existing recipes and plans
   5. Onboarding state survives bot restarts, and the bot progressively learns remaining preferences from regular conversation after initial setup
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 17-01: TBD
-- [ ] 17-02: TBD
-- [ ] 17-03: TBD
+- [ ] 17-01-PLAN.md -- Onboarding module (state machine, prompt builder) and users data layer expansion
+- [ ] 17-02-PLAN.md -- Start handler, pipeline, and system prompt integration with human verification
 
 ### Phase 18: App Feedback
 **Goal**: Users can share feedback about the bot experience, and the admin can review all collected feedback with categorization and sentiment
@@ -113,5 +112,5 @@ Plans:
 | 14. Meal Plan Viewer | v1.1 | 2/2 | Complete | 2026-02-10 |
 | 15. Users, Households, and Invites | v1.2 | 2/2 | Complete | 2026-02-11 |
 | 16. Household Data Migration | v1.2 | 2/2 | Complete | 2026-02-11 |
-| 17. Guided Onboarding | v1.2 | 0/TBD | Not started | - |
+| 17. Guided Onboarding | v1.2 | 0/2 | Not started | - |
 | 18. App Feedback | v1.2 | 0/TBD | Not started | - |

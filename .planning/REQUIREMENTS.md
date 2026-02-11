@@ -99,13 +99,45 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| — | — | — |
+| INVITE-01 | Phase 15 | Pending |
+| INVITE-02 | Phase 15 | Pending |
+| INVITE-03 | Phase 15 | Pending |
+| INVITE-04 | Phase 15 | Pending |
+| INVITE-05 | Phase 15 | Pending |
+| INVITE-06 | Phase 15 | Pending |
+| USER-01 | Phase 15 | Pending |
+| USER-02 | Phase 15 | Pending |
+| USER-03 | Phase 15 | Pending |
+| USER-04 | Phase 16 | Pending |
+| HOUSE-01 | Phase 16 | Pending |
+| HOUSE-02 | Phase 16 | Pending |
+| HOUSE-03 | Phase 16 | Pending |
+| HOUSE-04 | Phase 16 | Pending |
+| HOUSE-05 | Phase 16 | Pending |
+| HOUSE-06 | Phase 16 | Pending |
+| ONBD-01 | Phase 17 | Pending |
+| ONBD-02 | Phase 17 | Pending |
+| ONBD-03 | Phase 17 | Pending |
+| ONBD-04 | Phase 17 | Pending |
+| ONBD-05 | Phase 17 | Pending |
+| ONBD-06 | Phase 17 | Pending |
+| ONBD-07 | Phase 17 | Pending |
+| ONBD-08 | Phase 17 | Pending |
+| ONBD-09 | Phase 17 | Pending |
+| FEED-01 | Phase 18 | Pending |
+| FEED-02 | Phase 18 | Pending |
+| FEED-03 | Phase 18 | Pending |
+| FEED-04 | Phase 18 | Pending |
+| FEED-05 | Phase 18 | Pending |
+| FEED-06 | Phase 18 | Pending |
+| FEED-07 | Phase 18 | Pending |
+| FEED-08 | Phase 18 | Pending |
 
 **Coverage:**
 - v1.2 requirements: 28 total
-- Mapped to phases: 0
-- Unmapped: 28 ⚠️
+- Mapped to phases: 28
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-10*
-*Last updated: 2026-02-10 after initial definition*
+*Last updated: 2026-02-10 after roadmap creation*

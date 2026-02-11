@@ -5,14 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-10)
 
 **Core value:** The recipe brain -- an AI agent that remembers everything about your meals and reasons over that knowledge to help you plan.
-**Current focus:** v1.2 Onboarding and Feedback
+**Current focus:** v1.2 Onboarding and Feedback -- Phase 15 (Users, Households, and Invites)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-02-10 — Milestone v1.2 started
+Phase: 15 of 18 (Users, Households, and Invites)
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-02-10 -- Roadmap created for v1.2 (4 phases, 28 requirements)
+
+Progress: [░░░░░░░░░░] 0% (v1.2)
 
 ## Performance Metrics
 
@@ -33,6 +35,15 @@ Last activity: 2026-02-10 — Milestone v1.2 started
 Decisions are logged in PROJECT.md Key Decisions table.
 All v1.0 and v1.1 decisions documented with outcomes.
 
+### Key Research Findings (v1.2)
+
+- Zero new npm dependencies needed for v1.2
+- Core challenge: chatId -> householdId migration (339 occurrences, 47 files)
+- Phase 15+16 tightly coupled -- half-migrated state is dangerous, execute in rapid succession
+- FTS5 triggers survive ALTER TABLE ADD COLUMN but verify after migration
+- grammY ctx.match provides deep link token natively
+- Onboarding state stored in SQLite (not grammY sessions plugin)
+
 ### Pending Todos
 
 None.
@@ -44,5 +55,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-10
-Stopped at: Milestone v1.2 started, defining requirements
-Next action: Complete research → requirements → roadmap
+Stopped at: Roadmap created for v1.2, ready to plan Phase 15
+Next action: `/gsd:plan-phase 15`

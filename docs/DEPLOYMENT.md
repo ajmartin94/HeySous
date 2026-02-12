@@ -41,7 +41,7 @@ ufw enable
 
 # Disable root login
 sed -i 's/PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config
-systemctl restart sshd
+systemctl restart ssh
 
 # Log out and reconnect as heysous
 exit

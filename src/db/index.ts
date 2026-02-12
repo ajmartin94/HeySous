@@ -12,6 +12,7 @@ import { initializeFeedback } from "../feedback/init.js";
 import { initializeUsers } from "../users/init.js";
 import { initializeInvites } from "../invites/init.js";
 import { initializeAppFeedback } from "../app-feedback/init.js";
+import { initializeCoreTables } from "./init.js";
 import { config } from "../config.js";
 
 export type DrizzleDatabase = ReturnType<typeof createDatabase>;
@@ -28,6 +29,9 @@ export function createDatabase(dbPath: string) {
 
   // Enable foreign keys for CASCADE deletes
   sqlite.pragma("foreign_keys = ON");
+
+  // Initialize core tables (messages, token_usage)
+  initializeCoreTables(sqlite);
 
   // Migrate chat_id -> household_id columns (idempotent, runs before init functions)
   migrateToHouseholdId(sqlite);

@@ -316,7 +316,7 @@ export function createRecipeRoutes(sqlite: BetterSqlite3.Database) {
       // Update last_accessed_at for detail view (acceptable per research)
       sqlite
         .prepare(
-          "UPDATE knowledge_items SET last_accessed_at = ? WHERE id = ? AND chat_id = ?"
+          "UPDATE knowledge_items SET last_accessed_at = ? WHERE id = ? AND household_id = ?"
         )
         .run(Math.floor(Date.now() / 1000), id, householdId);
 

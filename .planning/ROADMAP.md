@@ -4,7 +4,7 @@
 
 - [x] **v1.0 MVP** - Phases 1-10 (shipped 2026-02-09)
 - [x] **v1.1 Mini Apps** - Phases 11-14 (shipped 2026-02-10)
-- [x] **v1.2 Onboarding and Feedback** - Phases 15-18 (shipped 2026-02-11)
+- [x] **v1.2 Onboarding and Feedback** - Phases 15-19 (shipped 2026-02-11)
 
 ## Phases
 
@@ -26,12 +26,13 @@ See .planning/milestones/v1.1-ROADMAP.md for full phase history.
 
 ### v1.2 Onboarding and Feedback
 
-**Milestone Goal:** Enable multi-user access with gated invitations, guided onboarding for new users, full household sharing, and an app feedback system.
+**Milestone Goal:** Enable multi-user access with gated invitations, guided onboarding for new users, full household sharing, an app feedback system, and user help functionality.
 
 - [x] **Phase 15: Users, Households, and Invites** - Multi-user identity with invite-gated access (completed 2026-02-11)
 - [x] **Phase 16: Household Data Migration** - Migrate all data paths from chatId to householdId for shared data (completed 2026-02-11)
 - [x] **Phase 17: Guided Onboarding** - Claude-driven first-run experience for new users (completed 2026-02-11)
 - [x] **Phase 18: App Feedback** - Feedback collection through command, implicit AI detection, Mini App form, and proactive prompting (completed 2026-02-11)
+- [x] **Phase 19: User Help Functionality** - /help command, Mini App help page, and Claude help awareness (completed 2026-02-11)
 
 ## Phase Details
 
@@ -102,6 +103,13 @@ Plans:
 ### Phase 19: User Help Functionality
 **Goal:** Users can discover all bot features and commands through a /help command, Mini App help page, and Hub card, with Claude proactively suggesting help when it detects confusion
 **Depends on:** Phase 18
+**Requirements**: HELP-01, HELP-02, HELP-03, HELP-04, HELP-05
+**Success Criteria** (what must be TRUE):
+  1. User sends /help and receives a friendly short message with a Mini App deep link button
+  2. Claude knows about /help and the help page, and mentions help when users seem confused
+  3. Mini App help page shows all features grouped by category with inline tips and examples
+  4. Admin users see admin-only commands on the help page, regular users do not
+  5. Hub has a Help card that navigates to the help page
 **Plans:** 2 plans
 
 Plans:
@@ -110,7 +118,7 @@ Plans:
 
 ## Progress
 
-**Execution Order:** 1 -> 10 (v1.0) -> 11 -> 14 (v1.1) -> 15 -> 18 (v1.2)
+**Execution Order:** 1 -> 10 (v1.0) -> 11 -> 14 (v1.1) -> 15 -> 19 (v1.2)
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -123,4 +131,4 @@ Plans:
 | 16. Household Data Migration | v1.2 | 2/2 | Complete | 2026-02-11 |
 | 17. Guided Onboarding | v1.2 | 2/2 | Complete | 2026-02-11 |
 | 18. App Feedback | v1.2 | 2/2 | Complete | 2026-02-11 |
-| 19. User Help Functionality | -- | 2/2 | Complete | 2026-02-11 |
+| 19. User Help Functionality | v1.2 | 2/2 | Complete | 2026-02-11 |

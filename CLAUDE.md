@@ -100,6 +100,10 @@ mini-app/src/       React SPA (Vite, React Router, @tma.js/sdk-react)
 - **Imports:** Use `.js` extensions in test files too
 - **Time:** The `Clock` abstraction (`src/clock.ts`) provides testable time -- use `vi.useFakeTimers()` for time-dependent tests
 
+## Git
+
+Branching is managed by the GSD workflow (`.claude/get-shit-done/`). Feature work happens on milestone branches (e.g. `gsd/v1.2-onboarding-and-feedback`). All merges to `main` must go through a pull request -- never push directly to main.
+
 ## Environment
 
 - Node.js >= 22 required (uses `import.meta.dirname`)

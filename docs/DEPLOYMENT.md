@@ -78,7 +78,7 @@ Point your domain's DNS A record to the droplet IP:
 
 ```
 Type: A
-Name: sous (or @ for root domain)
+Name: @ (root domain)
 Value: YOUR_DROPLET_IP
 TTL: 300
 ```
@@ -86,7 +86,7 @@ TTL: 300
 Wait for DNS propagation (usually 1-5 minutes). Verify:
 
 ```bash
-dig +short your-domain.com
+dig +short hey-sous.com
 ```
 
 ## 5. Clone and Build
@@ -96,8 +96,8 @@ cd ~
 git clone <repo-url> heysous
 cd heysous
 
-npm install
-cd mini-app && npm install && cd ..
+npm ci
+cd mini-app && npm ci && cd ..
 
 npm run build:all
 ```
@@ -114,7 +114,7 @@ Edit `.env` with production values:
 BOT_TOKEN=your_telegram_bot_token
 BOT_MODE=webhook
 PORT=3000
-WEBHOOK_URL=https://your-domain.com
+WEBHOOK_URL=https://hey-sous.com
 DB_FILE_NAME=data/heysous.db
 LOG_LEVEL=info
 NODE_ENV=production
@@ -122,7 +122,7 @@ NODE_ENV=production
 ANTHROPIC_API_KEY=your_api_key
 ANTHROPIC_MODEL=claude-haiku-4-5-20251001
 ADMIN_USER_IDS=your_telegram_numeric_id
-MINI_APP_URL=https://your-domain.com/app
+MINI_APP_URL=https://hey-sous.com/app
 ```
 
 Create the data directory (SQLite auto-creates the file, but the directory must exist):
@@ -176,7 +176,7 @@ sudo nano /etc/nginx/sites-available/heysous
 ```nginx
 server {
     listen 80;
-    server_name your-domain.com;
+    server_name hey-sous.com;
 
     location / {
         proxy_pass http://127.0.0.1:3000;
@@ -204,7 +204,7 @@ sudo systemctl reload nginx
 ## 9. SSL Certificate
 
 ```bash
-sudo certbot --nginx -d your-domain.com
+sudo certbot --nginx -d hey-sous.com
 ```
 
 Certbot will auto-configure nginx for HTTPS and set up auto-renewal.
@@ -217,7 +217,7 @@ sudo certbot renew --dry-run
 
 ## 10. Verify
 
-1. **Health check:** `curl https://your-domain.com/health` should return `ok`
+1. **Health check:** `curl https://hey-sous.com/health` should return `ok`
 2. **Bot:** Send `/start` to your bot on Telegram
 3. **Mini App:** Open the bot menu button -- the Mini App hub should load
 4. **Webhook:** `curl https://api.telegram.org/bot<TOKEN>/getWebhookInfo` should show `url` set and `pending_update_count: 0`

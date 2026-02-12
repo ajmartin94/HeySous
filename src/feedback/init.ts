@@ -12,7 +12,7 @@ export function initializeFeedback(sqlite: BetterSqlite3.Database): void {
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS feedback_checkins (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      chat_id TEXT NOT NULL,
+      household_id TEXT NOT NULL,
       reminder_id INTEGER NOT NULL,
       meals_json TEXT NOT NULL,
       status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'sent', 'responded', 'expired')),

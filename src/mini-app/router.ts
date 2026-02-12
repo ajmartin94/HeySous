@@ -1,10 +1,12 @@
 import { Router } from "express";
 import type BetterSqlite3 from "better-sqlite3";
-import { validateInitData } from "./auth-middleware.js";
+import { createInitDataValidator } from "./auth-middleware.js";
 import { createSummaryRoute } from "./routes/summary.js";
 import { createGroceryRoutes } from "./routes/grocery.js";
 import { createRecipeRoutes } from "./routes/recipes.js";
 import { createMealPlanRoutes } from "./routes/meal-plan.js";
+import { createAppFeedbackRoutes } from "./routes/app-feedback.js";
+import { createMeRoute } from "./routes/me.js";
 
 /**
  * Dependencies for the API router.
@@ -26,10 +28,13 @@ export function createApiRouter(deps: ApiRouterDeps): Router {
   const router = Router();
 
   // All API routes require valid Telegram initData
-  router.use(validateInitData);
+  router.use(createInitDataValidator(deps.sqlite));
 
   // Hub dashboard summary
   router.get("/summary", createSummaryRoute(deps.sqlite));
+
+  // User profile / role endpoint
+  router.get("/me", createMeRoute(deps.sqlite));
 
   // Grocery list endpoints
   const grocery = createGroceryRoutes(deps.sqlite);
@@ -46,6 +51,10 @@ export function createApiRouter(deps: ApiRouterDeps): Router {
   // Meal plan endpoints
   const mealPlan = createMealPlanRoutes(deps.sqlite);
   router.get("/meal-plan", mealPlan.getPlan);
+
+  // App feedback endpoint
+  const appFeedback = createAppFeedbackRoutes(deps.sqlite);
+  router.post("/feedback", appFeedback.submit);
 
   return router;
 }

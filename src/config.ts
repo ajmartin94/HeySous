@@ -13,6 +13,7 @@ interface Config {
   anthropicApiKey: string;
   anthropicModel: string;
   adminUserIds: string[];
+  adminUserId: string;
   miniAppUrl: string;
 }
 
@@ -55,5 +56,6 @@ export const config: Config = {
   anthropicApiKey,
   anthropicModel: process.env.ANTHROPIC_MODEL ?? "claude-haiku-4-5-20251001",
   adminUserIds: (process.env.ADMIN_USER_IDS ?? "").split(",").filter(Boolean),
+  adminUserId: (process.env.ADMIN_USER_IDS ?? "").split(",").filter(Boolean)[0] ?? "",
   miniAppUrl: process.env.MINI_APP_URL ?? "",
 };

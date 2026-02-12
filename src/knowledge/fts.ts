@@ -14,7 +14,7 @@ export function initializeFts(sqlite: BetterSqlite3.Database): void {
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS knowledge_items (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      chat_id TEXT NOT NULL,
+      household_id TEXT NOT NULL,
       title TEXT NOT NULL,
       summary TEXT NOT NULL,
       content TEXT NOT NULL,
@@ -37,7 +37,7 @@ export function initializeFts(sqlite: BetterSqlite3.Database): void {
     CREATE TABLE IF NOT EXISTS knowledge_changelog (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       knowledge_item_id INTEGER NOT NULL,
-      chat_id TEXT NOT NULL,
+      household_id TEXT NOT NULL,
       action TEXT NOT NULL,
       change_description TEXT,
       previous_content TEXT,
@@ -119,12 +119,12 @@ export function escapeForFts5(query: string): string {
 /**
  * Search knowledge items using FTS5 full-text search with BM25 ranking.
  * Returns lightweight search results (pass 1 of two-pass retrieval).
- * Filters by chatId for per-user knowledge isolation.
+ * Filters by householdId for per-household knowledge isolation.
  */
 export function searchFts(
   sqlite: BetterSqlite3.Database,
   query: string,
-  chatId: string,
+  householdId: string,
   limit: number = 10
 ): SearchResult[] {
   const escaped = escapeForFts5(query);
@@ -144,12 +144,12 @@ export function searchFts(
       FROM knowledge_fts
       JOIN knowledge_items ki ON ki.id = knowledge_fts.rowid
       WHERE knowledge_fts MATCH ?
-        AND ki.chat_id = ?
+        AND ki.household_id = ?
       ORDER BY relevance ASC
       LIMIT ?
     `
       )
-      .all(escaped, chatId, limit) as Array<{
+      .all(escaped, householdId, limit) as Array<{
       id: number;
       title: string;
       summary: string;
@@ -187,13 +187,13 @@ export function searchFts(
         ki.summary,
         ki.last_accessed_at
       FROM knowledge_items ki
-      WHERE ki.chat_id = ?
+      WHERE ki.household_id = ?
         AND (ki.title LIKE ? ESCAPE '\\' OR ki.summary LIKE ? ESCAPE '\\')
       ORDER BY ki.last_accessed_at DESC
       LIMIT ?
     `
       )
-      .all(chatId, likePattern, likePattern, limit) as Array<{
+      .all(householdId, likePattern, likePattern, limit) as Array<{
       id: number;
       title: string;
       summary: string;
@@ -223,34 +223,34 @@ export function searchFts(
 /**
  * Get full knowledge item by ID (pass 2 of two-pass retrieval).
  * Updates last_accessed_at for recency tracking.
- * Filters by chatId for per-user knowledge isolation.
+ * Filters by householdId for per-household knowledge isolation.
  */
 export function getFullItem(
   sqlite: BetterSqlite3.Database,
   id: number,
-  chatId: string
+  householdId: string
 ): KnowledgeItem | null {
   const now = Math.floor(Date.now() / 1000);
 
   // Update last_accessed_at
   const updateResult = sqlite
     .prepare(
-      `UPDATE knowledge_items SET last_accessed_at = ? WHERE id = ? AND chat_id = ?`
+      `UPDATE knowledge_items SET last_accessed_at = ? WHERE id = ? AND household_id = ?`
     )
-    .run(now, id, chatId);
+    .run(now, id, householdId);
 
   if (updateResult.changes === 0) return null;
 
   // Fetch the item
   const row = sqlite
     .prepare(
-      `SELECT id, chat_id, title, summary, content, source, created_at, updated_at, last_accessed_at
-       FROM knowledge_items WHERE id = ? AND chat_id = ?`
+      `SELECT id, household_id, title, summary, content, source, created_at, updated_at, last_accessed_at
+       FROM knowledge_items WHERE id = ? AND household_id = ?`
     )
-    .get(id, chatId) as
+    .get(id, householdId) as
     | {
         id: number;
-        chat_id: string;
+        household_id: string;
         title: string;
         summary: string;
         content: string;
@@ -272,7 +272,7 @@ export function getFullItem(
 
   return {
     id: row.id,
-    chatId: row.chat_id,
+    householdId: row.household_id,
     title: row.title,
     summary: row.summary,
     content: row.content,

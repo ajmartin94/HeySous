@@ -1,6 +1,6 @@
 export interface KnowledgeItem {
   id: number;
-  chatId: string;
+  householdId: string;
   title: string;
   summary: string;
   content: string;
@@ -36,7 +36,7 @@ export interface TokenBudgetConfig {
 export interface ChangelogEntry {
   id: number;
   knowledgeItemId: number;
-  chatId: string;
+  householdId: string;
   action: "create" | "update" | "delete";
   changeDescription: string | null;
   previousContent: string | null;

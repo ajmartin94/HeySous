@@ -8,7 +8,7 @@ import { guessSection } from "../../grocery/section-map.js";
  * Returns an object with four handlers: getList, toggleItem, addItem, completeList.
  *
  * Follows the same factory pattern as createSummaryRoute (summary.ts).
- * All handlers expect res.locals.chatId to be set by auth middleware.
+ * All handlers expect res.locals.householdId to be set by auth middleware.
  */
 export function createGroceryRoutes(sqlite: BetterSqlite3.Database) {
   const repo = createGroceryRepository(sqlite);
@@ -19,8 +19,8 @@ export function createGroceryRoutes(sqlite: BetterSqlite3.Database) {
      * Returns items and store names for the authenticated user's active list.
      */
     getList(_req: Request, res: Response) {
-      const chatId = res.locals.chatId as string;
-      const list = repo.getActiveList(chatId);
+      const householdId = res.locals.householdId as string;
+      const list = repo.getActiveList(householdId);
 
       if (!list) {
         res.json({ items: [], stores: [] });
@@ -54,7 +54,7 @@ export function createGroceryRoutes(sqlite: BetterSqlite3.Database) {
      * Creates a new item on the active list with auto-assigned section if not provided.
      */
     addItem(req: Request, res: Response) {
-      const chatId = res.locals.chatId as string;
+      const householdId = res.locals.householdId as string;
       const { name, quantity, store, section } = req.body;
 
       if (!name || typeof name !== "string") {
@@ -62,7 +62,7 @@ export function createGroceryRoutes(sqlite: BetterSqlite3.Database) {
         return;
       }
 
-      const list = repo.getActiveList(chatId);
+      const list = repo.getActiveList(householdId);
       if (!list) {
         res.status(404).json({ error: "No active grocery list" });
         return;
@@ -88,8 +88,8 @@ export function createGroceryRoutes(sqlite: BetterSqlite3.Database) {
      * Marks the active list as completed.
      */
     completeList(_req: Request, res: Response) {
-      const chatId = res.locals.chatId as string;
-      repo.completeList(chatId);
+      const householdId = res.locals.householdId as string;
+      repo.completeList(householdId);
       res.json({ ok: true });
     },
   };

@@ -26,13 +26,13 @@ interface FeedbackContextRow {
  * them as a lightweight XML block for Claude to reference.
  *
  * @param sqlite - The SQLite database instance
- * @param chatId - The chat ID to look up feedback for
+ * @param householdId - The household ID to look up feedback for
  * @param clock - Clock instance for time calculations
  * @returns Formatted context string, or empty string if no recent feedback
  */
 export function buildFeedbackContext(
   sqlite: BetterSqlite3.Database,
-  chatId: string,
+  householdId: string,
   clock: Clock,
 ): string {
   const fourteenDaysAgo = Math.floor(clock.now() / 1000) - 14 * 86400;
@@ -42,11 +42,11 @@ export function buildFeedbackContext(
       `SELECT fc.sentiment, fc.notes, fc.responded_at, r.context_json
        FROM feedback_checkins fc
        JOIN reminders r ON r.id = fc.reminder_id
-       WHERE fc.chat_id = ? AND fc.status = 'responded' AND fc.responded_at > ?
+       WHERE fc.household_id = ? AND fc.status = 'responded' AND fc.responded_at > ?
        ORDER BY fc.responded_at DESC
        LIMIT 20`,
     )
-    .all(chatId, fourteenDaysAgo) as FeedbackContextRow[];
+    .all(householdId, fourteenDaysAgo) as FeedbackContextRow[];
 
   if (rows.length === 0) return "";
 

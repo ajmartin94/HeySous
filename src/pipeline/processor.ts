@@ -22,7 +22,7 @@ import { calculateCost } from "../ai/claude-client.js";
 import { sendFormattedMessage } from "../telegram/sender.js";
 import { messages, tokenUsage } from "../db/schema.js";
 import { createToolHandler } from "../ai/tool-handler.js";
-import { KNOWLEDGE_TOOLS, PLAN_TOOLS, GROCERY_TOOLS, REMINDER_TOOLS, FEEDBACK_TOOLS } from "../ai/tools.js";
+import { KNOWLEDGE_TOOLS, PLAN_TOOLS, GROCERY_TOOLS, REMINDER_TOOLS, FEEDBACK_TOOLS, APP_FEEDBACK_TOOLS } from "../ai/tools.js";
 import { buildConversationContext } from "../conversation/context-builder.js";
 import type { ConversationTurn } from "../conversation/types.js";
 import type { createRetrievalService } from "../knowledge/retrieval.js";
@@ -36,10 +36,15 @@ import { buildPlanContext } from "../planning/context.js";
 import { buildGroceryContext } from "../grocery/context.js";
 import { buildReminderContext } from "../reminders/context.js";
 import { buildFeedbackContext } from "../feedback/context.js";
+import type { createAppFeedbackRepository } from "../app-feedback/repository.js";
 import { formatGroceryList } from "../grocery/formatter.js";
 import { buildGroceryKeyboard } from "../grocery/buttons.js";
 import { getPreferenceSummaries } from "../knowledge/preferences.js";
 import { buildSystemPrompt } from "../ai/system-prompt.js";
+import { extractOnboardingMarker, getNextOnboardingState } from "../onboarding/state.js";
+import { buildOnboardingPrompt } from "../onboarding/prompt.js";
+import { updateOnboardingState } from "../users/repository.js";
+import type { User } from "../users/types.js";
 import type { DrizzleDatabase } from "../db/index.js";
 import type { Logger } from "pino";
 
@@ -71,9 +76,11 @@ interface ProcessorDeps {
   sqlite: BetterSqlite3.Database;
   groceryRepository?: ReturnType<typeof createGroceryRepository>;
   reminderRepository?: ReturnType<typeof createReminderRepository>;
-  generateRemindersFn?: (chatId: string) => void;
+  generateRemindersFn?: (householdId: string) => void;
   feedbackRepository?: ReturnType<typeof import("../feedback/repository.js").createFeedbackRepository>;
+  appFeedbackRepository?: ReturnType<typeof createAppFeedbackRepository>;
   clock: Clock;
+  refreshUserCache?: (user: User) => void;
 }
 
 /**
@@ -88,6 +95,7 @@ export function createProcessor(deps: ProcessorDeps) {
   return async function processBatch(batch: PendingBatch): Promise<void> {
     const ctx = batch.ctx as BotContext;
     const { chatId, userId } = batch;
+    const householdId = ctx.householdId!;
 
     try {
       // a. Start typing indicator (non-blocking)
@@ -144,39 +152,58 @@ export function createProcessor(deps: ProcessorDeps) {
         retrievalService,
         knowledgeRepository,
         db,
-        chatId,
+        householdId,
         planRepository,
         sqlite: deps.sqlite,
         groceryRepository: deps.groceryRepository,
         reminderRepository: deps.reminderRepository,
         generateRemindersFn: deps.generateRemindersFn,
+        appFeedbackRepository: deps.appFeedbackRepository,
         clock: deps.clock,
       });
 
       // g2. Auto-mark past planned meals as cooked before Claude processes
-      autoMarkCookedMeals(deps.sqlite, chatId, deps.clock);
+      autoMarkCookedMeals(deps.sqlite, householdId, deps.clock);
 
       // g3. Load active plan context for system prompt injection
-      const activePlans = planRepository.getActivePlans(chatId);
-      const cookingHistoryEntries = getCookingHistory(deps.sqlite, chatId, deps.clock);
+      const activePlans = planRepository.getActivePlans(householdId);
+      const cookingHistoryEntries = getCookingHistory(deps.sqlite, householdId, deps.clock);
       const planContext = buildPlanContext(activePlans, cookingHistoryEntries);
 
       // g4. Load active grocery list context for system prompt injection
       const groceryContext = deps.groceryRepository
-        ? buildGroceryContext(deps.sqlite, chatId)
+        ? buildGroceryContext(deps.sqlite, householdId)
         : "";
 
       // g5. Load reminder settings context for system prompt injection
       const reminderContext = deps.reminderRepository
-        ? buildReminderContext(deps.sqlite, chatId, deps.clock)
+        ? buildReminderContext(deps.sqlite, householdId, deps.clock)
         : "";
 
       // g6. Load feedback context for system prompt injection
-      const feedbackContext = buildFeedbackContext(deps.sqlite, chatId, deps.clock);
+      const feedbackContext = buildFeedbackContext(deps.sqlite, householdId, deps.clock);
 
       // h. Load user preferences for system prompt injection
-      const preferences = getPreferenceSummaries(deps.sqlite, chatId);
-      const systemPrompt = buildSystemPrompt(preferences, planContext, groceryContext, reminderContext, feedbackContext);
+      const preferences = getPreferenceSummaries(deps.sqlite, householdId);
+      const userName = ctx.user?.displayName;
+
+      // h2. Build onboarding context if user is in onboarding
+      const onboardingContext = ctx.user && ctx.user.onboardingState !== "complete"
+        ? buildOnboardingPrompt(ctx.user.onboardingState)
+        : "";
+
+      // h3. Proactive app feedback prompt injection
+      const PROACTIVE_FEEDBACK_THRESHOLD = 50;
+      let appFeedbackContext = "";
+      if (deps.appFeedbackRepository) {
+        const messagesSinceLastPrompt = deps.appFeedbackRepository.getMessageCountSinceLastPrompt(householdId);
+        if (messagesSinceLastPrompt >= PROACTIVE_FEEDBACK_THRESHOLD) {
+          appFeedbackContext = "<request_feedback/>";
+          deps.appFeedbackRepository.recordProactivePromptShown(householdId);
+        }
+      }
+
+      const systemPrompt = buildSystemPrompt(preferences, planContext, groceryContext, reminderContext, feedbackContext, userName, onboardingContext, appFeedbackContext);
 
       // i. 30-second timeout warning timer
       let timeoutFired = false;
@@ -195,7 +222,7 @@ export function createProcessor(deps: ProcessorDeps) {
       let response: ClaudeResponse;
       const startTime = Date.now();
 
-      const allTools = [...KNOWLEDGE_TOOLS, ...PLAN_TOOLS, ...GROCERY_TOOLS, ...REMINDER_TOOLS, ...FEEDBACK_TOOLS];
+      const allTools = [...KNOWLEDGE_TOOLS, ...PLAN_TOOLS, ...GROCERY_TOOLS, ...REMINDER_TOOLS, ...FEEDBACK_TOOLS, ...APP_FEEDBACK_TOOLS];
 
       try {
         response = await claudeClient.sendMessageWithTools(
@@ -249,23 +276,44 @@ export function createProcessor(deps: ProcessorDeps) {
       const requestDurationMs = Date.now() - startTime;
       clearTimeout(timeoutTimer);
 
-      // k. Send response via formatted sender
-      await sendFormattedMessage(ctx, response.text);
+      // k. Extract onboarding marker (if any) BEFORE sending to user
+      const { text: cleanText, completedPhase } = extractOnboardingMarker(response.text);
 
-      // l. Save outgoing response to messages table for conversation continuity
-      db.insert(messages)
-        .values({
-          chatId,
-          userId,
-          text: response.text,
-          direction: "out" as const,
-        })
-        .run();
+      // k2. Advance onboarding state if marker was found
+      if (completedPhase !== null && ctx.user && ctx.user.onboardingState !== "complete") {
+        const fromState = ctx.user.onboardingState;
+        const nextState = getNextOnboardingState(ctx.user.onboardingState, completedPhase);
+        updateOnboardingState(deps.sqlite, ctx.user.telegramId, nextState);
+        log.info(
+          { telegramId: ctx.user.telegramId, fromState, toState: nextState, completedPhase },
+          "Onboarding state advanced",
+        );
+        ctx.user.onboardingState = nextState;
+        if (deps.refreshUserCache) {
+          deps.refreshUserCache(ctx.user);
+        }
+      }
+
+      // k3. Send cleaned response via formatted sender (marker stripped)
+      // Skip sending if text is empty after marker extraction (Claude sent only the marker)
+      if (cleanText.trim()) {
+        await sendFormattedMessage(ctx, cleanText);
+
+        // l. Save outgoing response to messages table for conversation continuity
+        db.insert(messages)
+          .values({
+            chatId,
+            userId,
+            text: cleanText,
+            direction: "out" as const,
+          })
+          .run();
+      }
 
       // l2. Edit grocery list message if tools modified it
       if (deps.groceryRepository) {
         try {
-          const activeList = deps.groceryRepository.getActiveList(chatId);
+          const activeList = deps.groceryRepository.getActiveList(householdId);
           if (activeList && activeList.messageId) {
             const groceryItems = deps.groceryRepository.getListItems(activeList.id);
             const formattedList = formatGroceryList(groceryItems);
@@ -289,7 +337,7 @@ export function createProcessor(deps: ProcessorDeps) {
       const estimatedCost = calculateCost(response.model, response.usage);
 
       await db.insert(tokenUsage).values({
-        chatId,
+        householdId,
         userId,
         model: response.model,
         conversationType: "chat",

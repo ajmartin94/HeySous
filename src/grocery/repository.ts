@@ -5,7 +5,7 @@ import type BetterSqlite3 from "better-sqlite3";
  */
 export interface GroceryList {
   id: number;
-  chatId: string;
+  householdId: string;
   planId: number | null;
   messageId: number | null;
   status: string;
@@ -40,7 +40,7 @@ export interface NewGroceryItem {
 /** Raw row shape for grocery_lists from SQLite. */
 interface GroceryListRow {
   id: number;
-  chat_id: string;
+  household_id: string;
   plan_id: number | null;
   message_id: number | null;
   status: string;
@@ -64,7 +64,7 @@ interface GroceryItemRow {
 function mapList(row: GroceryListRow): GroceryList {
   return {
     id: row.id,
-    chatId: row.chat_id,
+    householdId: row.household_id,
     planId: row.plan_id,
     messageId: row.message_id,
     status: row.status,
@@ -98,22 +98,22 @@ export function createGroceryRepository(sqlite: BetterSqlite3.Database) {
      * Create a new active grocery list for a chat.
      * Deactivates any existing active list first (sets status to 'completed').
      */
-    createList(chatId: string, planId?: number): GroceryList {
-      // Deactivate any existing active list for this chat
+    createList(householdId: string, planId?: number): GroceryList {
+      // Deactivate any existing active list for this household
       sqlite
         .prepare(
           `UPDATE grocery_lists SET status = 'completed', updated_at = unixepoch()
-           WHERE chat_id = ? AND status = 'active'`,
+           WHERE household_id = ? AND status = 'active'`,
         )
-        .run(chatId);
+        .run(householdId);
 
       // Insert new active list
       const result = sqlite
         .prepare(
-          `INSERT INTO grocery_lists (chat_id, plan_id, status)
+          `INSERT INTO grocery_lists (household_id, plan_id, status)
            VALUES (?, ?, 'active')`,
         )
-        .run(chatId, planId ?? null);
+        .run(householdId, planId ?? null);
 
       const row = sqlite
         .prepare(`SELECT * FROM grocery_lists WHERE id = ?`)
@@ -126,14 +126,14 @@ export function createGroceryRepository(sqlite: BetterSqlite3.Database) {
      * Get the active grocery list for a chat.
      * Returns null if no active list exists.
      */
-    getActiveList(chatId: string): GroceryList | null {
+    getActiveList(householdId: string): GroceryList | null {
       const row = sqlite
         .prepare(
           `SELECT * FROM grocery_lists
-           WHERE chat_id = ? AND status = 'active'
+           WHERE household_id = ? AND status = 'active'
            ORDER BY created_at DESC LIMIT 1`,
         )
-        .get(chatId) as GroceryListRow | undefined;
+        .get(householdId) as GroceryListRow | undefined;
 
       return row ? mapList(row) : null;
     },
@@ -253,13 +253,13 @@ export function createGroceryRepository(sqlite: BetterSqlite3.Database) {
      * Mark the active grocery list for a chat as completed.
      * Returns true if a list was found and completed, false otherwise.
      */
-    completeList(chatId: string): boolean {
+    completeList(householdId: string): boolean {
       const result = sqlite
         .prepare(
           `UPDATE grocery_lists SET status = 'completed', updated_at = unixepoch()
-           WHERE chat_id = ? AND status = 'active'`,
+           WHERE household_id = ? AND status = 'active'`,
         )
-        .run(chatId);
+        .run(householdId);
 
       return result.changes > 0;
     },

@@ -1,5 +1,7 @@
+import type BetterSqlite3 from "better-sqlite3";
 import type { Logger } from "pino";
 import type { Reminder, ReminderType } from "./types.js";
+import { getHouseholdMembers } from "../users/repository.js";
 
 /**
  * Minimal interface for bot API -- keeps sender decoupled from grammY types.
@@ -38,7 +40,7 @@ interface ClaudeClient {
 interface RetrievalService {
   getItem: (
     id: number,
-    chatId: string,
+    householdId: string,
   ) => { content: string; title: string } | null;
 }
 
@@ -47,6 +49,7 @@ export interface ReminderSenderDeps {
   claudeClient: ClaudeClient;
   retrievalService: RetrievalService;
   logger: Logger;
+  sqlite: BetterSqlite3.Database;
 }
 
 /** System prompt for reminder text generation -- focused, not the full Sous persona. */
@@ -176,7 +179,7 @@ function getFallbackText(
  * Returns true if the reminder was delivered, false otherwise.
  */
 export function createReminderSender(deps: ReminderSenderDeps) {
-  const { bot, claudeClient, retrievalService, logger } = deps;
+  const { bot, claudeClient, retrievalService, logger, sqlite } = deps;
 
   return {
     /**
@@ -212,7 +215,7 @@ export function createReminderSender(deps: ReminderSenderDeps) {
           try {
             const item = retrievalService.getItem(
               context.knowledgeItemId as number,
-              reminder.chatId,
+              reminder.householdId,
             );
             if (item) {
               recipeContent = item.content;
@@ -262,34 +265,37 @@ export function createReminderSender(deps: ReminderSenderDeps) {
           text = getFallbackText(reminder.type, context);
         }
 
-        // 4. Send via Telegram
-        try {
-          await bot.api.sendMessage(reminder.chatId, text, {
-            parse_mode: "HTML",
-          });
+        // 4. Send via Telegram to all household members
+        const members = getHouseholdMembers(sqlite, reminder.householdId);
+        let sent = false;
+        for (const member of members) {
+          try {
+            await bot.api.sendMessage(member.telegramId, text, {
+              parse_mode: "HTML",
+            });
+            sent = true;
+          } catch (error: unknown) {
+            const err = error as { error_code?: number };
+            if (err.error_code === 403) {
+              logger.warn(
+                { reminderId: reminder.id, telegramId: member.telegramId },
+                "Bot blocked by user, skipping",
+              );
+            } else {
+              logger.error(
+                { reminderId: reminder.id, telegramId: member.telegramId, error },
+                "Failed to send reminder to member",
+              );
+            }
+          }
+        }
+        if (sent) {
           logger.info(
-            { reminderId: reminder.id, chatId: reminder.chatId, type: reminder.type },
+            { reminderId: reminder.id, householdId: reminder.householdId, type: reminder.type, memberCount: members.length },
             "Reminder sent successfully",
           );
-          return true;
-        } catch (error: unknown) {
-          const err = error as { description?: string; error_code?: number };
-
-          // Telegram 403: bot was blocked by user
-          if (err.error_code === 403) {
-            logger.warn(
-              { reminderId: reminder.id, chatId: reminder.chatId },
-              "Bot blocked by user (403), skipping reminder",
-            );
-            return false;
-          }
-
-          logger.error(
-            { reminderId: reminder.id, chatId: reminder.chatId, error },
-            "Failed to send reminder via Telegram",
-          );
-          return false;
         }
+        return sent;
       } catch (error) {
         // Outermost catch -- NEVER let sender throw
         logger.error(

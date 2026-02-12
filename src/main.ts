@@ -12,6 +12,7 @@
  */
 
 import type BetterSqlite3 from "better-sqlite3";
+import { Api } from "grammy";
 import { config } from "./config.js";
 import { createBot } from "./bot/index.js";
 import { createServer } from "./server.js";
@@ -26,6 +27,7 @@ import { createPreferencesHandler } from "./bot/handlers/preferences.js";
 import { createPlanHandler } from "./bot/handlers/plan.js";
 import { createGroceryHandler, createGroceryCallbackHandler } from "./bot/handlers/grocery.js";
 import { createRemindersHandler } from "./bot/handlers/reminders.js";
+import { createHelpHandler } from "./bot/handlers/help.js";
 import { createRetrievalService } from "./knowledge/retrieval.js";
 import { createKnowledgeRepository } from "./knowledge/repository.js";
 import { createPlanRepository } from "./planning/repository.js";
@@ -37,10 +39,15 @@ import { generateReminders } from "./reminders/generator.js";
 import { createFeedbackRepository } from "./feedback/repository.js";
 import { createFeedbackCallbackHandler } from "./feedback/handler.js";
 import { createFeedbackTextHandler } from "./bot/handlers/feedback.js";
+import { createAppFeedbackRepository } from "./app-feedback/repository.js";
+import { createAppFeedbackHandler } from "./bot/handlers/app-feedback.js";
 import { createFeedbackSender } from "./feedback/sender.js";
 import { generateFeedbackCheckins } from "./feedback/generator.js";
 import { createApiRouter } from "./mini-app/router.js";
 import { setupMenuButton } from "./telegram/menu-button.js";
+import { createAccessGate } from "./bot/middlewares/access-gate.js";
+import { createStartHandler } from "./bot/handlers/start.js";
+import { createInviteHandler } from "./bot/handlers/invite.js";
 import { createClock, createTestClock } from "./clock.js";
 import { logger } from "./logger.js";
 
@@ -58,6 +65,17 @@ async function main(): Promise<void> {
   // Get raw better-sqlite3 instance for direct FTS5 access
   // Drizzle exposes the underlying driver via $client (not in public type defs)
   const sqlite = (db as unknown as { $client: BetterSqlite3.Database }).$client;
+
+  // Get bot info for username (needed for invite deep links)
+  const api = new Api(config.botToken);
+  const me = await api.getMe();
+  const botUsername = me.username;
+  logger.info({ botUsername }, "Bot info fetched");
+
+  // Initialize access gate and identity handlers
+  const { middleware: accessGate, addToCache, refreshUserCache } = createAccessGate({ sqlite });
+  const startHandler = createStartHandler({ sqlite, db, addToCache });
+  const inviteHandler = createInviteHandler({ sqlite, botUsername });
 
   // Initialize Claude client
   const claudeClient = createClaudeClient(
@@ -93,14 +111,18 @@ async function main(): Promise<void> {
   const feedbackRepository = createFeedbackRepository(sqlite);
   logger.info("Feedback repository initialized");
 
-  // Helper to regenerate reminders for a given chat (used by tool handler and startup)
-  const regenerateReminders = (chatId: string): void => {
-    const settings = reminderRepository.getOrCreateSettings(chatId);
+  // Initialize app feedback repository for app-level feedback CRUD
+  const appFeedbackRepository = createAppFeedbackRepository(sqlite);
+  logger.info("App feedback repository initialized");
+
+  // Helper to regenerate reminders for a given household (used by tool handler and startup)
+  const regenerateReminders = (householdId: string): void => {
+    const settings = reminderRepository.getOrCreateSettings(householdId);
     generateReminders({
       reminderRepository,
       planRepository,
       sqlite,
-      chatId,
+      householdId,
       settings,
       clock,
     });
@@ -109,7 +131,7 @@ async function main(): Promise<void> {
       reminderRepository,
       planRepository,
       sqlite,
-      chatId,
+      householdId,
       settings,
       clock,
     });
@@ -128,7 +150,9 @@ async function main(): Promise<void> {
     reminderRepository,
     generateRemindersFn: regenerateReminders,
     feedbackRepository,
+    appFeedbackRepository,
     clock,
+    refreshUserCache,
   });
 
   // Late-bound pollerTick -- set after poller is created below
@@ -154,10 +178,15 @@ async function main(): Promise<void> {
   const remindersHandler = createRemindersHandler(sqlite, clock);
   const feedbackCallbackHandler = createFeedbackCallbackHandler({ sqlite, feedbackRepository, knowledgeRepository, db, clock });
   const feedbackTextHandler = createFeedbackTextHandler({ sqlite, feedbackRepository, knowledgeRepository, db, claudeClient, clock });
+  const appFeedbackHandler = createAppFeedbackHandler(sqlite);
+  const helpHandler = createHelpHandler();
   const messageHandler = createMessageHandler(queue, processBatch);
 
   // Create bot instance with all dependencies
   const bot = createBot(config.botToken, {
+    accessGate,
+    startHandler,
+    inviteHandler,
     costsHandler,
     debugHandler,
     preferencesHandler,
@@ -165,7 +194,9 @@ async function main(): Promise<void> {
     groceryHandler,
     groceryCallbackHandler,
     feedbackCallbackHandler,
+    appFeedbackHandler,
     remindersHandler,
+    helpHandler,
     messageHandler,
     feedbackTextHandler,
     db,
@@ -175,8 +206,8 @@ async function main(): Promise<void> {
   await setupMenuButton(bot, config.miniAppUrl);
 
   // Initialize reminder system BEFORE bot.start() (which blocks in polling mode)
-  const reminderSender = createReminderSender({ bot: bot as Parameters<typeof createReminderSender>[0]["bot"], claudeClient, retrievalService, logger });
-  const feedbackSender = createFeedbackSender({ bot: bot as Parameters<typeof createFeedbackSender>[0]["bot"], logger });
+  const reminderSender = createReminderSender({ bot: bot as Parameters<typeof createReminderSender>[0]["bot"], claudeClient, retrievalService, logger, sqlite });
+  const feedbackSender = createFeedbackSender({ bot: bot as Parameters<typeof createFeedbackSender>[0]["bot"], logger, sqlite });
   const reminderPoller = createReminderPoller({ reminderRepository, sender: reminderSender, logger, feedbackSender, feedbackRepository });
 
   // Wire up the late-bound pollerTick for /debug tick
@@ -188,7 +219,7 @@ async function main(): Promise<void> {
   // Regenerate reminders for all active chats on startup (restart-safe)
   const activeSettings = reminderRepository.getAllActiveSettings();
   for (const settings of activeSettings) {
-    regenerateReminders(settings.chatId);
+    regenerateReminders(settings.householdId);
   }
   if (activeSettings.length > 0) {
     logger.info({ chatCount: activeSettings.length }, "Reminders regenerated for active chats on startup");

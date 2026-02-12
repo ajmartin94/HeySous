@@ -6,7 +6,7 @@ import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
  */
 export const mealPlans = sqliteTable("meal_plans", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  chatId: text("chat_id").notNull(),
+  householdId: text("household_id").notNull(),
   weekStartDate: text("week_start_date").notNull(),
   createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()
@@ -45,7 +45,7 @@ export const mealPlanEntries = sqliteTable("meal_plan_entries", {
  */
 export const cookingHistory = sqliteTable("cooking_history", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  chatId: text("chat_id").notNull(),
+  householdId: text("household_id").notNull(),
   recipeName: text("recipe_name").notNull(),
   knowledgeItemId: integer("knowledge_item_id"),
   cookedDate: text("cooked_date").notNull(),

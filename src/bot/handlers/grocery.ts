@@ -32,8 +32,8 @@ export function createGroceryHandler(
   const handler = new Composer<BotContext>();
 
   handler.command("grocery", async (ctx) => {
-    const chatId = String(ctx.chat.id);
-    const activeList = groceryRepository.getActiveList(chatId);
+    const householdId = ctx.householdId!;
+    const activeList = groceryRepository.getActiveList(householdId);
 
     if (!activeList) {
       await ctx.reply(

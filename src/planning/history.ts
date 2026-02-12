@@ -24,7 +24,7 @@ export function initializePlanning(sqlite: BetterSqlite3.Database): void {
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS meal_plans (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      chat_id TEXT NOT NULL,
+      household_id TEXT NOT NULL,
       week_start_date TEXT NOT NULL,
       created_at INTEGER NOT NULL DEFAULT (unixepoch()),
       updated_at INTEGER NOT NULL DEFAULT (unixepoch())
@@ -46,7 +46,7 @@ export function initializePlanning(sqlite: BetterSqlite3.Database): void {
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS cooking_history (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      chat_id TEXT NOT NULL,
+      household_id TEXT NOT NULL,
       recipe_name TEXT NOT NULL,
       knowledge_item_id INTEGER,
       cooked_date TEXT NOT NULL,
@@ -64,12 +64,12 @@ export function initializePlanning(sqlite: BetterSqlite3.Database): void {
  * cooked_date is before today AND no matching entry exists yet.
  *
  * @param sqlite - Raw better-sqlite3 database instance
- * @param chatId - Chat ID to process
+ * @param householdId - Household ID to process
  * @returns Number of meals auto-marked as cooked
  */
 export function autoMarkCookedMeals(
   sqlite: BetterSqlite3.Database,
-  chatId: string,
+  householdId: string,
   clock: Clock,
 ): number {
   const today = formatIsoDate(clock.date());
@@ -77,9 +77,9 @@ export function autoMarkCookedMeals(
   const result = sqlite
     .prepare(
       `
-      INSERT INTO cooking_history (chat_id, recipe_name, knowledge_item_id, cooked_date, meal_type, source)
+      INSERT INTO cooking_history (household_id, recipe_name, knowledge_item_id, cooked_date, meal_type, source)
       SELECT
-        mp.chat_id,
+        mp.household_id,
         mpe.recipe_name,
         mpe.knowledge_item_id,
         date(mp.week_start_date, '+' || mpe.day_of_week || ' days') AS cooked_date,
@@ -87,18 +87,18 @@ export function autoMarkCookedMeals(
         'planned'
       FROM meal_plan_entries mpe
       JOIN meal_plans mp ON mp.id = mpe.plan_id
-      WHERE mp.chat_id = ?
+      WHERE mp.household_id = ?
         AND date(mp.week_start_date, '+' || mpe.day_of_week || ' days') < ?
         AND NOT EXISTS (
           SELECT 1 FROM cooking_history ch
-          WHERE ch.chat_id = mp.chat_id
+          WHERE ch.household_id = mp.household_id
             AND ch.recipe_name = mpe.recipe_name
             AND ch.cooked_date = date(mp.week_start_date, '+' || mpe.day_of_week || ' days')
             AND ch.meal_type = mpe.meal_type
         )
       `,
     )
-    .run(chatId, today);
+    .run(householdId, today);
 
   return result.changes;
 }
@@ -112,7 +112,7 @@ export function autoMarkCookedMeals(
 export function logMeal(
   sqlite: BetterSqlite3.Database,
   params: {
-    chatId: string;
+    householdId: string;
     recipeName: string;
     cookedDate: string;
     mealType?: string;
@@ -124,12 +124,12 @@ export function logMeal(
   sqlite
     .prepare(
       `
-      INSERT INTO cooking_history (chat_id, recipe_name, knowledge_item_id, cooked_date, meal_type, source, notes)
+      INSERT INTO cooking_history (household_id, recipe_name, knowledge_item_id, cooked_date, meal_type, source, notes)
       VALUES (?, ?, ?, ?, ?, ?, ?)
       `,
     )
     .run(
-      params.chatId,
+      params.householdId,
       params.recipeName,
       params.knowledgeItemId ?? null,
       params.cookedDate,
@@ -144,14 +144,14 @@ export function logMeal(
  * Defaults to last 3 weeks (21 days) if no dates provided.
  *
  * @param sqlite - Raw better-sqlite3 database instance
- * @param chatId - Chat ID for per-user isolation
+ * @param householdId - Household ID for per-household isolation
  * @param startDate - Optional ISO date string for range start
  * @param endDate - Optional ISO date string for range end
  * @returns Array of cooking history entries sorted by cookedDate desc
  */
 export function getCookingHistory(
   sqlite: BetterSqlite3.Database,
-  chatId: string,
+  householdId: string,
   clock: Clock,
   startDate?: string,
   endDate?: string,
@@ -171,13 +171,13 @@ export function getCookingHistory(
       `
       SELECT id, recipe_name, knowledge_item_id, cooked_date, meal_type, source, notes
       FROM cooking_history
-      WHERE chat_id = ?
+      WHERE household_id = ?
         AND cooked_date >= ?
         AND cooked_date <= ?
       ORDER BY cooked_date DESC
       `,
     )
-    .all(chatId, start, end) as Array<{
+    .all(householdId, start, end) as Array<{
     id: number;
     recipe_name: string;
     knowledge_item_id: number | null;

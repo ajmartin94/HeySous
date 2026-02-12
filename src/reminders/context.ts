@@ -21,22 +21,22 @@ interface SettingsContextRow {
  * Same pattern as buildGroceryContext in grocery/context.ts.
  *
  * @param sqlite - The SQLite database instance
- * @param chatId - The chat ID to look up settings for
+ * @param householdId - The household ID to look up settings for
  * @param clock - Clock instance for time comparisons
  * @returns Formatted context string, or empty string if no settings
  */
 export function buildReminderContext(
   sqlite: BetterSqlite3.Database,
-  chatId: string,
+  householdId: string,
   clock: Clock,
 ): string {
   const row = sqlite
     .prepare(
       `SELECT timezone, morning_time, dinner_time, morning_enabled, prep_alerts_enabled, muted_until
        FROM reminder_settings
-       WHERE chat_id = ?`,
+       WHERE household_id = ?`,
     )
-    .get(chatId) as SettingsContextRow | undefined;
+    .get(householdId) as SettingsContextRow | undefined;
 
   if (!row) return "";
 

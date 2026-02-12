@@ -17,12 +17,12 @@ interface GroceryContextRow {
  * when it needs full details.
  *
  * @param sqlite - The SQLite database instance
- * @param chatId - The chat ID to look up the active list for
+ * @param householdId - The household ID to look up the active list for
  * @returns Formatted context string, or empty string if no active list
  */
 export function buildGroceryContext(
   sqlite: BetterSqlite3.Database,
-  chatId: string,
+  householdId: string,
 ): string {
   const row = sqlite
     .prepare(
@@ -32,11 +32,11 @@ export function buildGroceryContext(
               GROUP_CONCAT(DISTINCT gli.store) as stores
        FROM grocery_lists gl
        LEFT JOIN grocery_list_items gli ON gli.list_id = gl.id
-       WHERE gl.chat_id = ? AND gl.status = 'active'
+       WHERE gl.household_id = ? AND gl.status = 'active'
        GROUP BY gl.id
        LIMIT 1`,
     )
-    .get(chatId) as GroceryContextRow | undefined;
+    .get(householdId) as GroceryContextRow | undefined;
 
   if (!row) return "";
 

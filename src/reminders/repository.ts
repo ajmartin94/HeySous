@@ -10,7 +10,7 @@ import type {
 /** Raw row shape for reminder_settings from SQLite. */
 interface ReminderSettingsRow {
   id: number;
-  chat_id: string;
+  household_id: string;
   timezone: string;
   morning_time: string;
   dinner_time: string;
@@ -24,7 +24,7 @@ interface ReminderSettingsRow {
 /** Raw row shape for reminders from SQLite. */
 interface ReminderRow {
   id: number;
-  chat_id: string;
+  household_id: string;
   type: string;
   due_at: number;
   status: string;
@@ -38,7 +38,7 @@ interface ReminderRow {
 function mapSettings(row: ReminderSettingsRow): ReminderSettings {
   return {
     id: row.id,
-    chatId: row.chat_id,
+    householdId: row.household_id,
     timezone: row.timezone,
     morningTime: row.morning_time,
     dinnerTime: row.dinner_time,
@@ -54,7 +54,7 @@ function mapSettings(row: ReminderSettingsRow): ReminderSettings {
 function mapReminder(row: ReminderRow): Reminder {
   return {
     id: row.id,
-    chatId: row.chat_id,
+    householdId: row.household_id,
     type: row.type as ReminderType,
     dueAt: new Date(row.due_at * 1000),
     status: row.status as ReminderStatus,
@@ -80,22 +80,22 @@ export function createReminderRepository(sqlite: BetterSqlite3.Database, clock?:
      * Get reminder settings for a chat.
      * Returns null if no settings exist yet.
      */
-    getSettings(chatId: string): ReminderSettings | null {
+    getSettings(householdId: string): ReminderSettings | null {
       const row = sqlite
-        .prepare(`SELECT * FROM reminder_settings WHERE chat_id = ?`)
-        .get(chatId) as ReminderSettingsRow | undefined;
+        .prepare(`SELECT * FROM reminder_settings WHERE household_id = ?`)
+        .get(householdId) as ReminderSettingsRow | undefined;
 
       return row ? mapSettings(row) : null;
     },
 
     /**
-     * Insert or update settings for a chat.
-     * Uses INSERT ... ON CONFLICT(chat_id) DO UPDATE with excluded pseudo-table.
+     * Insert or update settings for a household.
+     * Uses INSERT ... ON CONFLICT(household_id) DO UPDATE with excluded pseudo-table.
      * On insert: uses provided values or defaults.
      * On conflict: updates only fields that were explicitly provided.
      */
     upsertSettings(
-      chatId: string,
+      householdId: string,
       updates: Partial<{
         timezone: string;
         morningTime: string;
@@ -138,9 +138,9 @@ export function createReminderRepository(sqlite: BetterSqlite3.Database, clock?:
 
       sqlite
         .prepare(
-          `INSERT INTO reminder_settings (chat_id, timezone, morning_time, dinner_time, morning_enabled, prep_alerts_enabled, muted_until)
-           VALUES (@chatId, @timezone, @morningTime, @dinnerTime, @morningEnabled, @prepAlertsEnabled, @mutedUntil)
-           ON CONFLICT(chat_id) DO UPDATE SET
+          `INSERT INTO reminder_settings (household_id, timezone, morning_time, dinner_time, morning_enabled, prep_alerts_enabled, muted_until)
+           VALUES (@householdId, @timezone, @morningTime, @dinnerTime, @morningEnabled, @prepAlertsEnabled, @mutedUntil)
+           ON CONFLICT(household_id) DO UPDATE SET
              timezone = COALESCE(@updateTimezone, timezone),
              morning_time = COALESCE(@updateMorningTime, morning_time),
              dinner_time = COALESCE(@updateDinnerTime, dinner_time),
@@ -150,7 +150,7 @@ export function createReminderRepository(sqlite: BetterSqlite3.Database, clock?:
              updated_at = unixepoch()`,
         )
         .run({
-          chatId,
+          householdId,
           timezone,
           morningTime,
           dinnerTime,
@@ -166,8 +166,8 @@ export function createReminderRepository(sqlite: BetterSqlite3.Database, clock?:
         });
 
       const row = sqlite
-        .prepare(`SELECT * FROM reminder_settings WHERE chat_id = ?`)
-        .get(chatId) as ReminderSettingsRow;
+        .prepare(`SELECT * FROM reminder_settings WHERE household_id = ?`)
+        .get(householdId) as ReminderSettingsRow;
 
       return mapSettings(row);
     },
@@ -175,16 +175,16 @@ export function createReminderRepository(sqlite: BetterSqlite3.Database, clock?:
     /**
      * Get existing settings or create with defaults.
      */
-    getOrCreateSettings(chatId: string): ReminderSettings {
+    getOrCreateSettings(householdId: string): ReminderSettings {
       const existing = sqlite
-        .prepare(`SELECT * FROM reminder_settings WHERE chat_id = ?`)
-        .get(chatId) as ReminderSettingsRow | undefined;
+        .prepare(`SELECT * FROM reminder_settings WHERE household_id = ?`)
+        .get(householdId) as ReminderSettingsRow | undefined;
 
       if (existing) {
         return mapSettings(existing);
       }
 
-      return this.upsertSettings(chatId, {});
+      return this.upsertSettings(householdId, {});
     },
 
     /**
@@ -209,18 +209,18 @@ export function createReminderRepository(sqlite: BetterSqlite3.Database, clock?:
      * Create a new pending reminder.
      */
     createReminder(params: {
-      chatId: string;
+      householdId: string;
       type: ReminderType;
       dueAt: Date;
       contextJson: string;
     }): Reminder {
       const result = sqlite
         .prepare(
-          `INSERT INTO reminders (chat_id, type, due_at, context_json)
+          `INSERT INTO reminders (household_id, type, due_at, context_json)
            VALUES (?, ?, ?, ?)`,
         )
         .run(
-          params.chatId,
+          params.householdId,
           params.type,
           Math.floor(params.dueAt.getTime() / 1000),
           params.contextJson,
@@ -275,26 +275,26 @@ export function createReminderRepository(sqlite: BetterSqlite3.Database, clock?:
      * Delete all pending reminders for a chat where due_at > now.
      * Used when regenerating reminders after plan changes.
      */
-    deleteFutureReminders(chatId: string): void {
+    deleteFutureReminders(householdId: string): void {
       sqlite
         .prepare(
           `DELETE FROM reminders
-           WHERE chat_id = ? AND status = 'pending' AND due_at > ?`,
+           WHERE household_id = ? AND status = 'pending' AND due_at > ?`,
         )
-        .run(chatId, nowUnix());
+        .run(householdId, nowUnix());
     },
 
     /**
      * Delete all pending reminders for a chat.
      * Used on full regeneration.
      */
-    deleteAllPending(chatId: string): void {
+    deleteAllPending(householdId: string): void {
       sqlite
         .prepare(
           `DELETE FROM reminders
-           WHERE chat_id = ? AND status = 'pending'`,
+           WHERE household_id = ? AND status = 'pending'`,
         )
-        .run(chatId);
+        .run(householdId);
     },
 
     /**
@@ -302,7 +302,7 @@ export function createReminderRepository(sqlite: BetterSqlite3.Database, clock?:
      * Prevents duplicates during regeneration.
      */
     hasPendingReminder(
-      chatId: string,
+      householdId: string,
       type: ReminderType,
       dueAtStart: Date,
       dueAtEnd: Date,
@@ -310,12 +310,12 @@ export function createReminderRepository(sqlite: BetterSqlite3.Database, clock?:
       const row = sqlite
         .prepare(
           `SELECT 1 FROM reminders
-           WHERE chat_id = ? AND type = ? AND status = 'pending'
+           WHERE household_id = ? AND type = ? AND status = 'pending'
              AND due_at >= ? AND due_at <= ?
            LIMIT 1`,
         )
         .get(
-          chatId,
+          householdId,
           type,
           Math.floor(dueAtStart.getTime() / 1000),
           Math.floor(dueAtEnd.getTime() / 1000),

@@ -9,7 +9,7 @@ export function initializeGrocery(sqlite: BetterSqlite3.Database): void {
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS grocery_lists (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      chat_id TEXT NOT NULL,
+      household_id TEXT NOT NULL,
       plan_id INTEGER,
       message_id INTEGER,
       status TEXT NOT NULL DEFAULT 'active',

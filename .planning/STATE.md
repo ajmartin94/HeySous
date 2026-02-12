@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-10)
 
 **Core value:** The recipe brain -- an AI agent that remembers everything about your meals and reasons over that knowledge to help you plan.
-**Current focus:** v1.1 complete -- all 20 UAT tests passing
+**Current focus:** v1.2 Onboarding and Feedback -- Phase 19 complete
 
 ## Current Position
 
-Phase: 14 of 14 (Meal Plan Viewer)
-Plan: 2 of 2 in current phase (14-02 complete)
-Status: v1.1 Mini Apps milestone shipped and archived
-Last activity: 2026-02-10 -- Milestone v1.1 complete, all UAT passing
+Phase: 19 of 19 (User Help Functionality)
+Plan: 2 of 2 complete
+Status: Phase Complete
+Last activity: 2026-02-11 -- Completed 19-02 Mini App Help Page
 
-Progress: [##########] 100%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -28,64 +28,92 @@ Progress: [##########] 100%
 - Average duration: 6 min
 - Total execution time: 55 min
 
-| Phase | Plan | Duration | Tasks | Files |
-|-------|------|----------|-------|-------|
-| 11-01 | API & Auth Infrastructure | 8 min | 2 | 7 |
-| 11-02 | Frontend SPA | 21 min | 2 | 19 |
-| 11-03 | Bot-to-Mini-App Wiring | 7 min | 2 | 4 |
-| 12-01 | Grocery API & Section Utilities | 2 min | 2 | 5 |
-| 12-02 | Grocery List React Page | 3 min | 2 | 10 |
-| 12-03 | Quick-add, MainButton, Polling | 4 min | 2 | 5 |
-| 13-01 | Recipe API, Parser & Hook | 2 min | 2 | 4 |
-| 13-02 | Recipe Browser UI | 4 min | 2 | 10 |
-| 14-01 | Meal Plan API & Data Layer | 2 min | 2 | 4 |
-| 14-02 | Meal Plan Viewer UI | 2 min | 2 | 6 |
+**v1.2 Velocity:**
+- 15-01: 4 min (2 tasks, 12 files)
+- 15-02: 3 min (3 tasks, 6 files)
+- 16-01: 10 min (2 tasks, 25 files)
+- 16-02: 8 min (2 tasks, 22 files)
+- 17-01: 4 min (2 tasks, 6 files)
+- 17-02: 12 min (2 tasks, 5 files)
+- 18-01: 4 min (2 tasks, 11 files)
+- 18-02: 3 min (2 tasks, 5 files)
+- 19-01: 2 min (2 tasks, 4 files)
+- 19-02: 3 min (2 tasks, 6 files)
 
 ## Accumulated Context
 
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table.
-All v1.0 decisions documented with outcomes.
+All v1.0 and v1.1 decisions documented with outcomes.
 
-v1.1 decisions:
-- Recipes counted via knowledge_tags (tag='recipe') since knowledge_items has no type column
-- API router created in both webhook and polling modes for dev testing
-- Express route order: static -> API -> webhook -> SPA fallback
-- Used retrieveRawInitData() instead of retrieveLaunchParams().initDataRaw (SDK v3 API)
-- Used --legacy-peer-deps for React 19 + @telegram-apps/telegram-ui peer dep conflict
-- BackButton uses isAvailable() guard for graceful non-Telegram env handling
-- Plan handler uses ctx.reply with reply_markup instead of sendFormattedMessage for keyboard support
-- WebApp button preserved on grocery keyboard rebuild during item toggle callbacks
-- Duplicated SECTION_ORDER constants across server/client (no shared imports across build boundary)
-- guessSection uses case-insensitive substring matching with ~50 keywords across 6 sections
-- Used notificationOccurred('success') for haptic feedback (Android-compatible)
-- GroceryItem interface defined locally in useGroceryList.ts (createdAt as string)
-- Progress counter shows global totals across all stores
-- 800ms animation delay before checked item moves to Done section
-- Always poll every 8s on Grocery page (avoids circular hook dependency with hasActiveList)
-- mainButton.setParams called directly in handler for loader (avoids useCallback dep cycle)
-- QuickAddFab form stays open after add for rapid multi-item entry
-- FAB positioned at safe-area + 80px to sit above native MainButton
-- FTS5 recipe search defaults to BM25 relevance sort unless explicitly overridden
-- GROUP_CONCAT(DISTINCT kt.tag) aggregates tags in single query (avoids N+1)
-- Detail endpoint updates last_accessed_at; list endpoint does not
-- computeRating labels: favorite/liked/mixed/needs work from net sentiment score
-- Tag filter toggle: same tag clears filter (sets null)
-- Server-side extractRating parses Feedback from content to return rating on list items without sending content
-- RecipeCard filters out redundant 'recipe' tag, shows max 3 with overflow indicator
-- Scroll preservation via useRef + requestAnimationFrame on detail close
-- Sort picker dropdown uses click-outside listener for close behavior
-- Server-side weekStartDate calculation avoids client timezone issues for meal plan API
-- Parallel fetch of both weeks on mount for instant tab switching (useMealPlan)
-- LEFT JOIN knowledge_items detects orphaned recipes via hasRecipe boolean
-- Duplicated date logic client-side per existing no-shared-imports convention
-- hasAutoScrolled state guard prevents repeated auto-scroll to today on re-renders
-- react-swipeable installed with --legacy-peer-deps (same React 19 peer dep convention)
+**Phase 15-01:**
+- Admin household_id = admin telegram_id (Phase 16 chatId migration compatibility)
+- Repository uses standalone function exports (not factory), takes sqlite as first param
+- Invite tokens: crypto.randomBytes(24).toString('base64url') -- 32-char, zero new deps
+
+**Phase 15-02:**
+- Access gate returns { middleware, addToCache } for shared cache with /start handler
+- Used grammy Api class for botUsername fetch before createBot (avoids chicken-and-egg)
+- /invite admin check uses ctx.user.role from access gate, not config.adminUserIds
+
+**Phase 16-01:**
+- Messages table keeps chat_id -- conversation history is per-Telegram-chat, not per-household
+- Migration idempotency via PRAGMA table_info check (zero-cost on migrated DBs)
+- All 9 column renames in single SQLite transaction for atomicity
+- listByChatId renamed to listByHouseholdId for semantic clarity
+
+**Phase 16-02:**
+- System prompt injects userName naturally, no household references
+- Fan-out senders deliver to all household members via getHouseholdMembers
+- Mini-app auth converted to factory pattern with user lookup for householdId
+- Message queue debounce key stays per-Telegram-chat (correct multi-user behavior)
+
+**Phase 17-01:**
+- OnboardingState is 5-value enum (preferences, tour, recipes, tour_only, complete) -- transient states dropped
+- Default onboarding_state changed from 'registered' to 'complete' as safety fallback
+- Migration maps old 'registered' users to 'complete' via SQLite table rebuild
+
+**Phase 17-02:**
+- Start handler detects isJoiningExisting via getHouseholdMembers before user creation
+- Welcome message saved to messages table for Claude conversation context
+- refreshUserCache semantic alias for addToCache, wired through main.ts to processor
+- Empty marker-only responses handled gracefully (skip sending empty message)
+
+**Phase 18-01:**
+- Proactive feedback threshold set to 50 inbound messages (~2 weeks moderate use)
+- Implicit detection uses householdId as userId (conversation-level, not per-user)
+- APP_FEEDBACK_PROMPT positioned after FEEDBACK_PROMPT to keep meal/app feedback separate
+
+**Phase 18-02:**
+- Plain HTML textarea for multi-line feedback (not telegram-ui Input)
+- No category picker, emoji rating, or sentiment scoring (all deferred per user decision)
+
+**Phase 19-01:**
+- Help handler has no DB dependencies -- uses only config.miniAppUrl for webApp button
+- HELP_PROMPT positioned after APP_FEEDBACK_PROMPT and before onboarding/appFeedback context injections
+
+**Phase 19-02:**
+- Admin section at bottom of Help page to avoid layout shift during role fetch
+- Default to non-admin on /api/me error for safe degradation
+- /api/me uses chatId from auth middleware, returns { role: "admin" | "member" }
+
+### Key Research Findings (v1.2)
+
+- Zero new npm dependencies needed for v1.2
+- Core challenge: chatId -> householdId migration (339 occurrences, 47 files)
+- Phase 15+16 tightly coupled -- half-migrated state is dangerous, execute in rapid succession
+- FTS5 triggers survive ALTER TABLE ADD COLUMN but verify after migration
+- grammY ctx.match provides deep link token natively
+- Onboarding state stored in SQLite (not grammY sessions plugin)
 
 ### Pending Todos
 
-None.
+1. Fix start_cooking reminder to account for prep time (reminders) — `.planning/todos/pending/2026-02-11-fix-start-cooking-reminder-to-account-for-prep-time.md`
+
+### Roadmap Evolution
+
+- Phase 19 added: user help functionality
 
 ### Blockers/Concerns
 
@@ -93,7 +121,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-10
-Stopped at: v1.1 UAT complete, 20/20 pass, all issues resolved
-Resume file: .planning/phases/milestone-v1.1-UAT.md
-Next action: Milestone v1.1 complete. Ready for /gsd:complete-milestone or next milestone planning.
+Last session: 2026-02-11
+Stopped at: Completed 19-02-PLAN.md (Mini App Help Page)
+Next action: Phase 19 complete -- all v1.2 phases done, ready for milestone transition

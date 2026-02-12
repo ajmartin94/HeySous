@@ -13,7 +13,7 @@ export type ReminderStatus = "pending" | "sent" | "failed";
  */
 export interface ReminderSettings {
   id: number;
-  chatId: string;
+  householdId: string;
   /** IANA timezone identifier, e.g. "America/New_York" */
   timezone: string;
   /** Morning summary time in "HH:MM" format, default "08:00" */
@@ -35,7 +35,7 @@ export interface ReminderSettings {
  */
 export interface Reminder {
   id: number;
-  chatId: string;
+  householdId: string;
   type: ReminderType;
   /** When the reminder should fire (UTC) */
   dueAt: Date;

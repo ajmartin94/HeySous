@@ -10,7 +10,7 @@ import type BetterSqlite3 from "better-sqlite3";
  */
 export function createSummaryRoute(sqlite: BetterSqlite3.Database) {
   return (_req: Request, res: Response) => {
-    const chatId = res.locals.chatId as string;
+    const householdId = res.locals.householdId as string;
 
     // Count unchecked items in active grocery list
     const groceryResult = sqlite
@@ -18,20 +18,20 @@ export function createSummaryRoute(sqlite: BetterSqlite3.Database) {
         `SELECT COUNT(*) as count
          FROM grocery_list_items gli
          JOIN grocery_lists gl ON gli.list_id = gl.id
-         WHERE gl.chat_id = ? AND gl.status = 'active' AND gli.checked = 0`,
+         WHERE gl.household_id = ? AND gl.status = 'active' AND gli.checked = 0`,
       )
-      .get(chatId) as { count: number };
+      .get(householdId) as { count: number };
 
-    // Count knowledge items tagged as 'recipe' for this chat
+    // Count knowledge items tagged as 'recipe' for this household
     // (knowledge_items has no 'type' column; recipes are identified via knowledge_tags)
     const recipesResult = sqlite
       .prepare(
         `SELECT COUNT(DISTINCT ki.id) as count
          FROM knowledge_items ki
          JOIN knowledge_tags kt ON kt.knowledge_item_id = ki.id
-         WHERE ki.chat_id = ? AND kt.tag = 'recipe'`,
+         WHERE ki.household_id = ? AND kt.tag = 'recipe'`,
       )
-      .get(chatId) as { count: number };
+      .get(householdId) as { count: number };
 
     // Count meal plan entries for current week
     // week_start_date is the Monday of the current week in "YYYY-MM-DD" format
@@ -47,9 +47,9 @@ export function createSummaryRoute(sqlite: BetterSqlite3.Database) {
         `SELECT COUNT(*) as count
          FROM meal_plan_entries mpe
          JOIN meal_plans mp ON mpe.plan_id = mp.id
-         WHERE mp.chat_id = ? AND mp.week_start_date = ?`,
+         WHERE mp.household_id = ? AND mp.week_start_date = ?`,
       )
-      .get(chatId, weekStartDate) as { count: number };
+      .get(householdId, weekStartDate) as { count: number };
 
     res.json({
       grocery: { uncheckedCount: groceryResult.count },

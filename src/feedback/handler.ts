@@ -152,13 +152,13 @@ export function createFeedbackCallbackHandler(
           knowledgeItemId: number | null;
         }>;
 
-        const chatId = String(ctx.chat?.id ?? checkin.chatId);
+        const householdId = ctx.householdId ?? checkin.householdId;
         const today = formatIsoDate(clock.date());
 
         for (const meal of meals) {
           if (!meal.knowledgeItemId) continue;
 
-          const item = knowledgeRepository.getById(meal.knowledgeItemId, chatId);
+          const item = knowledgeRepository.getById(meal.knowledgeItemId, householdId);
           if (!item) continue;
 
           const updatedContent = appendFeedbackAnnotation(
@@ -168,14 +168,14 @@ export function createFeedbackCallbackHandler(
             null,
           );
 
-          knowledgeRepository.update(meal.knowledgeItemId, chatId, {
+          knowledgeRepository.update(meal.knowledgeItemId, householdId, {
             content: updatedContent,
           });
 
           db.insert(knowledgeChangelog)
             .values({
               knowledgeItemId: meal.knowledgeItemId,
-              chatId,
+              householdId,
               action: "update",
               changeDescription: "Feedback annotation added",
               previousContent: item.content,

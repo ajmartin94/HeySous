@@ -28,7 +28,8 @@ export function buildPlanContext(
       lines.push(`Week of ${plan.weekStartDate}:`);
       for (const entry of plan.entries) {
         const dayName = DAY_NAMES[entry.dayOfWeek] ?? `Day ${entry.dayOfWeek}`;
-        lines.push(`- ${dayName}: ${entry.recipeName}`);
+        const idSuffix = entry.knowledgeItemId ? ` [recipe #${entry.knowledgeItemId}]` : "";
+        lines.push(`- ${dayName}: ${entry.recipeName}${idSuffix}`);
       }
     }
   }

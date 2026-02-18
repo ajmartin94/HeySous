@@ -1,0 +1,28 @@
+{
+  "mcpServers": {
+    "heysous-debug": {
+      "command": "node",
+      "args": ["dist/mcp/server.js"],
+      "cwd": "/workspace",
+      "env": {
+        "HEYSOUS_DB_PATH": "data/heysous.db"
+      }
+    }
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/gsd-check-update.js"
+          }
+        ]
+      }
+    ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "node .claude/hooks/gsd-statusline.cjs"
+  }
+}

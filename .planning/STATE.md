@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-02-10)
 Phase: 19 of 19 (User Help Functionality)
 Plan: 2 of 2 complete
 Status: Phase Complete
-Last activity: 2026-02-11 -- Completed 19-02 Mini App Help Page
+Last activity: 2026-02-18 - Completed quick task 1: MCP server for prod debugging
 
 Progress: [██████████] 100%
 
@@ -119,13 +119,11 @@ All v1.0 and v1.1 decisions documented with outcomes.
 
 None.
 
-## Quick Tasks
+### Quick Tasks Completed
 
-**Quick Task 1: MCP Server for Production Debugging**
-- Completed: 2026-02-18
-- Duration: 3 min (2 tasks, 6 files)
-- Added @modelcontextprotocol/sdk for read-only production debugging via Claude Code
-- Decisions: standalone server (no config.ts import), readonly:true DB flag, SQL prefix whitelist
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 1 | MCP server for prod debugging | 2026-02-18 | 3450249 | [1-mcp-server-for-prod-debugging](./quick/1-mcp-server-for-prod-debugging/) |
 
 ## Session Continuity
 

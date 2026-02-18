@@ -1,12 +1,8 @@
 {
   "mcpServers": {
     "heysous-debug": {
-      "command": "node",
-      "args": ["dist/mcp/server.js"],
-      "cwd": "/workspace",
-      "env": {
-        "HEYSOUS_DB_PATH": "data/heysous.db"
-      }
+      "command": "ssh",
+      "args": ["prod"]
     }
   },
   "hooks": {

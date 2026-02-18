@@ -119,8 +119,16 @@ All v1.0 and v1.1 decisions documented with outcomes.
 
 None.
 
+## Quick Tasks
+
+**Quick Task 1: MCP Server for Production Debugging**
+- Completed: 2026-02-18
+- Duration: 3 min (2 tasks, 6 files)
+- Added @modelcontextprotocol/sdk for read-only production debugging via Claude Code
+- Decisions: standalone server (no config.ts import), readonly:true DB flag, SQL prefix whitelist
+
 ## Session Continuity
 
-Last session: 2026-02-11
-Stopped at: Completed 19-02-PLAN.md (Mini App Help Page)
-Next action: Phase 19 complete -- all v1.2 phases done, ready for milestone transition
+Last session: 2026-02-18
+Stopped at: Completed quick-1-01-PLAN.md (MCP Server for Production Debugging)
+Next action: MCP server available for production debugging in Claude Code sessions

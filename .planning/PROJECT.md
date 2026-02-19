@@ -53,16 +53,16 @@ The LLM is the product. It reasons, decides what to look up, and acts on what it
 - ✓ Implicit recipe card creation (Sous proactively recognizes recipes without explicit commands) — v1.3 Phase 21
 - ✓ Implicit preference detection (Sous saves preferences from natural conversation) — v1.3 Phase 21
 - ✓ Improved pantry check response (Mini App link or conversational walk-through) — v1.3 Phase 21
+- ✓ Recipe variation handling (in-place updates + inline substitution notes) — v1.3 Phase 22
+- ✓ Grocery store preferences saved and used in list generation — v1.3 Phase 22
+- ✓ Remove "done shopping" button from grocery lists (overflow menu with confirmation) — v1.3 Phase 22
 
 ### Active
 
-- [ ] Recipe variation handling (modify existing vs create new card)
 - [ ] Delete button on recipe cards in Mini App
 - [ ] Tag click filtering in recipe browser
-- [ ] Remove "done shopping" button from grocery lists
 - [x] Fix intermittent date bugs in meal plans -- Phase 20
 - [x] Fix start_cooking reminder to account for prep time -- Phase 20
-- [ ] Grocery store preferences saved and used in list generation
 - [ ] Onboarding pushes users to add existing recipes first
 
 ### Out of Scope
@@ -80,7 +80,7 @@ The LLM is the product. It reasons, decides what to look up, and acts on what it
 
 ## Context
 
-- **Current state:** v1.3 in progress. Phase 21 (Implicit AI Behaviors) complete -- system prompt enhanced for implicit recipe detection, preference capture, and actionable pantry responses. 21 phases across 3+ milestones.
+- **Current state:** v1.3 in progress. Phase 22 (Recipe Variations & Grocery Intelligence) complete -- in-place recipe modifications, inline substitution notes, store preference pipeline, overflow menu replacing Done Shopping. 22 phases across 3+ milestones.
 - **Tech stack:** Node.js 22, TypeScript (ESM), grammY, better-sqlite3/Drizzle, Anthropic SDK, Pino, Express, React+Vite (Mini App SPA), @telegram-apps SDK
 - **Primary user:** Home cook who loves cooking, time-constrained on weekdays, more flexible weekends
 - **Household:** Partner + 9-month-old. Partner now has access via invite system (v1.2).
@@ -91,7 +91,7 @@ The LLM is the product. It reasons, decides what to look up, and acts on what it
 - **Mini App model:** Hybrid — bot stays primary, Mini Apps open from chat buttons for visual tasks
 - **Frontend:** React+Vite SPA inside Telegram Web Apps, served by existing Express server at /app/*
 - **Real usage feedback:** Grocery store preferences not factored into lists. Onboarding could be more directive about getting existing recipes in first.
-- **Next step:** Phase 22 (Recipe Variations & Grocery Intelligence)
+- **Next step:** Phase 23 (Mini App Enhancements)
 
 ## Current Milestone: v1.3 AI Polish & UX
 
@@ -149,6 +149,9 @@ The LLM is the product. It reasons, decides what to look up, and acts on what it
 | Confirmation-first implicit recipe detection | Offer to save recipe, wait for user approval -- avoids unwanted saves from casual food mentions | ✓ Good -- balances proactiveness with user control |
 | Immediate implicit preference capture | Save preferences without asking -- dietary restrictions/allergies are safety-critical | ✓ Good -- reduces missed preferences, brief acknowledgment keeps conversation flowing |
 | Builder function for dynamic prompt sections | Prompt sections needing runtime config (miniAppUrl) use builder functions instead of const strings | ✓ Good -- enables conditional content without breaking static sections |
+| In-place recipe modifications over separate variation cards | Recipe tweaks update existing card; interchangeable ingredients as inline Variations section | ✓ Good -- keeps recipe list clean, avoids card proliferation |
+| Mandatory store preference search before grocery generation | System prompt requires search_knowledge for store preferences before any list generation | ✓ Good -- ensures lists respect user's store assignments |
+| Overflow menu for destructive grocery actions | Done Shopping MainButton replaced with three-dot overflow menu + confirmation dialog | ✓ Good -- two-step confirmation prevents accidental list clearing |
 
 ---
-*Last updated: 2026-02-19 after Phase 21*
+*Last updated: 2026-02-19 after Phase 22*

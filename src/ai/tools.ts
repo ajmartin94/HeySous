@@ -92,7 +92,9 @@ export const KNOWLEDGE_TOOLS: Anthropic.Tool[] = [
   {
     name: "update_knowledge",
     description:
-      "Update an existing knowledge item. Provide the item ID and only the fields that changed. " +
+      "Update an existing knowledge item. Provide the item ID and the fields to change. " +
+      "You MUST include at least one substantive field (title, summary, content, or tags) -- " +
+      "calling with only id and change_description will be rejected. " +
       "IMPORTANT: the content field replaces the ENTIRE content -- for partial recipe updates, " +
       "first retrieve the current content with get_knowledge_item, modify the specific part, " +
       "then send back the complete updated content. Does NOT require re-confirming the whole " +

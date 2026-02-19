@@ -98,6 +98,41 @@ export function createToolHandler(deps: {
           const tags = input.tags as string[];
 
           try {
+            // Dedup check: search for existing item with same title
+            const { results } = retrievalService.search(householdId, title, 5);
+            const exactMatch = results.find(
+              (r) => r.title.toLowerCase().trim() === title.toLowerCase().trim(),
+            );
+
+            if (exactMatch) {
+              // Fetch full item for changelog snapshot
+              const existing = knowledgeRepository.getById(exactMatch.id, householdId);
+              // Update existing item instead of creating duplicate
+              const updated = knowledgeRepository.update(exactMatch.id, householdId, {
+                summary,
+                content,
+                tags,
+              });
+
+              if (updated) {
+                db.insert(knowledgeChangelog)
+                  .values({
+                    knowledgeItemId: exactMatch.id,
+                    householdId,
+                    action: "update",
+                    changeDescription: "Updated (dedup): " + title,
+                    previousContent: existing?.content ?? "",
+                  })
+                  .run();
+
+                return JSON.stringify({
+                  message: `Updated existing "${title}" (ID: ${exactMatch.id}) instead of creating duplicate`,
+                  id: exactMatch.id,
+                  deduplicated: true,
+                });
+              }
+            }
+
             const item = knowledgeRepository.create(householdId, {
               title,
               summary,

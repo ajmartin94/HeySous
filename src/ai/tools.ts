@@ -53,7 +53,8 @@ export const KNOWLEDGE_TOOLS: Anthropic.Tool[] = [
   {
     name: "save_knowledge",
     description:
-      "Save a new item to the user's knowledge base (recipe, preference, cooking note). " +
+      "Save an item to the user's knowledge base (recipe, preference, cooking note). " +
+      "If an item with the same title already exists, it will be updated instead of creating a duplicate. " +
       "Use this after the user confirms they want to save. Include a descriptive title, " +
       "a brief summary (1-2 sentences for search results), the full content, and relevant tags. " +
       "For recipes, tags should include: 'recipe', cuisine type (e.g., 'cuisine:italian'), " +

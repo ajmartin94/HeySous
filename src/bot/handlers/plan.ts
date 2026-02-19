@@ -15,6 +15,7 @@ import {
   DAY_NAMES,
   formatDateRange,
 } from "../../planning/date-utils.js";
+import { getTodayInTimezone } from "../../clock.js";
 
 /** Raw SQLite query result shape for plan entries. */
 interface PlanRow {
@@ -26,12 +27,15 @@ interface PlanRow {
 /**
  * Query the current week's meal plan via raw SQLite.
  * Joins meal_plans and meal_plan_entries for the current week's Monday.
+ *
+ * @param todayStr - Optional ISO "YYYY-MM-DD" for timezone-aware week boundary
  */
 function getCurrentWeekPlan(
   sqlite: BetterSqlite3.Database,
   householdId: string,
+  todayStr?: string,
 ): PlanRow[] {
-  const weekStart = getWeekStartDate();
+  const weekStart = getWeekStartDate(todayStr);
 
   return sqlite
     .prepare(
@@ -108,7 +112,15 @@ export function createPlanHandler(
 
   planHandler.command("plan", async (ctx) => {
     const householdId = ctx.householdId!;
-    const entries = getCurrentWeekPlan(sqlite, householdId);
+
+    // Resolve user's timezone for correct week boundary
+    const settingsRow = sqlite
+      .prepare("SELECT timezone FROM reminder_settings WHERE household_id = ?")
+      .get(householdId) as { timezone: string } | undefined;
+    const userTimezone = settingsRow?.timezone ?? "America/New_York";
+    const todayStr = getTodayInTimezone(userTimezone, { now: () => Date.now(), date: () => new Date() });
+
+    const entries = getCurrentWeekPlan(sqlite, householdId, todayStr);
 
     if (entries.length === 0) {
       await ctx.reply(
@@ -117,7 +129,7 @@ export function createPlanHandler(
       return;
     }
 
-    const weekStartDate = getWeekStartDate();
+    const weekStartDate = getWeekStartDate(todayStr);
     const message = formatPlanMessage(entries, weekStartDate);
 
     // Build reply options with optional "View Plan" web_app button

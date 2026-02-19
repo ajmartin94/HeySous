@@ -1,6 +1,6 @@
 import type BetterSqlite3 from "better-sqlite3";
 import type { Clock } from "../clock.js";
-import { formatIsoDate } from "../clock.js";
+import { formatIsoDate, getTodayInTimezone } from "../clock.js";
 
 /**
  * Cooking history entry returned from queries.
@@ -71,8 +71,11 @@ export function autoMarkCookedMeals(
   sqlite: BetterSqlite3.Database,
   householdId: string,
   clock: Clock,
+  timezone?: string,
 ): number {
-  const today = formatIsoDate(clock.date());
+  const today = timezone
+    ? getTodayInTimezone(timezone, clock)
+    : formatIsoDate(clock.date());
 
   const result = sqlite
     .prepare(

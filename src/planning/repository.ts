@@ -164,9 +164,12 @@ export function createPlanRepository(db: DrizzleDatabase) {
 
     /**
      * Get active plans: current week and next week (if they exist).
+     *
+     * @param householdId - Household to query
+     * @param todayStr - Optional ISO "YYYY-MM-DD" date for timezone-aware week boundary
      */
-    getActivePlans(householdId: string): SavedPlan[] {
-      const currentWeek = getWeekStartDate();
+    getActivePlans(householdId: string, todayStr?: string): SavedPlan[] {
+      const currentWeek = getWeekStartDate(todayStr);
       const nextWeek = addDays(currentWeek, 7);
 
       const plans: SavedPlan[] = [];

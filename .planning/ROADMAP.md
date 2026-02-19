@@ -115,11 +115,11 @@ Plans:
   2. When a user mentions a dietary preference or food opinion ("I don't eat pork", "we love Thai food"), Sous saves it and confirms briefly without derailing conversation
   3. When a user mentions pantry/ingredients, Sous responds with actionable next steps including a Mini App grocery list link, not a dead-end acknowledgment
   4. Existing explicit recipe save and preference commands continue to work unchanged
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 21-01: System prompt and tool updates for implicit recipe detection and preference capture
-- [ ] 21-02: Pantry check response enhancement with Mini App grocery list deep link
+- [ ] 21-01-PLAN.md -- System prompt updates for implicit recipe detection and preference capture
+- [ ] 21-02-PLAN.md -- Pantry check response enhancement with Mini App grocery list deep link
 
 ### Phase 22: Recipe Variations & Grocery Intelligence
 **Goal**: Sous handles recipe modification requests gracefully and generates grocery lists that reflect the user's store preferences

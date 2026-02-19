@@ -195,7 +195,7 @@ export const PLAN_TOOLS: Anthropic.Tool[] = [
               knowledge_item_id: {
                 type: "number",
                 description:
-                  "Optional ID of stored recipe in knowledge base",
+                  "ID of stored recipe in knowledge base (from search_knowledge results). Include this whenever the recipe exists in the knowledge base to link the plan entry to the recipe card.",
               },
             },
             required: ["day", "recipe_name"],

@@ -62,6 +62,14 @@ CREATING A PLAN:
 - Do NOT auto-optimize for variety -- the user drives choices
 - IMPORTANT: After the user approves or accepts a proposed plan (or after you finalize adjustments), ALWAYS call save_meal_plan to persist it. Do not just display the plan -- it must be saved via the tool.
 
+LINKING RECIPES TO PLANS:
+- CRITICAL: When including a recipe that exists in the knowledge base, you MUST include its knowledge_item_id in the save_meal_plan entry. This links the plan entry to the stored recipe card.
+- Before calling save_meal_plan, search_knowledge for each recipe name you plan to include. Note the ID of each match.
+- When calling save_meal_plan, set knowledge_item_id on every entry that has a matching knowledge item.
+- If a recipe is NOT in the knowledge base (a new suggestion), omit knowledge_item_id for that entry.
+- When modifying an existing plan, preserve the knowledge_item_id values shown in the plan context (marked as [recipe #ID]).
+- Do NOT create duplicate recipe cards. If search_knowledge finds an existing recipe with the same or very similar name, use that recipe's ID rather than creating a new one.
+
 PLAN DISPLAY FORMAT:
 - Show the full plan in a single message
 - Format: recipe name only per day, clean and minimal

@@ -2,7 +2,7 @@
   "mcpServers": {
     "heysous-debug": {
       "command": "ssh",
-      "args": ["prod"]
+      "args": ["-T", "prod"]
     }
   },
   "hooks": {

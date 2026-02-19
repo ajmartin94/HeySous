@@ -244,6 +244,7 @@ export function createToolHandler(deps: {
                 dayName: DAY_NAMES[e.dayOfWeek] ?? `Day ${e.dayOfWeek}`,
                 mealType: e.mealType,
                 recipeName: e.recipeName,
+                knowledgeItemId: e.knowledgeItemId,
               })),
             },
           });

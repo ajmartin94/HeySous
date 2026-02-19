@@ -87,7 +87,7 @@ Plans:
 - [x] **Phase 20: Bug Fixes** - Investigate and fix date bugs in meal plans and prep time in cooking reminders (completed 2026-02-19)
 - [x] **Phase 21: Implicit AI Behaviors** - Sous proactively recognizes recipes, preferences, and pantry context without explicit commands (completed 2026-02-19)
 - [x] **Phase 22: Recipe Variations & Grocery Intelligence** - Handle recipe modifications gracefully and factor store preferences into grocery lists (completed 2026-02-19)
-- [ ] **Phase 23: Mini App Enhancements** - Delete recipe cards and filter by tag in the Mini App
+- [x] **Phase 23: Mini App Enhancements** - Delete recipe cards and filter by tag in the Mini App (completed 2026-02-19)
 - [ ] **Phase 24: Onboarding Refinement** - Push new users to add their existing go-to meals before first meal plan
 
 ## Phase Details
@@ -148,7 +148,7 @@ Plans:
 **Plans**: 1 plan (MINI-02 tag filtering already implemented in v1.1 Phase 13)
 
 Plans:
-- [ ] 23-01-PLAN.md -- Recipe deletion API endpoint, overflow menu + confirmation dialog in detail view (covers MINI-01 + validates MINI-02)
+- [x] 23-01-PLAN.md -- Recipe deletion API endpoint, overflow menu + confirmation dialog in detail view (covers MINI-01 + validates MINI-02)
 
 ### Phase 24: Onboarding Refinement
 **Goal**: New users are directed to add their existing go-to meals early in onboarding so their first meal plan is built from real recipes they already cook
@@ -182,5 +182,5 @@ Plans:
 | 20. Bug Fixes | v1.3 | 2/2 | Complete | 2026-02-18 |
 | 21. Implicit AI Behaviors | v1.3 | 2/2 | Complete | 2026-02-19 |
 | 22. Recipe Variations & Grocery Intelligence | v1.3 | 2/2 | Complete | 2026-02-19 |
-| 23. Mini App Enhancements | v1.3 | 0/1 | Not started | - |
+| 23. Mini App Enhancements | v1.3 | 1/1 | Complete | 2026-02-19 |
 | 24. Onboarding Refinement | v1.3 | 0/1 | Not started | - |

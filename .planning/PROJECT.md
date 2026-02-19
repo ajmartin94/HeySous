@@ -56,11 +56,11 @@ The LLM is the product. It reasons, decides what to look up, and acts on what it
 - ✓ Recipe variation handling (in-place updates + inline substitution notes) — v1.3 Phase 22
 - ✓ Grocery store preferences saved and used in list generation — v1.3 Phase 22
 - ✓ Remove "done shopping" button from grocery lists (overflow menu with confirmation) — v1.3 Phase 22
+- ✓ Delete button on recipe cards in Mini App — v1.3 Phase 23
+- ✓ Tag click filtering in recipe browser — v1.1 Phase 13 (validated v1.3 Phase 23)
 
 ### Active
 
-- [ ] Delete button on recipe cards in Mini App
-- [ ] Tag click filtering in recipe browser
 - [x] Fix intermittent date bugs in meal plans -- Phase 20
 - [x] Fix start_cooking reminder to account for prep time -- Phase 20
 - [ ] Onboarding pushes users to add existing recipes first
@@ -80,7 +80,7 @@ The LLM is the product. It reasons, decides what to look up, and acts on what it
 
 ## Context
 
-- **Current state:** v1.3 in progress. Phase 22 (Recipe Variations & Grocery Intelligence) complete -- in-place recipe modifications, inline substitution notes, store preference pipeline, overflow menu replacing Done Shopping. 22 phases across 3+ milestones.
+- **Current state:** v1.3 in progress. Phase 23 (Mini App Enhancements) complete -- recipe deletion with overflow menu + confirmation dialog, tag filtering validated as pre-existing. 23 phases across 3+ milestones.
 - **Tech stack:** Node.js 22, TypeScript (ESM), grammY, better-sqlite3/Drizzle, Anthropic SDK, Pino, Express, React+Vite (Mini App SPA), @telegram-apps SDK
 - **Primary user:** Home cook who loves cooking, time-constrained on weekdays, more flexible weekends
 - **Household:** Partner + 9-month-old. Partner now has access via invite system (v1.2).
@@ -91,7 +91,7 @@ The LLM is the product. It reasons, decides what to look up, and acts on what it
 - **Mini App model:** Hybrid — bot stays primary, Mini Apps open from chat buttons for visual tasks
 - **Frontend:** React+Vite SPA inside Telegram Web Apps, served by existing Express server at /app/*
 - **Real usage feedback:** Grocery store preferences not factored into lists. Onboarding could be more directive about getting existing recipes in first.
-- **Next step:** Phase 23 (Mini App Enhancements)
+- **Next step:** Phase 24 (Onboarding Refinement)
 
 ## Current Milestone: v1.3 AI Polish & UX
 
@@ -152,6 +152,8 @@ The LLM is the product. It reasons, decides what to look up, and acts on what it
 | In-place recipe modifications over separate variation cards | Recipe tweaks update existing card; interchangeable ingredients as inline Variations section | ✓ Good -- keeps recipe list clean, avoids card proliferation |
 | Mandatory store preference search before grocery generation | System prompt requires search_knowledge for store preferences before any list generation | ✓ Good -- ensures lists respect user's store assignments |
 | Overflow menu for destructive grocery actions | Done Shopping MainButton replaced with three-dot overflow menu + confirmation dialog | ✓ Good -- two-step confirmation prevents accidental list clearing |
+| Optional onDelete prop for shared detail components | RecipeDetail used by both Recipes and MealPlan pages; onDelete optional so delete only appears where appropriate | ✓ Good -- avoids breaking MealPlan page, clean conditional rendering |
+| Cascading delete with manual cooking_history cleanup | cooking_history has no ON DELETE CASCADE FK; delete manually before knowledge_items (which cascades tags + FTS5) | ✓ Good -- ensures complete cleanup without orphaned records |
 
 ---
-*Last updated: 2026-02-19 after Phase 22*
+*Last updated: 2026-02-19 after Phase 23*

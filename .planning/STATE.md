@@ -2,19 +2,19 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-19)
+See: .planning/PROJECT.md (updated 2026-02-19 after Phase 23)
 
 **Core value:** The recipe brain -- an AI agent that remembers everything about your meals and reasons over that knowledge to help you plan.
-**Current focus:** v1.3 AI Polish & UX -- Phase 23: Mini App Enhancements
+**Current focus:** v1.3 AI Polish & UX -- Phase 24: Onboarding Refinement
 
 ## Current Position
 
-Phase: 23 of 24 (Mini App Enhancements)
+Phase: 24 of 24 (Onboarding Refinement)
 Plan: 0 of 1 in current phase
 Status: Ready to plan
-Last activity: 2026-02-19 -- Phase 22 completed (Recipe Variations & Grocery Intelligence)
+Last activity: 2026-02-19 -- Phase 23 completed (Mini App Enhancements)
 
-Progress: [██████░░░░] 60%
+Progress: [████████████████████] 17/17 plans (100%)
 
 ## Performance Metrics
 
@@ -47,6 +47,7 @@ Progress: [██████░░░░] 60%
 - 21-02: 2 min (1 task, 2 files)
 - 22-01: 3 min (2 tasks, 1 file)
 - 22-02: 3 min (2 tasks, 5 files)
+- 23-01: 3 min (2 tasks, 7 files)
 
 ## Accumulated Context
 
@@ -75,6 +76,12 @@ All v1.0, v1.1, v1.2, and Phase 20 decisions documented with outcomes.
 - Done Shopping MainButton replaced with overflow menu "Clear list" behind confirmation dialog
 - Clear list action keeps user on page (refetch) instead of closing Mini App
 
+**Phase 23 decisions:**
+- onDelete prop made optional so RecipeDetail works in both Recipes page (with delete) and MealPlan page (without delete)
+- Reused overflow-menu CSS classes from grocery.css rather than duplicating in recipes.css
+- Cooking history deleted manually before knowledge_items (no cascade FK on cooking_history)
+- MINI-02 (tag filtering) validated as pre-existing from v1.1 Phase 13 -- no work needed
+
 ### Pending Todos
 
 **Deferred (future milestones):**
@@ -95,5 +102,5 @@ v1.3 roadmap created: 5 phases (20-24), 9 plans, 11 requirements.
 ## Session Continuity
 
 Last session: 2026-02-19
-Stopped at: Phase 23 context gathered, ready to plan
-Next action: Plan Phase 23 (Mini App Enhancements)
+Stopped at: Phase 23 complete, ready to plan Phase 24
+Next action: Discuss Phase 24 (Onboarding Refinement)

@@ -53,8 +53,7 @@ export const KNOWLEDGE_TOOLS: Anthropic.Tool[] = [
   {
     name: "save_knowledge",
     description:
-      "Save an item to the user's knowledge base (recipe, preference, cooking note). " +
-      "If an item with the same title already exists, it will be updated instead of creating a duplicate. " +
+      "Save a new item to the user's knowledge base (recipe, preference, cooking note). " +
       "Use this after the user confirms they want to save. Include a descriptive title, " +
       "a brief summary (1-2 sentences for search results), the full content, and relevant tags. " +
       "For recipes, tags should include: 'recipe', cuisine type (e.g., 'cuisine:italian'), " +
@@ -93,9 +92,7 @@ export const KNOWLEDGE_TOOLS: Anthropic.Tool[] = [
   {
     name: "update_knowledge",
     description:
-      "Update an existing knowledge item. Provide the item ID and the fields to change. " +
-      "You MUST include at least one substantive field (title, summary, content, or tags) -- " +
-      "calling with only id and change_description will be rejected. " +
+      "Update an existing knowledge item. Provide the item ID and only the fields that changed. " +
       "IMPORTANT: the content field replaces the ENTIRE content -- for partial recipe updates, " +
       "first retrieve the current content with get_knowledge_item, modify the specific part, " +
       "then send back the complete updated content. Does NOT require re-confirming the whole " +

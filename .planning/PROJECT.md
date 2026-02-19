@@ -59,11 +59,12 @@ The LLM is the product. It reasons, decides what to look up, and acts on what it
 - ✓ Delete button on recipe cards in Mini App — v1.3 Phase 23
 - ✓ Tag click filtering in recipe browser — v1.1 Phase 13 (validated v1.3 Phase 23)
 - ✓ Onboarding pushes users to add existing recipes first — v1.3 Phase 24
+- ✓ Fix intermittent date bugs in meal plans (timezone-aware date pipeline) — v1.3 Phase 20
+- ✓ Fix start_cooking reminder to account for prep time — v1.3 Phase 20
 
 ### Active
 
-- [x] Fix intermittent date bugs in meal plans -- Phase 20
-- [x] Fix start_cooking reminder to account for prep time -- Phase 20
+(No active requirements -- planning next milestone)
 
 ### Out of Scope
 
@@ -80,32 +81,24 @@ The LLM is the product. It reasons, decides what to look up, and acts on what it
 
 ## Context
 
-- **Current state:** v1.3 complete. All 24 phases across 4 milestones shipped. Phase 24 (Onboarding Refinement) complete -- directive recipe seeding prompt with 3-5 go-to meal target and first meal plan offer.
+- **Current state:** v1.3 shipped. All 24 phases across 4 milestones complete. ~22,650 LOC TypeScript (18,685 server + 3,966 Mini App). 59 plans total across 24 phases.
 - **Tech stack:** Node.js 22, TypeScript (ESM), grammY, better-sqlite3/Drizzle, Anthropic SDK, Pino, Express, React+Vite (Mini App SPA), @telegram-apps SDK
 - **Primary user:** Home cook who loves cooking, time-constrained on weekdays, more flexible weekends
 - **Household:** Partner + 9-month-old. Partner now has access via invite system (v1.2).
 - **Dinner target:** 6pm daily
-- **Shopping:** Kroger (primary), Costco (bulk)
+- **Shopping:** Kroger (primary), Costco (bulk) -- store preferences now factored into grocery lists (v1.3)
 - **Devices:** Apple ecosystem (iPhone, iPad) -- Telegram works cross-platform
-- **First-run flow:** Onboarding guides new users through preferences → tour → seed recipes (v1.2)
+- **First-run flow:** Onboarding guides new users through preferences → tour → seed 3-5 go-to recipes (v1.3 refinement)
 - **Mini App model:** Hybrid — bot stays primary, Mini Apps open from chat buttons for visual tasks
 - **Frontend:** React+Vite SPA inside Telegram Web Apps, served by existing Express server at /app/*
-- **Real usage feedback:** Grocery store preferences not factored into lists. Onboarding could be more directive about getting existing recipes in first.
-- **Next step:** Complete v1.3 milestone
+- **Known issues:** save_knowledge duplicate prevention needs design decision (auto-upsert vs title uniqueness)
+- **Next step:** Plan next milestone (/gsd:new-milestone)
 
-## Current Milestone: v1.3 AI Polish & UX
+## Latest Milestone: v1.3 AI Polish & UX (Shipped 2026-02-19)
 
-**Goal:** Make Sous smarter and more natural through implicit behavior detection, fix UX rough edges from real usage, and improve the onboarding recipe seeding flow.
+**Delivered:** Smarter implicit AI behaviors, recipe variation handling, grocery store preferences, Mini App recipe deletion, bug fixes, and directive onboarding recipe seeding.
 
-**Target features:**
-- Implicit recipe card creation (no explicit "save this recipe" needed)
-- Implicit preference detection from natural conversation
-- Smarter pantry check response with Mini App grocery list link
-- Recipe variation handling (modify vs new card)
-- Mini App UX: delete recipe cards, tag click filtering, remove done shopping button
-- Bug fixes: intermittent date issues, prep time in start_cooking reminders
-- Grocery store preferences in list generation
-- Onboarding refinement: push existing recipes first
+**Next milestone:** Not yet planned. Run `/gsd:new-milestone` to start.
 
 ## Constraints
 
@@ -157,4 +150,4 @@ The LLM is the product. It reasons, decides what to look up, and acts on what it
 | Directive onboarding recipe prompting with soft target | Ask for 3-5 go-to meals with concrete questions and first meal plan motivation, gentle encouragement but no hard gate | ✓ Good -- balances directiveness with user comfort |
 
 ---
-*Last updated: 2026-02-19 after Phase 24 (v1.3 complete)*
+*Last updated: 2026-02-19 after v1.3 milestone*

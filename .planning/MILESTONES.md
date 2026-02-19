@@ -50,3 +50,55 @@
 **What's next:** Planning next milestone.
 
 ---
+
+## v1.2 Onboarding and Feedback (Shipped: 2026-02-11)
+
+**Delivered:** Multi-user household support with invite-gated access, guided onboarding, app feedback system, and user help functionality.
+
+**Phases completed:** 15-19 (10 plans total)
+
+**Key accomplishments:**
+- Invite-gated access system with deep link tokens and admin-only /invite command
+- Multi-user support with per-user identity and household data sharing (recipes, plans, grocery lists)
+- Guided onboarding flow (preference Q&A, feature tour, seed recipe collection) via state machine
+- App feedback system with four channels (command, implicit AI detection, Mini App form, proactive prompt)
+- User help functionality (/help command, Mini App help page with admin detection)
+
+**Stats:**
+- 10 phases, 10 plans
+- 5 phases (15-19)
+- 1 day execution (2026-02-11)
+
+**Git range:** Phase 15 → Phase 19
+
+**What's next:** v1.3 AI Polish & UX
+
+---
+
+## v1.3 AI Polish & UX (Shipped: 2026-02-19)
+
+**Delivered:** Smarter implicit AI behaviors (recipe detection, preference capture, pantry response), recipe variation handling, grocery store awareness, Mini App recipe deletion, bug fixes, and directive onboarding recipe seeding.
+
+**Phases completed:** 20-24 (9 plans total)
+
+**Key accomplishments:**
+- Timezone-aware date pipeline fixing intermittent meal plan date bugs and recipe-aware reminder timing
+- Implicit AI behaviors: Sous proactively detects recipes, preferences, and pantry context in natural conversation
+- Recipe variation handling with in-place modifications and inline substitution notes
+- Grocery store preference pipeline wired into list generation; Done Shopping replaced with overflow menu
+- Full-stack recipe deletion in Mini App with cascading cleanup and confirmation dialog
+- Directive onboarding recipe prompting (3-5 go-to meals target with first meal plan offer)
+
+**Stats:**
+- 23 files modified
+- 912 insertions, 91 deletions (~22,650 total LOC)
+- 5 phases, 9 plans
+- 1 day execution (2026-02-18), ~23 minutes total
+- Execution time: ~23 min across 9 plans
+
+**Git range:** `aa117ed` (feat(20-01)) → `c9d6780` (feat(22-03))
+
+**What's next:** Planning next milestone
+
+---
+

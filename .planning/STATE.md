@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-19)
 
 **Core value:** The recipe brain -- an AI agent that remembers everything about your meals and reasons over that knowledge to help you plan.
-**Current focus:** v1.3 AI Polish & UX -- Phase 20: Bug Fixes
+**Current focus:** v1.3 AI Polish & UX -- Phase 21: Implicit AI Behaviors
 
 ## Current Position
 
-Phase: 20 of 24 (Bug Fixes)
-Plan: 2 of 2 in current phase
-Status: Execution complete, awaiting verification
-Last activity: 2026-02-18 -- Phase 20 plans executed (date/timezone fix + reminder timing fix)
+Phase: 21 of 24 (Implicit AI Behaviors)
+Plan: 0 of 2 in current phase
+Status: Ready to plan
+Last activity: 2026-02-18 -- Phase 20 completed (Bug Fixes)
 
-Progress: [██████████] 100%
+Progress: [██░░░░░░░░] 20%
 
 ## Performance Metrics
 
@@ -67,5 +67,5 @@ v1.3 roadmap created: 5 phases (20-24), 9 plans, 11 requirements.
 ## Session Continuity
 
 Last session: 2026-02-18
-Stopped at: Phase 20 execution complete
-Next action: Verify Phase 20 (Bug Fixes)
+Stopped at: Phase 20 completed and verified
+Next action: Plan Phase 21 (Implicit AI Behaviors)

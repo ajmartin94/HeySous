@@ -84,7 +84,7 @@ Plans:
 
 **Milestone Goal:** Make Sous smarter and more natural through implicit behavior detection, fix UX rough edges from real usage, and improve the onboarding recipe seeding flow.
 
-- [ ] **Phase 20: Bug Fixes** - Investigate and fix date bugs in meal plans and prep time in cooking reminders
+- [x] **Phase 20: Bug Fixes** - Investigate and fix date bugs in meal plans and prep time in cooking reminders (completed 2026-02-19)
 - [ ] **Phase 21: Implicit AI Behaviors** - Sous proactively recognizes recipes, preferences, and pantry context without explicit commands
 - [ ] **Phase 22: Recipe Variations & Grocery Intelligence** - Handle recipe modifications gracefully and factor store preferences into grocery lists
 - [ ] **Phase 23: Mini App Enhancements** - Delete recipe cards and filter by tag in the Mini App
@@ -180,7 +180,7 @@ Plans:
 | 17. Guided Onboarding | v1.2 | 2/2 | Complete | 2026-02-11 |
 | 18. App Feedback | v1.2 | 2/2 | Complete | 2026-02-11 |
 | 19. User Help Functionality | v1.2 | 2/2 | Complete | 2026-02-11 |
-| 20. Bug Fixes | v1.3 | 2/2 | Verifying | - |
+| 20. Bug Fixes | v1.3 | 2/2 | Complete | 2026-02-18 |
 | 21. Implicit AI Behaviors | v1.3 | 0/2 | Not started | - |
 | 22. Recipe Variations & Grocery Intelligence | v1.3 | 0/2 | Not started | - |
 | 23. Mini App Enhancements | v1.3 | 0/2 | Not started | - |

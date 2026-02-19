@@ -143,6 +143,7 @@ GENERATING A GROCERY LIST:
 
 AFTER GENERATING:
 - After saving the list, prompt the "check the pantry" step: "Here's your list! Take a look and let me know what you already have at home, or if you need to add anything (snacks, drinks, etc.)"
+- If a Mini App URL is available (see <pantry_response> section), include the grocery list link so users can view and manage their list visually
 - When the user says they have items, use update_grocery_list with remove_item_ids to remove them
 - When the user wants to add extras, use update_grocery_list with add_items -- mix extras into appropriate store sections (NOT a separate "Other" section)
 - The pantry check is conversational and optional -- if the user says "looks good", move on
@@ -250,6 +251,45 @@ When a user explicitly asks for help, says "help", or asks "what can you do?", r
 
 Do NOT mention /help in every message. Only bring it up when relevant.
 </help>`;
+
+function buildPantryResponsePrompt(miniAppUrl?: string): string {
+  const groceryLinkInstruction = miniAppUrl
+    ? `\n- When a grocery list exists, include a link to manage it: "You can check your grocery list here: ${miniAppUrl}/grocery"
+- Format the link as a plain URL -- Telegram will make it tappable automatically`
+    : "";
+
+  return `
+<pantry_response>
+When users mention ingredients they have on hand, pantry contents, or what's in their fridge/freezer, respond with ACTIONABLE next steps -- never just acknowledge.
+
+DETECTING PANTRY MENTIONS:
+- "I have chicken and rice" / "we've got leftover pasta" / "there's salmon in the fridge"
+- "I just bought a bunch of vegetables" / "I stocked up on..."
+- "what can I make with..." / "I need to use up..."
+- "checking my pantry" / "I already have..." (during grocery list context)
+
+RESPONSE PATTERNS (pick the most relevant):
+
+1. Recipe suggestions: Search their recipes for matches and suggest 2-3 options using those ingredients
+   - "Nice! You could do [recipe A] or [recipe B] with that. Want me to pull up either one?"
+
+2. Meal plan integration: If they have an active meal plan, connect pantry contents to upcoming meals
+   - "You're set for Tuesday's stir fry with that chicken and rice!"
+
+3. Grocery list connection: If they mention having some ingredients, help identify what's MISSING for planned meals${groceryLinkInstruction}
+   - "You've got the chicken -- you'll still need the curry paste and coconut milk for Thursday's curry."
+   - Offer to remove items they already have from the grocery list: "Want me to cross those off your grocery list?"
+
+4. Conversational pantry walk-through: When generating or reviewing a grocery list, offer to go through items together
+   - "Want to do a quick pantry check? I'll go through the list and you tell me what you already have."
+   - This is the PREFERRED alternative when no Mini App link is available
+
+WHAT TO AVOID:
+- Dead-end responses like "Great, thanks for letting me know!" with no follow-up action
+- Just saving pantry info without suggesting what to do with it
+- Overwhelming the user with too many options -- pick the 1-2 most relevant response patterns
+</pantry_response>`;
+}
 
 const FEEDBACK_PROMPT = `
 <feedback_loop>
@@ -364,7 +404,7 @@ INFERRED PREFERENCE RULES:
  * @param reminderContext - Optional reminder settings context summary
  * @returns Complete system prompt string
  */
-export function buildSystemPrompt(preferences?: PreferenceSummary[], planContext?: string, groceryContext?: string, reminderContext?: string, feedbackContext?: string, userName?: string, onboardingContext?: string, appFeedbackContext?: string, dateContext?: string): string {
+export function buildSystemPrompt(preferences?: PreferenceSummary[], planContext?: string, groceryContext?: string, reminderContext?: string, feedbackContext?: string, userName?: string, onboardingContext?: string, appFeedbackContext?: string, dateContext?: string, miniAppUrl?: string): string {
   const preferenceContext = preferences
     ? buildPreferenceContext(preferences)
     : "";
@@ -514,5 +554,5 @@ CROSS-RECIPE REASONING:
 - For filtering by attribute, search with relevant keywords (cuisine name, protein, "quick", etc.)
 - When listing multiple recipes, show brief info: name, total time, difficulty
 - Let the user pick one for full details
-</recipe_management>${preferenceContext}${PREFERENCE_MANAGEMENT_PROMPT}${planContext ? "\n" + planContext : ""}${groceryContext ? "\n" + groceryContext : ""}${reminderContext ? "\n" + reminderContext : ""}${feedbackContext ? "\n" + feedbackContext : ""}${MEAL_PLANNING_PROMPT}${GROCERY_LIST_PROMPT}${REMINDER_PROMPT}${FEEDBACK_PROMPT}${APP_FEEDBACK_PROMPT}${HELP_PROMPT}${onboardingContext ? "\n" + onboardingContext : ""}${appFeedbackContext ? "\n" + appFeedbackContext : ""}`;
+</recipe_management>${preferenceContext}${PREFERENCE_MANAGEMENT_PROMPT}${planContext ? "\n" + planContext : ""}${groceryContext ? "\n" + groceryContext : ""}${reminderContext ? "\n" + reminderContext : ""}${feedbackContext ? "\n" + feedbackContext : ""}${MEAL_PLANNING_PROMPT}${GROCERY_LIST_PROMPT}${REMINDER_PROMPT}${FEEDBACK_PROMPT}${APP_FEEDBACK_PROMPT}${HELP_PROMPT}${buildPantryResponsePrompt(miniAppUrl)}${onboardingContext ? "\n" + onboardingContext : ""}${appFeedbackContext ? "\n" + appFeedbackContext : ""}`;
 }

@@ -41,6 +41,7 @@ import type { createAppFeedbackRepository } from "../app-feedback/repository.js"
 import { formatGroceryList } from "../grocery/formatter.js";
 import { buildGroceryKeyboard } from "../grocery/buttons.js";
 import { getPreferenceSummaries } from "../knowledge/preferences.js";
+import { config } from "../config.js";
 import { buildSystemPrompt } from "../ai/system-prompt.js";
 import { extractOnboardingMarker, getNextOnboardingState } from "../onboarding/state.js";
 import { buildOnboardingPrompt } from "../onboarding/prompt.js";
@@ -223,7 +224,7 @@ export function createProcessor(deps: ProcessorDeps) {
         }
       }
 
-      const systemPrompt = buildSystemPrompt(preferences, planContext, groceryContext, reminderContext, feedbackContext, userName, onboardingContext, appFeedbackContext, dateContext);
+      const systemPrompt = buildSystemPrompt(preferences, planContext, groceryContext, reminderContext, feedbackContext, userName, onboardingContext, appFeedbackContext, dateContext, config.miniAppUrl);
 
       // i. 30-second timeout warning timer
       let timeoutFired = false;

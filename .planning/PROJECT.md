@@ -50,11 +50,12 @@ The LLM is the product. It reasons, decides what to look up, and acts on what it
 - ✓ App feedback system (/feedback command, silent detection, hub button, periodic check-in, admin dashboard) — v1.2
 - ✓ User help functionality (/help command, Mini App help page) — v1.2
 
+- ✓ Implicit recipe card creation (Sous proactively recognizes recipes without explicit commands) — v1.3 Phase 21
+- ✓ Implicit preference detection (Sous saves preferences from natural conversation) — v1.3 Phase 21
+- ✓ Improved pantry check response (Mini App link or conversational walk-through) — v1.3 Phase 21
+
 ### Active
 
-- [ ] Implicit recipe card creation (Sous proactively recognizes recipes without explicit commands)
-- [ ] Implicit preference detection (Sous saves preferences from natural conversation)
-- [ ] Improved pantry check response (Mini App link or conversational walk-through)
 - [ ] Recipe variation handling (modify existing vs create new card)
 - [ ] Delete button on recipe cards in Mini App
 - [ ] Tag click filtering in recipe browser
@@ -79,7 +80,7 @@ The LLM is the product. It reasons, decides what to look up, and acts on what it
 
 ## Context
 
-- **Current state:** v1.3 in progress. Phase 20 (Bug Fixes) complete -- date/timezone issues fixed, reminder timing adjusted for prep time. 20 phases across 3+ milestones.
+- **Current state:** v1.3 in progress. Phase 21 (Implicit AI Behaviors) complete -- system prompt enhanced for implicit recipe detection, preference capture, and actionable pantry responses. 21 phases across 3+ milestones.
 - **Tech stack:** Node.js 22, TypeScript (ESM), grammY, better-sqlite3/Drizzle, Anthropic SDK, Pino, Express, React+Vite (Mini App SPA), @telegram-apps SDK
 - **Primary user:** Home cook who loves cooking, time-constrained on weekdays, more flexible weekends
 - **Household:** Partner + 9-month-old. Partner now has access via invite system (v1.2).
@@ -89,8 +90,8 @@ The LLM is the product. It reasons, decides what to look up, and acts on what it
 - **First-run flow:** Onboarding guides new users through preferences → tour → seed recipes (v1.2)
 - **Mini App model:** Hybrid — bot stays primary, Mini Apps open from chat buttons for visual tasks
 - **Frontend:** React+Vite SPA inside Telegram Web Apps, served by existing Express server at /app/*
-- **Real usage feedback:** Sous requires too-explicit language for recipe saves and preference captures. Grocery store preferences not factored into lists. Onboarding could be more directive about getting existing recipes in first.
-- **Next step:** Phase 21 (Implicit AI Behaviors)
+- **Real usage feedback:** Grocery store preferences not factored into lists. Onboarding could be more directive about getting existing recipes in first.
+- **Next step:** Phase 22 (Recipe Variations & Grocery Intelligence)
 
 ## Current Milestone: v1.3 AI Polish & UX
 
@@ -145,6 +146,9 @@ The LLM is the product. It reasons, decides what to look up, and acts on what it
 
 | Timezone-aware date pipeline | Resolve timezone once at pipeline entry from reminder_settings, thread through all date consumers | ✓ Good -- eliminates timezone bugs across all date operations |
 | Recipe time parsing for reminder adjustment | Parse prep+cook time from recipe content, adjust start_cooking reminder timing | ✓ Good -- robust multi-format parsing with graceful fallback |
+| Confirmation-first implicit recipe detection | Offer to save recipe, wait for user approval -- avoids unwanted saves from casual food mentions | ✓ Good -- balances proactiveness with user control |
+| Immediate implicit preference capture | Save preferences without asking -- dietary restrictions/allergies are safety-critical | ✓ Good -- reduces missed preferences, brief acknowledgment keeps conversation flowing |
+| Builder function for dynamic prompt sections | Prompt sections needing runtime config (miniAppUrl) use builder functions instead of const strings | ✓ Good -- enables conditional content without breaking static sections |
 
 ---
-*Last updated: 2026-02-18 after Phase 20*
+*Last updated: 2026-02-19 after Phase 21*

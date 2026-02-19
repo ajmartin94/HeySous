@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-19)
 
 **Core value:** The recipe brain -- an AI agent that remembers everything about your meals and reasons over that knowledge to help you plan.
-**Current focus:** v1.3 AI Polish & UX -- Phase 21: Implicit AI Behaviors
+**Current focus:** v1.3 AI Polish & UX -- Phase 22: Recipe Variations & Grocery Intelligence
 
 ## Current Position
 
-Phase: 21 of 24 (Implicit AI Behaviors)
-Plan: 2 of 2 in current phase (COMPLETE)
-Status: Phase Complete
-Last activity: 2026-02-19 -- Plan 21-02 completed (Pantry Response Enhancement)
+Phase: 22 of 24 (Recipe Variations & Grocery Intelligence)
+Plan: 0 of 2 in current phase
+Status: Ready to plan
+Last activity: 2026-02-19 -- Phase 21 completed (Implicit AI Behaviors)
 
 Progress: [████░░░░░░] 40%
 
@@ -86,5 +86,5 @@ v1.3 roadmap created: 5 phases (20-24), 9 plans, 11 requirements.
 ## Session Continuity
 
 Last session: 2026-02-19
-Stopped at: Completed 21-02-PLAN.md (Pantry Response Enhancement) -- Phase 21 complete
-Next action: Begin Phase 22 (Conversational Nudges)
+Stopped at: Phase 21 complete, ready to plan Phase 22
+Next action: Plan Phase 22 (Recipe Variations & Grocery Intelligence)

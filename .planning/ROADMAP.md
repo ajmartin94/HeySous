@@ -145,11 +145,10 @@ Plans:
   2. User can tap any tag on a recipe card to filter the recipe list to only recipes with that tag
   3. Tag filter is clearable -- user can return to the full recipe list after filtering
   4. Deleted recipes no longer appear in search results, meal plan suggestions, or the recipe browser
-**Plans**: TBD
+**Plans**: 1 plan (MINI-02 tag filtering already implemented in v1.1 Phase 13)
 
 Plans:
-- [ ] 23-01: Recipe deletion API endpoint and Mini App detail view delete button with confirmation
-- [ ] 23-02: Tag click filtering in recipe browser with clear filter capability
+- [ ] 23-01-PLAN.md -- Recipe deletion API endpoint, overflow menu + confirmation dialog in detail view (covers MINI-01 + validates MINI-02)
 
 ### Phase 24: Onboarding Refinement
 **Goal**: New users are directed to add their existing go-to meals early in onboarding so their first meal plan is built from real recipes they already cook
@@ -183,5 +182,5 @@ Plans:
 | 20. Bug Fixes | v1.3 | 2/2 | Complete | 2026-02-18 |
 | 21. Implicit AI Behaviors | v1.3 | 2/2 | Complete | 2026-02-19 |
 | 22. Recipe Variations & Grocery Intelligence | v1.3 | 2/2 | Complete | 2026-02-19 |
-| 23. Mini App Enhancements | v1.3 | 0/2 | Not started | - |
+| 23. Mini App Enhancements | v1.3 | 0/1 | Not started | - |
 | 24. Onboarding Refinement | v1.3 | 0/1 | Not started | - |

@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-19)
 ## Current Position
 
 Phase: 21 of 24 (Implicit AI Behaviors)
-Plan: 1 of 2 in current phase
-Status: Executing
-Last activity: 2026-02-19 -- Plan 21-01 completed (Implicit AI Behaviors - System Prompt)
+Plan: 2 of 2 in current phase (COMPLETE)
+Status: Phase Complete
+Last activity: 2026-02-19 -- Plan 21-02 completed (Pantry Response Enhancement)
 
-Progress: [███░░░░░░░] 30%
+Progress: [████░░░░░░] 40%
 
 ## Performance Metrics
 
@@ -44,6 +44,7 @@ Progress: [███░░░░░░░] 30%
 - 20-01: 4 min (1 task, 8 files)
 - 20-02: 3 min (1 task, 1 file)
 - 21-01: 2 min (2 tasks, 1 file)
+- 21-02: 2 min (1 task, 2 files)
 
 ## Accumulated Context
 
@@ -61,6 +62,9 @@ All v1.0, v1.1, v1.2, and Phase 20 decisions documented with outcomes.
 - Recipes use confirmation-first implicit detection (offer to save, wait for approval)
 - Preferences use immediate-save implicit capture (no confirmation, safety-critical)
 - One-time comments excluded from preference capture to reduce noise
+- Mini App URL threaded as optional param so pantry response works with or without it
+- Pantry response uses builder function for conditional grocery link interpolation
+- Conversational pantry walk-through preferred when no Mini App link available
 
 ### Pending Todos
 
@@ -82,5 +86,5 @@ v1.3 roadmap created: 5 phases (20-24), 9 plans, 11 requirements.
 ## Session Continuity
 
 Last session: 2026-02-19
-Stopped at: Completed 21-01-PLAN.md (Implicit AI Behaviors - System Prompt)
-Next action: Execute 21-02-PLAN.md
+Stopped at: Completed 21-02-PLAN.md (Pantry Response Enhancement) -- Phase 21 complete
+Next action: Begin Phase 22 (Conversational Nudges)

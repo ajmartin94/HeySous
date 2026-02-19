@@ -130,11 +130,11 @@ Plans:
   2. User's grocery store preferences (primary store, bulk store) are saved and used to group or annotate grocery list items
   3. Grocery list messages no longer display a "Done shopping" button
   4. Recipe variation cards reference their parent recipe so the user can see the relationship
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 22-01: Recipe variation handling -- tool updates, linked variation storage, system prompt guidance
-- [ ] 22-02: Grocery store preferences storage and list generation integration, remove done shopping button
+- [ ] 22-01-PLAN.md -- Recipe variation handling: system prompt instructions for in-place modification and inline substitution notes
+- [ ] 22-02-PLAN.md -- Grocery store preference pipeline wiring, Mini App Done Shopping button moved to overflow menu with confirmation
 
 ### Phase 23: Mini App Enhancements
 **Goal**: Users can manage recipe cards and discover recipes more easily through delete functionality and tag-based filtering in the Mini App

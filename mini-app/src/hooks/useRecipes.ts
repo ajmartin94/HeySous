@@ -165,6 +165,22 @@ export function useRecipes() {
     setRecipeDetail(null);
   }, []);
 
+  // Delete a recipe via API
+  const deleteRecipe = useCallback(async (id: number): Promise<boolean> => {
+    try {
+      const res = await apiFetch(`/recipes/${id}`, { method: 'DELETE' });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  }, []);
+
+  // Re-fetch the recipe list (e.g., after deletion)
+  const refetch = useCallback(() => {
+    setLoading(true);
+    fetchRecipes();
+  }, [fetchRecipes]);
+
   return {
     recipes,
     loading,
@@ -180,5 +196,7 @@ export function useRecipes() {
     detailLoading,
     openDetail,
     closeDetail,
+    deleteRecipe,
+    refetch,
   };
 }

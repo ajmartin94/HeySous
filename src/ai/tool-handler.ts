@@ -7,7 +7,7 @@ import type { createGroceryRepository } from "../grocery/repository.js";
 import type { createReminderRepository } from "../reminders/repository.js";
 import type { createAppFeedbackRepository } from "../app-feedback/repository.js";
 import type { Clock } from "../clock.js";
-import { formatIsoDate } from "../clock.js";
+import { formatIsoDate, getTodayInTimezone } from "../clock.js";
 import { logMeal, getCookingHistory } from "../planning/history.js";
 import { getWeekStartDate, DAY_NAMES } from "../planning/date-utils.js";
 import type { DrizzleDatabase } from "../db/index.js";
@@ -34,6 +34,7 @@ export function createToolHandler(deps: {
   generateRemindersFn?: (householdId: string) => void;
   appFeedbackRepository?: ReturnType<typeof createAppFeedbackRepository>;
   clock: Clock;
+  timezone?: string;
 }) {
   const { retrievalService, knowledgeRepository, db, householdId, planRepository, sqlite, groceryRepository, reminderRepository, generateRemindersFn, appFeedbackRepository, clock } = deps;
 
@@ -257,7 +258,7 @@ export function createToolHandler(deps: {
 
           const weekStartDate =
             (input.week_start_date as string | undefined) ??
-            getWeekStartDate();
+            getWeekStartDate(deps.timezone ? getTodayInTimezone(deps.timezone, clock) : undefined);
 
           const plan = planRepository.getPlan(householdId, weekStartDate);
 

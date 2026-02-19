@@ -15,11 +15,12 @@ export const DAY_NAMES = [
  * Get the Monday of the week containing the given date (or today).
  * Uses ISO week rules where Monday is the start of the week.
  *
- * @param date - Date to find the Monday for (defaults to today)
+ * @param dateStr - Optional ISO "YYYY-MM-DD" string representing today in the user's timezone.
+ *                  Falls back to server local time if not provided (backward-compatible).
  * @returns ISO date string "YYYY-MM-DD" for that Monday
  */
-export function getWeekStartDate(date?: Date): string {
-  const d = date ? new Date(date) : new Date();
+export function getWeekStartDate(dateStr?: string): string {
+  const d = dateStr ? new Date(dateStr + "T00:00:00") : new Date();
   // JavaScript: Sunday=0, Monday=1, ..., Saturday=6
   // We want Monday=0, so adjust: (jsDay + 6) % 7 gives Mon=0..Sun=6
   const jsDay = d.getDay();

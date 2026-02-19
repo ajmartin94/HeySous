@@ -1,16 +1,16 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { backButton } from '@tma.js/sdk-react';
-import { closingBehavior, miniApp, mainButton } from '@tma.js/sdk-react';
 import { StoreTabs } from '../components/grocery/StoreTabs.js';
 import { SectionGroup } from '../components/grocery/SectionGroup.js';
 import { DoneSection } from '../components/grocery/DoneSection.js';
 import { ProgressBar } from '../components/grocery/ProgressBar.js';
 import { EmptyState } from '../components/grocery/EmptyState.js';
 import { QuickAddFab } from '../components/grocery/QuickAddFab.js';
+import { OverflowMenu } from '../components/grocery/OverflowMenu.js';
+import { ClearListDialog } from '../components/grocery/ClearListDialog.js';
 import { useGroceryList } from '../hooks/useGroceryList.js';
 import { useHaptic } from '../hooks/useHaptic.js';
-import { useMainButton } from '../hooks/useMainButton.js';
 import { sectionSortKey } from '../utils/sectionMap.js';
 import '../components/grocery/grocery.css';
 
@@ -20,6 +20,7 @@ export function Grocery() {
   const navigate = useNavigate();
   const haptic = useHaptic();
   const [activeStore, setActiveStore] = useState('');
+  const [showClearDialog, setShowClearDialog] = useState(false);
 
   // BackButton: navigate back to hub
   useEffect(() => {
@@ -79,54 +80,14 @@ export function Grocery() {
     toggleItem(itemId);
   }
 
-  // MainButton "Done Shopping" handler
-  const handleDoneShopping = useCallback(async () => {
-    try {
-      mainButton.setParams({ isLoaderVisible: true });
-    } catch {
-      // no-op
-    }
+  // Clear list handler (replaces old Done Shopping MainButton)
+  const handleClearList = useCallback(async () => {
     const success = await completeList();
     if (success) {
-      try {
-        closingBehavior.disableConfirmation();
-      } catch {
-        // no-op outside Telegram
-      }
-      try {
-        miniApp.close();
-      } catch {
-        // Not in Telegram env -- just refetch to show empty state
-        refetch();
-      }
+      refetch();
     }
+    setShowClearDialog(false);
   }, [completeList, refetch]);
-
-  // MainButton integration
-  useMainButton('Done Shopping', handleDoneShopping, hasActiveList);
-
-  // ClosingBehavior: prevent accidental close during shopping
-  useEffect(() => {
-    if (!hasActiveList) return;
-
-    try {
-      if (closingBehavior.mount.isAvailable()) {
-        closingBehavior.mount();
-        closingBehavior.enableConfirmation();
-      }
-    } catch {
-      // Graceful no-op outside Telegram
-    }
-
-    return () => {
-      try {
-        closingBehavior.disableConfirmation();
-        closingBehavior.unmount();
-      } catch {
-        // Graceful no-op
-      }
-    };
-  }, [hasActiveList]);
 
   if (loading) {
     return (
@@ -162,6 +123,9 @@ export function Grocery() {
         onStoreChange={setActiveStore}
       />
       <ProgressBar checked={checkedCount} total={totalItems} />
+      <div className="grocery-page__header-bar">
+        <OverflowMenu onClearList={() => setShowClearDialog(true)} />
+      </div>
       {sections.map(([section, sectionItems]) => (
         <SectionGroup
           key={section}
@@ -172,6 +136,11 @@ export function Grocery() {
       ))}
       <DoneSection items={checkedItems} onToggle={handleToggle} />
       <QuickAddFab activeStore={activeStore} onAdd={addItem} />
+      <ClearListDialog
+        open={showClearDialog}
+        onCancel={() => setShowClearDialog(false)}
+        onConfirm={handleClearList}
+      />
     </div>
   );
 }

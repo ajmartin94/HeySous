@@ -31,6 +31,7 @@ import type { createPlanRepository } from "../planning/repository.js";
 import type { createGroceryRepository } from "../grocery/repository.js";
 import type { createReminderRepository } from "../reminders/repository.js";
 import type { Clock } from "../clock.js";
+import { getTodayInTimezone } from "../clock.js";
 import { autoMarkCookedMeals, getCookingHistory } from "../planning/history.js";
 import { buildPlanContext } from "../planning/context.js";
 import { buildGroceryContext } from "../grocery/context.js";
@@ -40,6 +41,7 @@ import type { createAppFeedbackRepository } from "../app-feedback/repository.js"
 import { formatGroceryList } from "../grocery/formatter.js";
 import { buildGroceryKeyboard } from "../grocery/buttons.js";
 import { getPreferenceSummaries } from "../knowledge/preferences.js";
+import { config } from "../config.js";
 import { buildSystemPrompt } from "../ai/system-prompt.js";
 import { extractOnboardingMarker, getNextOnboardingState } from "../onboarding/state.js";
 import { buildOnboardingPrompt } from "../onboarding/prompt.js";
@@ -147,7 +149,16 @@ export function createProcessor(deps: ProcessorDeps) {
         { role: "user" as const, content: userText },
       ];
 
-      // g. Create tool handler for knowledge retrieval, write ops, plan tools, grocery tools, and reminder tools
+      // g. Resolve user timezone for date calculations
+      let userTimezone = "America/New_York"; // fallback
+      let todayStr: string | undefined;
+      if (deps.reminderRepository) {
+        const reminderSettings = deps.reminderRepository.getOrCreateSettings(householdId);
+        userTimezone = reminderSettings.timezone;
+        todayStr = getTodayInTimezone(userTimezone, deps.clock);
+      }
+
+      // g1. Create tool handler for knowledge retrieval, write ops, plan tools, grocery tools, and reminder tools
       const toolHandler = createToolHandler({
         retrievalService,
         knowledgeRepository,
@@ -160,13 +171,14 @@ export function createProcessor(deps: ProcessorDeps) {
         generateRemindersFn: deps.generateRemindersFn,
         appFeedbackRepository: deps.appFeedbackRepository,
         clock: deps.clock,
+        timezone: userTimezone,
       });
 
       // g2. Auto-mark past planned meals as cooked before Claude processes
-      autoMarkCookedMeals(deps.sqlite, householdId, deps.clock);
+      autoMarkCookedMeals(deps.sqlite, householdId, deps.clock, userTimezone);
 
       // g3. Load active plan context for system prompt injection
-      const activePlans = planRepository.getActivePlans(householdId);
+      const activePlans = planRepository.getActivePlans(householdId, todayStr);
       const cookingHistoryEntries = getCookingHistory(deps.sqlite, householdId, deps.clock);
       const planContext = buildPlanContext(activePlans, cookingHistoryEntries);
 
@@ -182,6 +194,15 @@ export function createProcessor(deps: ProcessorDeps) {
 
       // g6. Load feedback context for system prompt injection
       const feedbackContext = buildFeedbackContext(deps.sqlite, householdId, deps.clock);
+
+      // g7. Build date context for system prompt
+      let dateContext = "";
+      if (todayStr) {
+        const todayDate = new Date(todayStr + "T00:00:00");
+        const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+        const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        dateContext = `<current_date>\nToday is ${dayNames[todayDate.getDay()]}, ${monthNames[todayDate.getMonth()]} ${todayDate.getDate()}, ${todayDate.getFullYear()} (${todayStr}).\n</current_date>`;
+      }
 
       // h. Load user preferences for system prompt injection
       const preferences = getPreferenceSummaries(deps.sqlite, householdId);
@@ -203,7 +224,7 @@ export function createProcessor(deps: ProcessorDeps) {
         }
       }
 
-      const systemPrompt = buildSystemPrompt(preferences, planContext, groceryContext, reminderContext, feedbackContext, userName, onboardingContext, appFeedbackContext);
+      const systemPrompt = buildSystemPrompt(preferences, planContext, groceryContext, reminderContext, feedbackContext, userName, onboardingContext, appFeedbackContext, dateContext, config.miniAppUrl);
 
       // i. 30-second timeout warning timer
       let timeoutFired = false;

@@ -43,18 +43,31 @@ The LLM is the product. It reasons, decides what to look up, and acts on what it
 - ✓ Recipe browser Mini App (FTS5 search, tag filter, sort, recipe detail, scroll preservation) — v1.1
 - ✓ Weekly meal plan Mini App (7-day grid, swipe weeks, today highlight, recipe drill-down) — v1.1
 
+- ✓ Gated invite system with deep link tokens (no unfiltered access) — v1.2
+- ✓ Guided onboarding flow (preference Q&A → tour → seed recipes) — v1.2
+- ✓ Multi-user support with per-user identity — v1.2
+- ✓ Household sharing (shared recipes, meal plans, grocery lists) — v1.2
+- ✓ App feedback system (/feedback command, silent detection, hub button, periodic check-in, admin dashboard) — v1.2
+- ✓ User help functionality (/help command, Mini App help page) — v1.2
+
+- ✓ Implicit recipe card creation (Sous proactively recognizes recipes without explicit commands) — v1.3 Phase 21
+- ✓ Implicit preference detection (Sous saves preferences from natural conversation) — v1.3 Phase 21
+- ✓ Improved pantry check response (Mini App link or conversational walk-through) — v1.3 Phase 21
+- ✓ Recipe variation handling (in-place updates + inline substitution notes) — v1.3 Phase 22
+- ✓ Grocery store preferences saved and used in list generation — v1.3 Phase 22
+- ✓ Remove "done shopping" button from grocery lists (overflow menu with confirmation) — v1.3 Phase 22
+- ✓ Delete button on recipe cards in Mini App — v1.3 Phase 23
+- ✓ Tag click filtering in recipe browser — v1.1 Phase 13 (validated v1.3 Phase 23)
+- ✓ Onboarding pushes users to add existing recipes first — v1.3 Phase 24
+- ✓ Fix intermittent date bugs in meal plans (timezone-aware date pipeline) — v1.3 Phase 20
+- ✓ Fix start_cooking reminder to account for prep time — v1.3 Phase 20
+
 ### Active
 
-- [ ] Gated invite system with deep link tokens (no unfiltered access)
-- [ ] Guided onboarding flow (preference Q&A → tour → seed recipes)
-- [ ] Multi-user support with per-user identity
-- [ ] Household sharing (shared recipes, meal plans, grocery lists)
-- [ ] App feedback system (/feedback command, silent detection, hub button, periodic check-in, admin dashboard)
+(No active requirements -- planning next milestone)
 
 ### Out of Scope
 
-- ~~Mini Apps (Telegram rich UI)~~ — **Shipped in v1.1**
-- ~~Multi-user / partner access~~ — **Active in v1.2**
 - URL recipe import -- conversational entry sufficient for now
 - Photo/image recipe capture -- requires vision pipeline, defer
 - Voice interaction / cooking mode -- future capability
@@ -62,31 +75,30 @@ The LLM is the product. It reasons, decides what to look up, and acts on what it
 - Nutritional tracking / calorie counting -- changes product from cooking partner to diet app
 - Recipe catalog / discovery database -- this is YOUR recipes, not a browsable catalog
 - Grocery delivery integration -- user shops in-person at Kroger/Costco
+- Bot update notification system -- deferred to future milestone
+- Data migration framework -- deferred to future milestone
+- Web search + picture analysis for byo-recipe -- deferred to future milestone
 
 ## Context
 
-- **Current state:** v1.1 shipped with 12,726 LOC TypeScript across 14 phases and 40 plans. Mini App UI layer added on top of v1.0 bot.
+- **Current state:** v1.3 shipped. All 24 phases across 4 milestones complete. ~22,650 LOC TypeScript (18,685 server + 3,966 Mini App). 59 plans total across 24 phases.
 - **Tech stack:** Node.js 22, TypeScript (ESM), grammY, better-sqlite3/Drizzle, Anthropic SDK, Pino, Express, React+Vite (Mini App SPA), @telegram-apps SDK
 - **Primary user:** Home cook who loves cooking, time-constrained on weekdays, more flexible weekends
-- **Household:** Partner + 9-month-old. Partner collaboration deferred to v2.
+- **Household:** Partner + 9-month-old. Partner now has access via invite system (v1.2).
 - **Dinner target:** 6pm daily
-- **Shopping:** Kroger (primary), Costco (bulk)
+- **Shopping:** Kroger (primary), Costco (bulk) -- store preferences now factored into grocery lists (v1.3)
 - **Devices:** Apple ecosystem (iPhone, iPad) -- Telegram works cross-platform
-- **First-run flow:** User seeds 10-15 rotating recipes before planning first week
+- **First-run flow:** Onboarding guides new users through preferences → tour → seed 3-5 go-to recipes (v1.3 refinement)
 - **Mini App model:** Hybrid — bot stays primary, Mini Apps open from chat buttons for visual tasks
 - **Frontend:** React+Vite SPA inside Telegram Web Apps, served by existing Express server at /app/*
-- **Next step:** v1.2 Onboarding and Feedback
+- **Known issues:** save_knowledge duplicate prevention needs design decision (auto-upsert vs title uniqueness)
+- **Next step:** Plan next milestone (/gsd:new-milestone)
 
-## Current Milestone: v1.2 Onboarding and Feedback
+## Latest Milestone: v1.3 AI Polish & UX (Shipped 2026-02-19)
 
-**Goal:** Enable multi-user access with gated invitations, guided onboarding for new users, full household sharing, and an app feedback system.
+**Delivered:** Smarter implicit AI behaviors, recipe variation handling, grocery store preferences, Mini App recipe deletion, bug fixes, and directive onboarding recipe seeding.
 
-**Target features:**
-- Invite-gated access via Telegram deep links (single-use tokens)
-- Guided first-run flow: preference Q&A → capability tour → seed recipes
-- Per-user identity model (Telegram user ID) with household grouping
-- Full household sharing: recipes, meal plans, and grocery lists shared between members
-- App feedback: /feedback command, silent sentiment detection, hub button, periodic check-in, admin dashboard
+**Next milestone:** Not yet planned. Run `/gsd:new-milestone` to start.
 
 ## Constraints
 
@@ -125,5 +137,17 @@ The LLM is the product. It reasons, decides what to look up, and acts on what it
 | FTS5 two-step query (bm25 + GROUP BY) | SQLite bm25() incompatible with GROUP BY in any context; separate matching from aggregation | ✓ Good -- solved after CTE approach failed, clean separation |
 | Duplicated constants across server/client | No shared imports across Vite/Node build boundary; duplicate SECTION_ORDER, date utils | ⚠️ Revisit -- tech debt, consider shared package if more constants emerge |
 
+| Timezone-aware date pipeline | Resolve timezone once at pipeline entry from reminder_settings, thread through all date consumers | ✓ Good -- eliminates timezone bugs across all date operations |
+| Recipe time parsing for reminder adjustment | Parse prep+cook time from recipe content, adjust start_cooking reminder timing | ✓ Good -- robust multi-format parsing with graceful fallback |
+| Confirmation-first implicit recipe detection | Offer to save recipe, wait for user approval -- avoids unwanted saves from casual food mentions | ✓ Good -- balances proactiveness with user control |
+| Immediate implicit preference capture | Save preferences without asking -- dietary restrictions/allergies are safety-critical | ✓ Good -- reduces missed preferences, brief acknowledgment keeps conversation flowing |
+| Builder function for dynamic prompt sections | Prompt sections needing runtime config (miniAppUrl) use builder functions instead of const strings | ✓ Good -- enables conditional content without breaking static sections |
+| In-place recipe modifications over separate variation cards | Recipe tweaks update existing card; interchangeable ingredients as inline Variations section | ✓ Good -- keeps recipe list clean, avoids card proliferation |
+| Mandatory store preference search before grocery generation | System prompt requires search_knowledge for store preferences before any list generation | ✓ Good -- ensures lists respect user's store assignments |
+| Overflow menu for destructive grocery actions | Done Shopping MainButton replaced with three-dot overflow menu + confirmation dialog | ✓ Good -- two-step confirmation prevents accidental list clearing |
+| Optional onDelete prop for shared detail components | RecipeDetail used by both Recipes and MealPlan pages; onDelete optional so delete only appears where appropriate | ✓ Good -- avoids breaking MealPlan page, clean conditional rendering |
+| Cascading delete with manual cooking_history cleanup | cooking_history has no ON DELETE CASCADE FK; delete manually before knowledge_items (which cascades tags + FTS5) | ✓ Good -- ensures complete cleanup without orphaned records |
+| Directive onboarding recipe prompting with soft target | Ask for 3-5 go-to meals with concrete questions and first meal plan motivation, gentle encouragement but no hard gate | ✓ Good -- balances directiveness with user comfort |
+
 ---
-*Last updated: 2026-02-10 after v1.2 milestone start*
+*Last updated: 2026-02-19 after v1.3 milestone*

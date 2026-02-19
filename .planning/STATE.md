@@ -110,6 +110,17 @@ All v1.0 and v1.1 decisions documented with outcomes.
 ### Pending Todos
 
 1. Fix start_cooking reminder to account for prep time (reminders) — `.planning/todos/pending/2026-02-11-fix-start-cooking-reminder-to-account-for-prep-time.md`
+2. Bot update notification system for users (bot) — `.planning/todos/pending/2026-02-19-bot-update-notification-system-for-users.md`
+3. Data migration framework for schema and behavior fixes (database) — `.planning/todos/pending/2026-02-19-data-migration-framework-for-schema-and-behavior-fixes.md`
+4. Recipe cards require too explicit language to create (ai) — `.planning/todos/pending/2026-02-19-recipe-cards-require-too-explicit-language-to-create.md`
+5. Preferences require too explicit language to save (ai) — `.planning/todos/pending/2026-02-19-preferences-require-too-explicit-language-to-save.md`
+6. Web search and picture analysis for byo-recipe (ai) — `.planning/todos/pending/2026-02-19-web-search-and-picture-analysis-for-byo-recipe.md`
+7. Amend check the pantry response with grocery list link (ai) — `.planning/todos/pending/2026-02-19-amend-check-the-pantry-response-with-grocery-list-link.md`
+8. Delete button on recipe cards (ui) — `.planning/todos/pending/2026-02-19-delete-button-on-recipe-cards.md`
+9. Variation handling research and refinement (ai) — `.planning/todos/pending/2026-02-19-variation-handling-research-and-refinement.md`
+10. Easy-click filtering on tags in mini app (ui) — `.planning/todos/pending/2026-02-19-easy-click-filtering-on-tags-in-mini-app.md`
+11. Onboarding should push users to add existing recipes first (onboarding) — `.planning/todos/pending/2026-02-19-onboarding-should-push-users-to-add-existing-recipes-first.md`
+12. Remove done shopping button entirely (grocery) — `.planning/todos/pending/2026-02-19-remove-done-shopping-button-entirely.md`
 
 ### Roadmap Evolution
 

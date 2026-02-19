@@ -86,7 +86,7 @@ Plans:
 
 - [x] **Phase 20: Bug Fixes** - Investigate and fix date bugs in meal plans and prep time in cooking reminders (completed 2026-02-19)
 - [x] **Phase 21: Implicit AI Behaviors** - Sous proactively recognizes recipes, preferences, and pantry context without explicit commands (completed 2026-02-19)
-- [ ] **Phase 22: Recipe Variations & Grocery Intelligence** - Handle recipe modifications gracefully and factor store preferences into grocery lists
+- [x] **Phase 22: Recipe Variations & Grocery Intelligence** - Handle recipe modifications gracefully and factor store preferences into grocery lists (completed 2026-02-19)
 - [ ] **Phase 23: Mini App Enhancements** - Delete recipe cards and filter by tag in the Mini App
 - [ ] **Phase 24: Onboarding Refinement** - Push new users to add their existing go-to meals before first meal plan
 
@@ -118,8 +118,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 21-01-PLAN.md -- System prompt updates for implicit recipe detection and preference capture
-- [ ] 21-02-PLAN.md -- Pantry check response enhancement with Mini App grocery list deep link
+- [x] 21-01-PLAN.md -- System prompt updates for implicit recipe detection and preference capture
+- [x] 21-02-PLAN.md -- Pantry check response enhancement with Mini App grocery list deep link
 
 ### Phase 22: Recipe Variations & Grocery Intelligence
 **Goal**: Sous handles recipe modification requests gracefully and generates grocery lists that reflect the user's store preferences
@@ -133,8 +133,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 22-01-PLAN.md -- Recipe variation handling: system prompt instructions for in-place modification and inline substitution notes
-- [ ] 22-02-PLAN.md -- Grocery store preference pipeline wiring, Mini App Done Shopping button moved to overflow menu with confirmation
+- [x] 22-01-PLAN.md -- Recipe variation handling: system prompt instructions for in-place modification and inline substitution notes
+- [x] 22-02-PLAN.md -- Grocery store preference pipeline wiring, Mini App Done Shopping button moved to overflow menu with confirmation
 
 ### Phase 23: Mini App Enhancements
 **Goal**: Users can manage recipe cards and discover recipes more easily through delete functionality and tag-based filtering in the Mini App
@@ -181,7 +181,7 @@ Plans:
 | 18. App Feedback | v1.2 | 2/2 | Complete | 2026-02-11 |
 | 19. User Help Functionality | v1.2 | 2/2 | Complete | 2026-02-11 |
 | 20. Bug Fixes | v1.3 | 2/2 | Complete | 2026-02-18 |
-| 21. Implicit AI Behaviors | 2/2 | Complete    | 2026-02-19 | - |
-| 22. Recipe Variations & Grocery Intelligence | v1.3 | 0/2 | Not started | - |
+| 21. Implicit AI Behaviors | v1.3 | 2/2 | Complete | 2026-02-19 |
+| 22. Recipe Variations & Grocery Intelligence | v1.3 | 2/2 | Complete | 2026-02-19 |
 | 23. Mini App Enhancements | v1.3 | 0/2 | Not started | - |
 | 24. Onboarding Refinement | v1.3 | 0/1 | Not started | - |

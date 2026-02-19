@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-19)
 
 **Core value:** The recipe brain -- an AI agent that remembers everything about your meals and reasons over that knowledge to help you plan.
-**Current focus:** v1.3 AI Polish & UX -- Phase 22: Recipe Variations & Grocery Intelligence
+**Current focus:** v1.3 AI Polish & UX -- Phase 23: Mini App Enhancements
 
 ## Current Position
 
-Phase: 22 of 24 (Recipe Variations & Grocery Intelligence)
+Phase: 23 of 24 (Mini App Enhancements)
 Plan: 0 of 2 in current phase
 Status: Ready to plan
-Last activity: 2026-02-19 -- Phase 21 completed (Implicit AI Behaviors)
+Last activity: 2026-02-19 -- Phase 22 completed (Recipe Variations & Grocery Intelligence)
 
-Progress: [████░░░░░░] 40%
+Progress: [██████░░░░] 60%
 
 ## Performance Metrics
 
@@ -45,6 +45,8 @@ Progress: [████░░░░░░] 40%
 - 20-02: 3 min (1 task, 1 file)
 - 21-01: 2 min (2 tasks, 1 file)
 - 21-02: 2 min (1 task, 2 files)
+- 22-01: 3 min (2 tasks, 1 file)
+- 22-02: 3 min (2 tasks, 5 files)
 
 ## Accumulated Context
 
@@ -66,6 +68,13 @@ All v1.0, v1.1, v1.2, and Phase 20 decisions documented with outcomes.
 - Pantry response uses builder function for conditional grocery link interpolation
 - Conversational pantry walk-through preferred when no Mini App link available
 
+**Phase 22 decisions:**
+- Recipe tweaks are in-place updates on existing card, not new cards
+- Interchangeable ingredients stored as inline Variations section in recipe content
+- Store preference pipeline: mandatory search_knowledge before any grocery list generation
+- Done Shopping MainButton replaced with overflow menu "Clear list" behind confirmation dialog
+- Clear list action keeps user on page (refetch) instead of closing Mini App
+
 ### Pending Todos
 
 **Deferred (future milestones):**
@@ -86,5 +95,5 @@ v1.3 roadmap created: 5 phases (20-24), 9 plans, 11 requirements.
 ## Session Continuity
 
 Last session: 2026-02-19
-Stopped at: Phase 21 complete, ready to plan Phase 22
-Next action: Plan Phase 22 (Recipe Variations & Grocery Intelligence)
+Stopped at: Phase 22 complete, transitioning to Phase 23
+Next action: Plan Phase 23 (Mini App Enhancements)

@@ -12,7 +12,7 @@ Requirements for making Sous smarter, fixing UX rough edges, and refining the on
 - [x] **AIBH-01**: Sous recognizes recipe-like content (ingredients + steps) and offers to save it as a recipe card without requiring explicit "save this recipe" language
 - [x] **AIBH-02**: Sous detects preference statements in natural conversation ("I don't eat pork", "we love spicy food") and saves them with a brief confirmation
 - [x] **AIBH-03**: When mentioning pantry/ingredients, Sous includes Mini App grocery list link and/or offers conversational pantry walk-through instead of dead-end response
-- [ ] **AIBH-04**: Sous handles recipe variation requests ("make it spicier", "swap chicken for tofu") gracefully — modify existing card or create linked variation
+- [x] **AIBH-04**: Sous handles recipe variation requests ("make it spicier", "swap chicken for tofu") gracefully — modify existing card or create linked variation
 
 ### Grocery
 
@@ -75,7 +75,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AIBH-01 | Phase 21 | Complete |
 | AIBH-02 | Phase 21 | Complete |
 | AIBH-03 | Phase 21 | Complete |
-| AIBH-04 | Phase 22 | Pending |
+| AIBH-04 | Phase 22 | Complete |
 | GROC-01 | Phase 22 | Pending |
 | GROC-02 | Phase 22 | Pending |
 | MINI-01 | Phase 23 | Pending |

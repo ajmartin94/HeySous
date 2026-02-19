@@ -134,19 +134,26 @@ export function createToolHandler(deps: {
             | string
             | undefined;
 
+          // Build changes object with only defined fields
+          const changes: Record<string, unknown> = {};
+          if (title !== undefined) changes.title = title;
+          if (summary !== undefined) changes.summary = summary;
+          if (content !== undefined) changes.content = content;
+          if (tags !== undefined) changes.tags = tags;
+
+          // Guard: reject calls with no substantive fields (prevents silent no-ops)
+          if (Object.keys(changes).length === 0) {
+            return JSON.stringify({
+              error: "No fields to update. You must provide at least one of: title, summary, content, tags. For recipe modifications, retrieve the current content with get_knowledge_item, modify it, then provide the full updated content field.",
+            });
+          }
+
           try {
             // Get current item for changelog snapshot
             const previous = knowledgeRepository.getById(id, householdId);
             if (!previous) {
               return JSON.stringify({ error: `No item found with ID ${id}` });
             }
-
-            // Build changes object with only defined fields
-            const changes: Record<string, unknown> = {};
-            if (title !== undefined) changes.title = title;
-            if (summary !== undefined) changes.summary = summary;
-            if (content !== undefined) changes.content = content;
-            if (tags !== undefined) changes.tags = tags;
 
             const updated = knowledgeRepository.update(id, householdId, changes);
             if (!updated) {

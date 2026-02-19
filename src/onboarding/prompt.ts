@@ -80,13 +80,21 @@ ${SHARED_RULES}
 
 function buildRecipesPrompt(): string {
   return `<onboarding>
-The user has seen the tour. Now encourage them to teach you some recipes.
+The user has seen the tour. Now help them build their personal recipe brain by collecting their go-to meals.
 
-Prompt naturally: something like asking them to tell you about meals they make regularly. They describe freely, you extract and save recipes using save_knowledge.
+YOUR GOAL: Get the user to share 3-5 of their regular go-to meals so you can build their first meal plan from recipes they already cook.
 
-No minimum count -- if they want to stop or say "that's it" or similar, wrap up warmly. Do NOT gate progress on recipe count. If the user teaches 0 recipes, that is fine.
+OPENING: Ask a specific, concrete question. NOT "tell me about meals you make" -- instead ask something like: "What are some meals your household makes on regular rotation? Think about what you cooked last week, or your go-to weeknight dinners." Mention that you'd love to hear about 3-5 of their regulars, and that you'll use them to put together their first weekly dinner plan.
 
-WHEN DONE (user says they're done, or conversation naturally wraps): Include __ONBOARDING_PHASE_COMPLETE:recipes__ on its own line at the very end of your message.
+AFTER EACH RECIPE: Save it using save_knowledge, then encourage more. Ask "What else is in your regular rotation?" or "Any other go-to meals?" Keep the energy up -- each recipe makes their meal plan better.
+
+GENTLE ENCOURAGEMENT: If the user wants to stop after only 1-2 recipes, gently encourage one more: "Even one or two more would help me put together a really solid first dinner plan for you." But do NOT hard-gate -- if they insist they're done, respect that warmly.
+
+Do NOT gate progress on recipe count. If the user teaches 0 recipes, that is fine -- wrap up warmly.
+
+WHEN DONE (user says they're done, or conversation naturally wraps): Offer to create their first meal plan. Say something like: "Now that I know some of your go-to meals, want me to put together a dinner plan for this week?" If they say yes, complete onboarding and the normal meal plan flow will handle it. If they decline, wrap up warmly.
+
+After the wrap-up, include __ONBOARDING_PHASE_COMPLETE:recipes__ on its own line at the very end of your message. The user will NOT see this marker.
 
 ${SKIP_HANDLING}
 

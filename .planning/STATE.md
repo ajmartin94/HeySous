@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-19 after Phase 23)
 
 **Core value:** The recipe brain -- an AI agent that remembers everything about your meals and reasons over that knowledge to help you plan.
-**Current focus:** v1.3 AI Polish & UX -- Phase 24: Onboarding Refinement
+**Current focus:** v1.3 AI Polish & UX -- MILESTONE COMPLETE
 
 ## Current Position
 
-Phase: 24 of 24 (Onboarding Refinement)
-Plan: 0 of 1 in current phase
-Status: Ready to plan
-Last activity: 2026-02-19 -- Phase 23 completed (Mini App Enhancements)
+Phase: 24 of 24 (Onboarding Refinement) -- COMPLETE
+Plan: 1 of 1 in current phase -- COMPLETE
+Status: Milestone complete
+Last activity: 2026-02-19 -- Phase 24 completed (Onboarding Refinement)
 
-Progress: [████████████████████] 17/17 plans (100%)
+Progress: [████████████████████] 18/18 plans (100%)
 
 ## Performance Metrics
 
@@ -48,6 +48,7 @@ Progress: [████████████████████] 17/17 p
 - 22-01: 3 min (2 tasks, 1 file)
 - 22-02: 3 min (2 tasks, 5 files)
 - 23-01: 3 min (2 tasks, 7 files)
+- 24-01: 2 min (1 task, 1 file)
 
 ## Accumulated Context
 
@@ -82,6 +83,11 @@ All v1.0, v1.1, v1.2, and Phase 20 decisions documented with outcomes.
 - Cooking history deleted manually before knowledge_items (no cascade FK on cooking_history)
 - MINI-02 (tag filtering) validated as pre-existing from v1.1 Phase 13 -- no work needed
 
+**Phase 24 decisions:**
+- Kept existing onboarding state machine flow unchanged (preferences -> tour -> recipes -> complete)
+- Soft target of 3-5 go-to meals with gentle encouragement, never hard-gated
+- First meal plan offer at wrap-up bridges onboarding into real usage
+
 ### Pending Todos
 
 **Deferred (future milestones):**
@@ -102,5 +108,5 @@ v1.3 roadmap created: 5 phases (20-24), 9 plans, 11 requirements.
 ## Session Continuity
 
 Last session: 2026-02-19
-Stopped at: Phase 24 context gathered, ready to plan
-Next action: Plan Phase 24 (Onboarding Refinement)
+Stopped at: Phase 24 complete, v1.3 milestone complete
+Next action: Complete milestone v1.3 (/gsd:complete-milestone v1.3)

@@ -5,7 +5,7 @@
 - [x] **v1.0 MVP** - Phases 1-10 (shipped 2026-02-09)
 - [x] **v1.1 Mini Apps** - Phases 11-14 (shipped 2026-02-10)
 - [x] **v1.2 Onboarding and Feedback** - Phases 15-19 (shipped 2026-02-11)
-- [ ] **v1.3 AI Polish & UX** - Phases 20-24 (in progress)
+- [x] **v1.3 AI Polish & UX** - Phases 20-24 (shipped 2026-02-19)
 
 ## Phases
 
@@ -88,7 +88,7 @@ Plans:
 - [x] **Phase 21: Implicit AI Behaviors** - Sous proactively recognizes recipes, preferences, and pantry context without explicit commands (completed 2026-02-19)
 - [x] **Phase 22: Recipe Variations & Grocery Intelligence** - Handle recipe modifications gracefully and factor store preferences into grocery lists (completed 2026-02-19)
 - [x] **Phase 23: Mini App Enhancements** - Delete recipe cards and filter by tag in the Mini App (completed 2026-02-19)
-- [ ] **Phase 24: Onboarding Refinement** - Push new users to add their existing go-to meals before first meal plan
+- [x] **Phase 24: Onboarding Refinement** - Push new users to add their existing go-to meals before first meal plan (completed 2026-02-19)
 
 ## Phase Details
 
@@ -161,7 +161,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 24-01-PLAN.md -- Rewrite onboarding recipes prompt for directive go-to meal collection with first meal plan offer
+- [x] 24-01-PLAN.md -- Rewrite onboarding recipes prompt for directive go-to meal collection with first meal plan offer
 
 ## Progress
 
@@ -183,4 +183,4 @@ Plans:
 | 21. Implicit AI Behaviors | v1.3 | 2/2 | Complete | 2026-02-19 |
 | 22. Recipe Variations & Grocery Intelligence | v1.3 | 2/2 | Complete | 2026-02-19 |
 | 23. Mini App Enhancements | v1.3 | 1/1 | Complete | 2026-02-19 |
-| 24. Onboarding Refinement | v1.3 | 0/1 | Not started | - |
+| 24. Onboarding Refinement | v1.3 | 1/1 | Complete | 2026-02-19 |

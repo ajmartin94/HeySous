@@ -1,9 +1,11 @@
+import { useState, useEffect, useRef, useCallback } from 'react';
 import type { RecipeDetailData } from '../../hooks/useRecipes.js';
 import { parseRecipeContent, computeRating } from '../../utils/recipeParser.js';
 
 interface RecipeDetailProps {
   recipe: RecipeDetailData;
   onBack: () => void;
+  onDelete?: () => void;
 }
 
 const RATING_LABELS: Record<string, string> = {
@@ -28,7 +30,7 @@ function formatLastCooked(dateStr: string): string {
   return `Cooked ${month} ${day}`;
 }
 
-export function RecipeDetail({ recipe }: RecipeDetailProps) {
+export function RecipeDetail({ recipe, onDelete }: RecipeDetailProps) {
   const parsed = parseRecipeContent(recipe.content);
   const ratingResult = computeRating(parsed.feedback);
   const ratingLabel = ratingResult?.label;
@@ -41,11 +43,62 @@ export function RecipeDetail({ recipe }: RecipeDetailProps) {
     parsed.metadata.totalTime ||
     parsed.metadata.servings;
 
+  // Overflow menu state
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const handleMenuToggle = useCallback(() => {
+    setMenuOpen((prev) => !prev);
+  }, []);
+
+  const handleDeleteClick = useCallback(() => {
+    setMenuOpen(false);
+    onDelete?.();
+  }, [onDelete]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    if (!menuOpen) return;
+
+    function handleClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [menuOpen]);
+
   return (
     <div className="recipe-detail">
       {/* Header */}
       <div className="recipe-detail__header">
-        <h1 className="recipe-detail__title">{recipe.title}</h1>
+        <div className="recipe-detail__title-row">
+          <h1 className="recipe-detail__title">{recipe.title}</h1>
+          {onDelete && (
+            <div className="overflow-menu" ref={menuRef}>
+              <button
+                className="overflow-menu__trigger"
+                onClick={handleMenuToggle}
+                aria-label="More options"
+                aria-expanded={menuOpen}
+              >
+                &#8942;
+              </button>
+              {menuOpen && (
+                <div className="overflow-menu__dropdown">
+                  <button
+                    className="overflow-menu__item overflow-menu__item--destructive"
+                    onClick={handleDeleteClick}
+                  >
+                    Delete recipe
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
         <div className="recipe-detail__meta-row">
           {recipe.lastCooked && (

@@ -216,11 +216,19 @@
   padding: 16px 0 8px;
 }
 
+.recipe-detail__title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .recipe-detail__title {
   font-size: var(--hs-font-size-heading);
   font-weight: 700;
   color: var(--tg-theme-text-color, #000);
   margin: 0 0 8px;
+  flex: 1;
 }
 
 .recipe-detail__meta-row {
@@ -348,4 +356,62 @@
   color: var(--tg-theme-hint-color, #999);
   text-align: center;
   padding: 32px;
+}
+
+/* Delete Recipe Dialog */
+.delete-recipe-dialog__overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+.delete-recipe-dialog {
+  background: var(--tg-theme-bg-color, #fff);
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 300px;
+  width: 90%;
+  text-align: center;
+}
+
+.delete-recipe-dialog__title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--tg-theme-text-color, #000);
+  margin: 0 0 8px;
+}
+
+.delete-recipe-dialog__body {
+  font-size: 14px;
+  color: var(--tg-theme-hint-color, #999);
+  margin: 0 0 20px;
+}
+
+.delete-recipe-dialog__actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.delete-recipe-dialog__btn {
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+}
+
+.delete-recipe-dialog__btn--cancel {
+  background: var(--tg-theme-secondary-bg-color, #f0f0f0);
+  color: var(--tg-theme-text-color, #000);
+}
+
+.delete-recipe-dialog__btn--confirm {
+  background: var(--tg-theme-destructive-text-color, #e53935);
+  color: #fff;
 }

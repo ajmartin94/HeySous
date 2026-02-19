@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { backButton } from '@tma.js/sdk-react';
 import { useRecipes } from '../hooks/useRecipes.js';
 import { RecipeList } from '../components/recipes/RecipeList.js';
 import { RecipeDetail } from '../components/recipes/RecipeDetail.js';
+import { DeleteRecipeDialog } from '../components/recipes/DeleteRecipeDialog.js';
 import { SearchHeader } from '../components/recipes/SearchHeader.js';
 import { TagChipBar } from '../components/recipes/TagChipBar.js';
 import { RecipeEmptyState } from '../components/recipes/RecipeEmptyState.js';
@@ -25,10 +26,13 @@ export function Recipes() {
     detailLoading,
     openDetail,
     closeDetail,
+    deleteRecipe,
+    refetch,
   } = useRecipes();
 
   const navigate = useNavigate();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const scrollPositionRef = useRef(0);
 
   // BackButton handler: close detail if open, otherwise navigate back
@@ -72,6 +76,17 @@ export function Recipes() {
     setIsSearchOpen(!isSearchOpen);
   }
 
+  // Delete recipe handler
+  const handleDeleteRecipe = useCallback(async () => {
+    if (selectedRecipeId === null) return;
+    const success = await deleteRecipe(selectedRecipeId);
+    if (success) {
+      closeDetail();
+      refetch();
+    }
+    setShowDeleteDialog(false);
+  }, [selectedRecipeId, deleteRecipe, closeDetail, refetch]);
+
   // Detail view
   if (selectedRecipeId !== null) {
     if (detailLoading || !recipeDetail) {
@@ -85,7 +100,17 @@ export function Recipes() {
     }
     return (
       <div className="recipes-page">
-        <RecipeDetail recipe={recipeDetail} onBack={handleCloseDetail} />
+        <RecipeDetail
+          recipe={recipeDetail}
+          onBack={handleCloseDetail}
+          onDelete={() => setShowDeleteDialog(true)}
+        />
+        <DeleteRecipeDialog
+          open={showDeleteDialog}
+          recipeName={recipeDetail.title}
+          onCancel={() => setShowDeleteDialog(false)}
+          onConfirm={handleDeleteRecipe}
+        />
       </div>
     );
   }

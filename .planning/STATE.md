@@ -99,7 +99,9 @@ All v1.0, v1.1, v1.2, and Phase 20 decisions documented with outcomes.
 - Data migration framework (INFR-01)
 - Web search + picture analysis for byo-recipe (CAPS-01, CAPS-02)
 
-All v1.3 in-scope todos now mapped to phases 20-24.
+**From v1.3 UAT (needs design):**
+- update_knowledge no-op bug: Claude can call with only {id, change_description} and no content, gets false success. Needs validation guard in tool-handler.ts but approach needs careful design (see .planning/debug/recipe-modification-not-persisted.md)
+- save_knowledge duplicate prevention: No dedup at any layer — blind INSERT creates duplicates across sessions and within same conversation. Needs design decision: auto-upsert vs return-match-to-Claude vs title uniqueness constraint (see .planning/debug/save-knowledge-duplicates.md)
 
 ### Blockers/Concerns
 

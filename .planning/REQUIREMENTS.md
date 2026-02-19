@@ -70,23 +70,23 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AIBH-01 | — | Pending |
-| AIBH-02 | — | Pending |
-| AIBH-03 | — | Pending |
-| AIBH-04 | — | Pending |
-| GROC-01 | — | Pending |
-| GROC-02 | — | Pending |
-| MINI-01 | — | Pending |
-| MINI-02 | — | Pending |
-| FIX-01 | — | Pending |
-| FIX-02 | — | Pending |
-| ONBR-01 | — | Pending |
+| FIX-01 | Phase 20 | Pending |
+| FIX-02 | Phase 20 | Pending |
+| AIBH-01 | Phase 21 | Pending |
+| AIBH-02 | Phase 21 | Pending |
+| AIBH-03 | Phase 21 | Pending |
+| AIBH-04 | Phase 22 | Pending |
+| GROC-01 | Phase 22 | Pending |
+| GROC-02 | Phase 22 | Pending |
+| MINI-01 | Phase 23 | Pending |
+| MINI-02 | Phase 23 | Pending |
+| ONBR-01 | Phase 24 | Pending |
 
 **Coverage:**
 - v1.3 requirements: 11 total
-- Mapped to phases: 0
-- Unmapped: 11 ⚠️
+- Mapped to phases: 11
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-19*
-*Last updated: 2026-02-19 after initial definition*
+*Last updated: 2026-02-18 after roadmap creation*

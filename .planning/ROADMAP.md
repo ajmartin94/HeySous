@@ -5,6 +5,7 @@
 - [x] **v1.0 MVP** - Phases 1-10 (shipped 2026-02-09)
 - [x] **v1.1 Mini Apps** - Phases 11-14 (shipped 2026-02-10)
 - [x] **v1.2 Onboarding and Feedback** - Phases 15-19 (shipped 2026-02-11)
+- [ ] **v1.3 AI Polish & UX** - Phases 20-24 (in progress)
 
 ## Phases
 
@@ -24,28 +25,13 @@ See .planning/milestones/v1.1-ROADMAP.md for full phase history.
 
 </details>
 
-### v1.2 Onboarding and Feedback
-
-**Milestone Goal:** Enable multi-user access with gated invitations, guided onboarding for new users, full household sharing, an app feedback system, and user help functionality.
-
-- [x] **Phase 15: Users, Households, and Invites** - Multi-user identity with invite-gated access (completed 2026-02-11)
-- [x] **Phase 16: Household Data Migration** - Migrate all data paths from chatId to householdId for shared data (completed 2026-02-11)
-- [x] **Phase 17: Guided Onboarding** - Claude-driven first-run experience for new users (completed 2026-02-11)
-- [x] **Phase 18: App Feedback** - Feedback collection through command, implicit AI detection, Mini App form, and proactive prompting (completed 2026-02-11)
-- [x] **Phase 19: User Help Functionality** - /help command, Mini App help page, and Claude help awareness (completed 2026-02-11)
-
-## Phase Details
+<details>
+<summary>v1.2 Onboarding and Feedback (Phases 15-19) - SHIPPED 2026-02-11</summary>
 
 ### Phase 15: Users, Households, and Invites
 **Goal**: New users can join the bot only via invite link, and every user has a persistent identity within a household
 **Depends on**: Phase 14 (v1.1 complete)
 **Requirements**: INVITE-01, INVITE-02, INVITE-03, INVITE-04, INVITE-05, INVITE-06, USER-01, USER-02, USER-03
-**Success Criteria** (what must be TRUE):
-  1. Admin can run `/invite` to generate a single-use deep link URL, choosing household or independent type
-  2. A new user clicking an invite link is registered with their Telegram identity, assigned to the correct household, and greeted
-  3. A new user clicking an expired or already-used invite link sees a friendly rejection and cannot use the bot
-  4. A non-invited user sending any message is blocked from all bot features and told to get an invite
-  5. The existing single user is seeded into the users table as admin with a household-of-one, and all current functionality continues to work
 **Plans**: 2 plans
 
 Plans:
@@ -56,12 +42,6 @@ Plans:
 **Goal**: All household members share the same recipes, meal plans, grocery lists, and cooking history -- and Claude knows who it is talking to
 **Depends on**: Phase 15
 **Requirements**: HOUSE-01, HOUSE-02, HOUSE-03, HOUSE-04, HOUSE-05, HOUSE-06, USER-04
-**Success Criteria** (what must be TRUE):
-  1. A second household member can search and view all recipes added by the first member, and add new recipes visible to both
-  2. Any household member can create or modify the weekly meal plan, and all members see the same plan
-  3. Any household member can view and check off grocery list items, and changes are visible to all members
-  4. Claude's system prompt includes the current user's first name naturally, addressing them by name (no "we" framing, no household context per user decision)
-  5. Existing single-user data is fully preserved -- zero recipes, plans, or grocery items lost after migration
 **Plans**: 2 plans
 
 Plans:
@@ -72,12 +52,6 @@ Plans:
 **Goal**: New users are guided through a conversational first-run experience that captures preferences, demonstrates capabilities, and seeds initial recipes
 **Depends on**: Phase 16
 **Requirements**: ONBD-01, ONBD-02, ONBD-03, ONBD-04, ONBD-05, ONBD-06, ONBD-07, ONBD-08, ONBD-09
-**Success Criteria** (what must be TRUE):
-  1. A new user who redeems an invite immediately receives a warm welcome and enters a conversational preference Q&A covering dietary restrictions, dinner time, stores, and comfort level
-  2. After preferences, the user sees a capability tour showing what the bot can do, then is prompted to teach it 3-5 recipes
-  3. A user can type "skip" at any point during onboarding and immediately use the bot with default settings
-  4. A user joining an existing household gets abbreviated onboarding (personal preferences only) and immediately sees the household's existing recipes and plans
-  5. Onboarding state survives bot restarts, and the bot progressively learns remaining preferences from regular conversation after initial setup
 **Plans**: 2 plans
 
 Plans:
@@ -86,14 +60,8 @@ Plans:
 
 ### Phase 18: App Feedback
 **Goal**: Users can share feedback about the bot experience through four channels (command, implicit AI detection, Mini App form, proactive prompting), all stored in a unified feedback table for later analysis
-**Depends on**: Phase 15 (needs user identity; does not depend on Phase 16/17)
+**Depends on**: Phase 15
 **Requirements**: FEED-01, FEED-02, FEED-03, FEED-04, FEED-05, FEED-06, FEED-07, FEED-08
-**Success Criteria** (what must be TRUE):
-  1. A user can run `/feedback great grocery list but meal plans need more variety` and receive a warm acknowledgment that their feedback was saved
-  2. Claude silently detects app-related sentiment during regular conversation and logs it as implicit feedback without interrupting the user
-  3. The Mini App hub includes a "Give Feedback" button that opens a text input, and submitted feedback is saved
-  4. The bot proactively asks "how am I doing?" every 2 weeks, and the user's response is captured as feedback
-  5. Admin can view all feedback filtered by category and sentiment via command or Mini App dashboard
 **Plans**: 2 plans
 
 Plans:
@@ -104,21 +72,101 @@ Plans:
 **Goal:** Users can discover all bot features and commands through a /help command, Mini App help page, and Hub card, with Claude proactively suggesting help when it detects confusion
 **Depends on:** Phase 18
 **Requirements**: HELP-01, HELP-02, HELP-03, HELP-04, HELP-05
-**Success Criteria** (what must be TRUE):
-  1. User sends /help and receives a friendly short message with a Mini App deep link button
-  2. Claude knows about /help and the help page, and mentions help when users seem confused
-  3. Mini App help page shows all features grouped by category with inline tips and examples
-  4. Admin users see admin-only commands on the help page, regular users do not
-  5. Hub has a Help card that navigates to the help page
 **Plans:** 2 plans
 
 Plans:
 - [x] 19-01-PLAN.md -- /help command handler, system prompt HELP block, bot wiring
 - [x] 19-02-PLAN.md -- Mini App help page with admin detection, Hub card, /api/me endpoint
 
+</details>
+
+### v1.3 AI Polish & UX
+
+**Milestone Goal:** Make Sous smarter and more natural through implicit behavior detection, fix UX rough edges from real usage, and improve the onboarding recipe seeding flow.
+
+- [ ] **Phase 20: Bug Fixes** - Investigate and fix date bugs in meal plans and prep time in cooking reminders
+- [ ] **Phase 21: Implicit AI Behaviors** - Sous proactively recognizes recipes, preferences, and pantry context without explicit commands
+- [ ] **Phase 22: Recipe Variations & Grocery Intelligence** - Handle recipe modifications gracefully and factor store preferences into grocery lists
+- [ ] **Phase 23: Mini App Enhancements** - Delete recipe cards and filter by tag in the Mini App
+- [ ] **Phase 24: Onboarding Refinement** - Push new users to add their existing go-to meals before first meal plan
+
+## Phase Details
+
+### Phase 20: Bug Fixes
+**Goal**: Known date and timing bugs in meal plans and cooking reminders are resolved so users get correct dates and properly timed reminders
+**Depends on**: Phase 19 (v1.2 complete)
+**Requirements**: FIX-01, FIX-02
+**Success Criteria** (what must be TRUE):
+  1. Meal plans consistently show correct dates and day-of-week mappings regardless of timezone or time of day when generated
+  2. Start cooking reminders fire early enough to account for prep time (e.g., a recipe with 30min prep and 60min cook triggers 90min before dinner, not 60min)
+  3. Date context in Claude's system prompt accurately reflects the current date in the user's timezone
+**Plans**: TBD
+
+Plans:
+- [ ] 20-01: Investigate and fix date/timezone bugs in meal plan generation and system prompt
+- [ ] 20-02: Fix start_cooking reminder timing to include prep time
+
+### Phase 21: Implicit AI Behaviors
+**Goal**: Sous proactively recognizes recipe content, preference statements, and pantry mentions in natural conversation and acts on them without requiring explicit commands
+**Depends on**: Phase 20
+**Requirements**: AIBH-01, AIBH-02, AIBH-03
+**Success Criteria** (what must be TRUE):
+  1. When a user shares a recipe (ingredients + steps) in conversation, Sous offers to save it as a recipe card without the user saying "save this recipe"
+  2. When a user mentions a dietary preference or food opinion ("I don't eat pork", "we love Thai food"), Sous saves it and confirms briefly without derailing conversation
+  3. When a user mentions pantry/ingredients, Sous responds with actionable next steps including a Mini App grocery list link, not a dead-end acknowledgment
+  4. Existing explicit recipe save and preference commands continue to work unchanged
+**Plans**: TBD
+
+Plans:
+- [ ] 21-01: System prompt and tool updates for implicit recipe detection and preference capture
+- [ ] 21-02: Pantry check response enhancement with Mini App grocery list deep link
+
+### Phase 22: Recipe Variations & Grocery Intelligence
+**Goal**: Sous handles recipe modification requests gracefully and generates grocery lists that reflect the user's store preferences
+**Depends on**: Phase 21
+**Requirements**: AIBH-04, GROC-01, GROC-02
+**Success Criteria** (what must be TRUE):
+  1. When a user asks to modify a recipe ("make it spicier", "swap chicken for tofu"), Sous either updates the existing card or creates a linked variation, confirming which action it took
+  2. User's grocery store preferences (primary store, bulk store) are saved and used to group or annotate grocery list items
+  3. Grocery list messages no longer display a "Done shopping" button
+  4. Recipe variation cards reference their parent recipe so the user can see the relationship
+**Plans**: TBD
+
+Plans:
+- [ ] 22-01: Recipe variation handling -- tool updates, linked variation storage, system prompt guidance
+- [ ] 22-02: Grocery store preferences storage and list generation integration, remove done shopping button
+
+### Phase 23: Mini App Enhancements
+**Goal**: Users can manage recipe cards and discover recipes more easily through delete functionality and tag-based filtering in the Mini App
+**Depends on**: Phase 20 (no dependency on Phase 21/22 -- can be parallelized)
+**Requirements**: MINI-01, MINI-02
+**Success Criteria** (what must be TRUE):
+  1. User can tap a delete button on a recipe card detail view, confirm via dialog, and the recipe is permanently removed
+  2. User can tap any tag on a recipe card to filter the recipe list to only recipes with that tag
+  3. Tag filter is clearable -- user can return to the full recipe list after filtering
+  4. Deleted recipes no longer appear in search results, meal plan suggestions, or the recipe browser
+**Plans**: TBD
+
+Plans:
+- [ ] 23-01: Recipe deletion API endpoint and Mini App detail view delete button with confirmation
+- [ ] 23-02: Tag click filtering in recipe browser with clear filter capability
+
+### Phase 24: Onboarding Refinement
+**Goal**: New users are directed to add their existing go-to meals early in onboarding so their first meal plan is built from real recipes they already cook
+**Depends on**: Phase 21 (benefits from implicit recipe detection)
+**Requirements**: ONBR-01
+**Success Criteria** (what must be TRUE):
+  1. Onboarding flow explicitly prompts the user to share 3-5 of their regular go-to meals before moving to meal plan generation
+  2. The prompt is encouraging and specific (not just "tell me some recipes" but "what did you cook last week?" or "what are your household's regular rotation meals?")
+  3. Users who add recipes during onboarding get a first meal plan that includes those recipes
+**Plans**: TBD
+
+Plans:
+- [ ] 24-01: Onboarding flow updates to prioritize existing recipe seeding
+
 ## Progress
 
-**Execution Order:** 1 -> 10 (v1.0) -> 11 -> 14 (v1.1) -> 15 -> 19 (v1.2)
+**Execution Order:** 1 -> 10 (v1.0) -> 11 -> 14 (v1.1) -> 15 -> 19 (v1.2) -> 20 -> 24 (v1.3)
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -132,3 +180,8 @@ Plans:
 | 17. Guided Onboarding | v1.2 | 2/2 | Complete | 2026-02-11 |
 | 18. App Feedback | v1.2 | 2/2 | Complete | 2026-02-11 |
 | 19. User Help Functionality | v1.2 | 2/2 | Complete | 2026-02-11 |
+| 20. Bug Fixes | v1.3 | 0/2 | Not started | - |
+| 21. Implicit AI Behaviors | v1.3 | 0/2 | Not started | - |
+| 22. Recipe Variations & Grocery Intelligence | v1.3 | 0/2 | Not started | - |
+| 23. Mini App Enhancements | v1.3 | 0/2 | Not started | - |
+| 24. Onboarding Refinement | v1.3 | 0/1 | Not started | - |

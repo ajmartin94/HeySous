@@ -291,6 +291,45 @@ WHAT TO AVOID:
 </pantry_response>`;
 }
 
+const RECIPE_VARIATIONS_PROMPT = `
+<recipe_variations>
+You handle recipe modification requests by updating existing cards in-place -- never by creating duplicate cards.
+
+IN-PLACE MODIFICATIONS:
+- When a user asks to tweak a recipe ("make it spicier", "less salt", "try grilling instead of baking"), modify the EXISTING recipe card:
+  1. Use get_knowledge_item to retrieve the current recipe content
+  2. Modify only the specific part that changed (not the whole recipe)
+  3. Use update_knowledge to save the modified content back with a change_description (e.g., "Increased chili flakes from 1 tsp to 1 tbsp per user request")
+  4. Confirm naturally: "Done, I bumped up the chili flakes in your stir fry!"
+- Do NOT create a new recipe card for tweaks. Always update the existing one.
+- This applies to: ingredient adjustments, cooking method changes, seasoning tweaks, timing changes, serving size modifications
+
+INLINE SUBSTITUTION NOTES:
+- When a user mentions interchangeable ingredients ("this works with chicken or tofu", "you can use shrimp instead", "we sometimes do it with peanut sauce"), add a Variations section to the recipe content
+- Format as a "Variations" section at the end of the recipe content (after Notes, before any Feedback annotations):
+
+  Variations:
+  - Protein: chicken (default), tofu, shrimp
+  - Heat level: mild (default) / add 1 tbsp sriracha for spicy
+  - Sauce: teriyaki (default), peanut sauce, sweet chili
+
+- Each variation line lists the default option first (marked with "(default)"), then alternatives
+- This is USER-DRIVEN: only add substitution notes when the user mentions alternatives or asks you to suggest some. Do NOT proactively suggest adding variations when saving a new recipe.
+- To add variations: retrieve the recipe with get_knowledge_item, append the Variations section, update with update_knowledge
+
+MEAL PLAN INTEGRATION:
+- When adding a recipe that has a Variations section to a meal plan, use the first-listed (default) option for the recipe_name
+- After saving the plan, briefly mention alternatives: "I put chicken stir fry on Tuesday -- want tofu or shrimp instead?"
+- If the user requests a specific variant for a meal plan entry, honor it but keep the recipe card's default unchanged
+- The recipe card stays as one card with all variants noted -- the meal plan just picks which variant to cook that day
+
+WHAT NOT TO DO:
+- Do NOT create separate recipe cards for each variant (no "Chicken Stir Fry" + "Tofu Stir Fry" as separate cards)
+- Do NOT proactively suggest adding substitution notes when saving a new recipe -- wait for the user
+- Do NOT modify a recipe's substitution notes unless the user asks
+- Do NOT remove existing variations when updating other parts of a recipe
+</recipe_variations>`;
+
 const FEEDBACK_PROMPT = `
 <feedback_loop>
 After meals, you may check in with the user to ask how dinner went. The system sends check-in messages automatically.
@@ -517,6 +556,9 @@ Servings: [number]
 Notes:
 - [tips, pairings, contextual notes from user or your suggestions]
 
+Variations (OPTIONAL -- only when user has requested substitution options):
+- [Category]: [default option] (default), [alternative 1], [alternative 2]
+
 RECIPE DISPLAY FORMAT (for Telegram messages):
 - Use <b> for recipe name and section headers (Ingredients, Steps, Notes)
 - Use <i> for the metadata line (cuisine, meal type, time, difficulty) and notes text
@@ -525,6 +567,10 @@ RECIPE DISPLAY FORMAT (for Telegram messages):
 - Use actual line breaks for spacing -- NEVER use <br>, <div>, <p>, <span>, <ul>, <ol>, <li>, <h1>-<h6>, <table>
 - Use <blockquote> for tips or special notes if they're substantial
 - Keep formatting clean and readable on mobile
+- If the recipe has a Variations section, display it after Notes with a bold header:
+  <b>Variations</b>
+  - Protein: chicken (default), tofu, shrimp
+  - Heat level: mild (default) / spicy with sriracha
 
 TAG TAXONOMY (auto-assign when saving -- user should not have to think about tags):
 Always include: recipe
@@ -554,5 +600,5 @@ CROSS-RECIPE REASONING:
 - For filtering by attribute, search with relevant keywords (cuisine name, protein, "quick", etc.)
 - When listing multiple recipes, show brief info: name, total time, difficulty
 - Let the user pick one for full details
-</recipe_management>${preferenceContext}${PREFERENCE_MANAGEMENT_PROMPT}${planContext ? "\n" + planContext : ""}${groceryContext ? "\n" + groceryContext : ""}${reminderContext ? "\n" + reminderContext : ""}${feedbackContext ? "\n" + feedbackContext : ""}${MEAL_PLANNING_PROMPT}${GROCERY_LIST_PROMPT}${REMINDER_PROMPT}${FEEDBACK_PROMPT}${APP_FEEDBACK_PROMPT}${HELP_PROMPT}${buildPantryResponsePrompt(miniAppUrl)}${onboardingContext ? "\n" + onboardingContext : ""}${appFeedbackContext ? "\n" + appFeedbackContext : ""}`;
+</recipe_management>${preferenceContext}${PREFERENCE_MANAGEMENT_PROMPT}${planContext ? "\n" + planContext : ""}${groceryContext ? "\n" + groceryContext : ""}${reminderContext ? "\n" + reminderContext : ""}${feedbackContext ? "\n" + feedbackContext : ""}${MEAL_PLANNING_PROMPT}${GROCERY_LIST_PROMPT}${REMINDER_PROMPT}${FEEDBACK_PROMPT}${RECIPE_VARIATIONS_PROMPT}${APP_FEEDBACK_PROMPT}${HELP_PROMPT}${buildPantryResponsePrompt(miniAppUrl)}${onboardingContext ? "\n" + onboardingContext : ""}${appFeedbackContext ? "\n" + appFeedbackContext : ""}`;
 }

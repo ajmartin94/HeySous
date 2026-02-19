@@ -100,11 +100,11 @@ Plans:
   1. Meal plans consistently show correct dates and day-of-week mappings regardless of timezone or time of day when generated
   2. Start cooking reminders fire early enough to account for prep time (e.g., a recipe with 30min prep and 60min cook triggers 90min before dinner, not 60min)
   3. Date context in Claude's system prompt accurately reflects the current date in the user's timezone
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 20-01: Investigate and fix date/timezone bugs in meal plan generation and system prompt
-- [ ] 20-02: Fix start_cooking reminder timing to include prep time
+- [ ] 20-01-PLAN.md -- Add current date context to system prompt, make date utilities and week boundaries timezone-aware
+- [ ] 20-02-PLAN.md -- Parse recipe prep/cook times and adjust start_cooking reminder timing to fire early enough
 
 ### Phase 21: Implicit AI Behaviors
 **Goal**: Sous proactively recognizes recipe content, preference statements, and pantry mentions in natural conversation and acts on them without requiring explicit commands

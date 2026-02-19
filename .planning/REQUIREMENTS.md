@@ -1,97 +1,68 @@
-# Requirements: HeySous v1.2 Onboarding and Feedback
+# Requirements: HeySous v1.3 AI Polish & UX
 
-**Defined:** 2026-02-10
+**Defined:** 2026-02-19
 **Core Value:** The recipe brain -- an AI agent that remembers everything about your meals and reasons over that knowledge to help you plan.
 
-## v1.2 Requirements
+## v1.3 Requirements
 
-Requirements for multi-user access, household sharing, guided onboarding, and app feedback.
+Requirements for making Sous smarter, fixing UX rough edges, and refining the onboarding flow based on real usage feedback.
 
-### Invite System
+### AI Behavior
 
-- [ ] **INVITE-01**: User can join the bot via Telegram deep link invite URL (`t.me/BotName?start=TOKEN`)
-- [ ] **INVITE-02**: User is rejected with a friendly message when using an invalid invite token
-- [ ] **INVITE-03**: Each invite token can only be used once (single-use, marked redeemed on use)
-- [ ] **INVITE-04**: Admin can generate two invite types: household (join existing) and independent (new household)
-- [ ] **INVITE-05**: Non-invited users are blocked from all bot features with a message directing them to get an invite
-- [ ] **INVITE-06**: Admin can create invite links via `/invite` command
+- [ ] **AIBH-01**: Sous recognizes recipe-like content (ingredients + steps) and offers to save it as a recipe card without requiring explicit "save this recipe" language
+- [ ] **AIBH-02**: Sous detects preference statements in natural conversation ("I don't eat pork", "we love spicy food") and saves them with a brief confirmation
+- [ ] **AIBH-03**: When mentioning pantry/ingredients, Sous includes Mini App grocery list link and/or offers conversational pantry walk-through instead of dead-end response
+- [ ] **AIBH-04**: Sous handles recipe variation requests ("make it spicier", "swap chicken for tofu") gracefully — modify existing card or create linked variation
 
-### Multi-User Identity
+### Grocery
 
-- [ ] **USER-01**: User identity persisted in users table with Telegram metadata (ID, name, username)
-- [ ] **USER-02**: Each user belongs to exactly one household
-- [ ] **USER-03**: Admin role assigned to primary user for management commands (invites, costs, feedback)
-- [ ] **USER-04**: Claude's system prompt includes current user's name and household context
+- [ ] **GROC-01**: Sous saves grocery store preferences and factors them into list generation (store-specific grouping, availability awareness)
+- [ ] **GROC-02**: "Done shopping" button removed from grocery list messages entirely
 
-### Household Sharing
+### Mini App
 
-- [ ] **HOUSE-01**: All household members see and can add to the same recipe library
-- [ ] **HOUSE-02**: Household shares a single weekly meal plan (any member can create/modify)
-- [ ] **HOUSE-03**: Household shares a single active grocery list (any member can check items)
-- [ ] **HOUSE-04**: Household shares cooking history so Claude knows what "we" ate recently
-- [ ] **HOUSE-05**: Prep reminders are sent to all household members based on the shared plan
-- [ ] **HOUSE-06**: Existing single-user data is migrated to a household-of-one preserving all functionality
+- [ ] **MINI-01**: User can delete a recipe card from the Mini App detail view with confirmation dialog and API endpoint
+- [ ] **MINI-02**: User can tap a tag on a recipe card to filter the recipe list by that tag
 
-### Guided Onboarding
+### Fixes
 
-- [ ] **ONBD-01**: New user receives a warm welcome message after redeeming an invite
-- [ ] **ONBD-02**: Onboarding includes conversational preference Q&A (dietary restrictions, dinner time, stores, comfort level)
-- [ ] **ONBD-03**: Onboarding includes a capability tour showing what the bot can do with example interactions
-- [ ] **ONBD-04**: Onboarding prompts user to seed 3-5 initial recipes conversationally
-- [ ] **ONBD-05**: User can skip onboarding at any time and use the bot with defaults
-- [ ] **ONBD-06**: Household members joining an existing household get abbreviated onboarding (personal preferences only)
-- [ ] **ONBD-07**: New household members immediately see existing household data (no cold start)
-- [ ] **ONBD-08**: Bot learns remaining preferences progressively from conversation after initial setup
-- [ ] **ONBD-09**: Onboarding is Claude-driven conversational flow (not a rigid state machine)
+- [ ] **FIX-01**: Intermittent date bugs in meal plans investigated and resolved (timezone, day-of-week mapping, or system prompt date context)
+- [ ] **FIX-02**: Start cooking reminder accounts for prep time, not just cook time
 
-### App Feedback
+### Onboarding
 
-- [ ] **FEED-01**: User can submit app feedback via `/feedback` command with free-text
-- [ ] **FEED-02**: Bot confirms feedback submission with a warm acknowledgment
-- [ ] **FEED-03**: Claude silently detects app-related sentiment in conversation and logs as implicit feedback
-- [ ] **FEED-04**: Mini App hub includes a "Give Feedback" button that opens a text input
-- [ ] **FEED-05**: Bot proactively asks "how am I doing?" via periodic check-in (every 2 weeks)
-- [ ] **FEED-06**: Feedback is auto-categorized (UX, recipes, planning, grocery, reminders, general)
-- [ ] **FEED-07**: Feedback is scored for sentiment (positive/neutral/negative/suggestion)
-- [ ] **FEED-08**: Admin can view all collected feedback via command or Mini App dashboard with filtering
+- [ ] **ONBR-01**: Onboarding flow actively pushes users to add their existing go-to meals first, making the first meal plan recipe-driven rather than open-ended
 
 ## Future Requirements
 
-Deferred to future milestone. Tracked but not in current roadmap.
+Deferred to future milestones. Tracked but not in current roadmap.
 
-### Invite Enhancements
+### Notifications
 
-- **INVITE-07**: Invite tokens expire after configurable period (default 7 days)
-- **INVITE-08**: Invite link shows rich preview message in Telegram chat
-- **INVITE-09**: Admin can view invite status dashboard (pending/redeemed/expired)
+- **NOTF-01**: Bot proactively messages users with friendly update announcements after meaningful deploys
 
-### Sharing Enhancements
+### Infrastructure
 
-- **HOUSE-07**: Recipes and plan entries show "added by [Name]" attribution
-- **HOUSE-08**: Grocery list items show who checked them off
-- **HOUSE-09**: Per-user preference profiles that Claude reasons over separately within household context
-- **HOUSE-10**: Per-member notification preferences for reminders
+- **INFR-01**: Lightweight data migration framework (numbered scripts, idempotent, tracks which have run)
 
-### Onboarding Enhancements
+### New Capabilities
 
-- **ONBD-10**: 7-day onboarding recap message summarizing learned preferences
+- **CAPS-01**: Web search tool for fetching and parsing recipes from URLs
+- **CAPS-02**: Image analysis for extracting recipes from photos (cookbook pages, screenshots)
 
 ## Out of Scope
 
-Explicitly excluded. Documented to prevent scope creep.
-
 | Feature | Reason |
 |---------|--------|
-| Self-service registration | Private bot — admin controls access via invites |
-| Multi-use invite codes | Loses control over who joins, cannot revoke per-person |
-| Group chat support | 1:1 private chat model, sharing via household DB scope |
-| Multiple households per user | Massive complexity, one user = one household |
-| Role-based permissions beyond admin/member | Household of 2-4 people doesn't need RBAC |
-| Form-based onboarding Mini App | Breaks conversational model, bot IS the interface |
-| Mandatory onboarding (no skip) | Frustrating, some users want to dive right in |
-| In-app star ratings for feedback | Meaningless with 2-3 users, qualitative text is better |
-| Feedback reply system | Admin can just message users directly on Telegram |
-| Real-time collaboration indicators | WebSocket complexity not justified, 8s polling sufficient |
+| URL recipe import (automated) | Deferred to future milestone as CAPS-01 |
+| Photo recipe capture | Deferred to future milestone as CAPS-02 |
+| Bot update notifications | Deferred to future milestone as NOTF-01 |
+| Data migration framework | Deferred to future milestone as INFR-01 |
+| Voice interaction / cooking mode | Future capability |
+| Monetization / paid features | Personal dogfooding first |
+| Nutritional tracking | Changes product from cooking partner to diet app |
+| Recipe catalog / discovery | This is YOUR recipes, not a browsable catalog |
+| Grocery delivery integration | User shops in-person |
 
 ## Traceability
 
@@ -99,45 +70,23 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INVITE-01 | Phase 15 | Pending |
-| INVITE-02 | Phase 15 | Pending |
-| INVITE-03 | Phase 15 | Pending |
-| INVITE-04 | Phase 15 | Pending |
-| INVITE-05 | Phase 15 | Pending |
-| INVITE-06 | Phase 15 | Pending |
-| USER-01 | Phase 15 | Pending |
-| USER-02 | Phase 15 | Pending |
-| USER-03 | Phase 15 | Pending |
-| USER-04 | Phase 16 | Pending |
-| HOUSE-01 | Phase 16 | Pending |
-| HOUSE-02 | Phase 16 | Pending |
-| HOUSE-03 | Phase 16 | Pending |
-| HOUSE-04 | Phase 16 | Pending |
-| HOUSE-05 | Phase 16 | Pending |
-| HOUSE-06 | Phase 16 | Pending |
-| ONBD-01 | Phase 17 | Pending |
-| ONBD-02 | Phase 17 | Pending |
-| ONBD-03 | Phase 17 | Pending |
-| ONBD-04 | Phase 17 | Pending |
-| ONBD-05 | Phase 17 | Pending |
-| ONBD-06 | Phase 17 | Pending |
-| ONBD-07 | Phase 17 | Pending |
-| ONBD-08 | Phase 17 | Pending |
-| ONBD-09 | Phase 17 | Pending |
-| FEED-01 | Phase 18 | Pending |
-| FEED-02 | Phase 18 | Pending |
-| FEED-03 | Phase 18 | Pending |
-| FEED-04 | Phase 18 | Pending |
-| FEED-05 | Phase 18 | Pending |
-| FEED-06 | Phase 18 | Pending |
-| FEED-07 | Phase 18 | Pending |
-| FEED-08 | Phase 18 | Pending |
+| AIBH-01 | — | Pending |
+| AIBH-02 | — | Pending |
+| AIBH-03 | — | Pending |
+| AIBH-04 | — | Pending |
+| GROC-01 | — | Pending |
+| GROC-02 | — | Pending |
+| MINI-01 | — | Pending |
+| MINI-02 | — | Pending |
+| FIX-01 | — | Pending |
+| FIX-02 | — | Pending |
+| ONBR-01 | — | Pending |
 
 **Coverage:**
-- v1.2 requirements: 28 total
-- Mapped to phases: 28
-- Unmapped: 0
+- v1.3 requirements: 11 total
+- Mapped to phases: 0
+- Unmapped: 11 ⚠️
 
 ---
-*Requirements defined: 2026-02-10*
-*Last updated: 2026-02-10 after roadmap creation*
+*Requirements defined: 2026-02-19*
+*Last updated: 2026-02-19 after initial definition*

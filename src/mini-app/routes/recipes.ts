@@ -332,5 +332,48 @@ export function createRecipeRoutes(sqlite: BetterSqlite3.Database) {
 
       res.json({ recipe });
     },
+
+    /**
+     * DELETE /api/recipes/:id
+     * Permanently deletes a recipe, its cooking history, tags (cascade), and FTS5 index (trigger).
+     * Validates household ownership before deleting.
+     */
+    deleteRecipe(req: Request, res: Response) {
+      const householdId = res.locals.householdId as string;
+      const id = Number(req.params.id);
+
+      if (isNaN(id)) {
+        res.status(400).json({ error: "Invalid recipe ID" });
+        return;
+      }
+
+      // Verify recipe exists and belongs to this household
+      const row = sqlite
+        .prepare(
+          "SELECT id FROM knowledge_items WHERE id = ? AND household_id = ?"
+        )
+        .get(id, householdId);
+
+      if (!row) {
+        res.status(404).json({ error: "Recipe not found" });
+        return;
+      }
+
+      // Delete cooking history referencing this recipe (no cascade FK)
+      sqlite
+        .prepare(
+          "DELETE FROM cooking_history WHERE knowledge_item_id = ? AND household_id = ?"
+        )
+        .run(id, householdId);
+
+      // Delete the knowledge item (tags cascade via ON DELETE CASCADE, FTS5 trigger cleans up index)
+      sqlite
+        .prepare(
+          "DELETE FROM knowledge_items WHERE id = ? AND household_id = ?"
+        )
+        .run(id, householdId);
+
+      res.json({ deleted: true });
+    },
   };
 }

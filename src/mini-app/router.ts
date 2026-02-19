@@ -47,6 +47,7 @@ export function createApiRouter(deps: ApiRouterDeps): Router {
   const recipes = createRecipeRoutes(deps.sqlite);
   router.get("/recipes", recipes.getList);
   router.get("/recipes/:id", recipes.getDetail);
+  router.delete("/recipes/:id", recipes.deleteRecipe);
 
   // Meal plan endpoints
   const mealPlan = createMealPlanRoutes(deps.sqlite);

@@ -45,7 +45,12 @@ Progress: [██░░░░░░░░] 20%
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table.
-All v1.0, v1.1, and v1.2 decisions documented with outcomes.
+All v1.0, v1.1, v1.2, and Phase 20 decisions documented with outcomes.
+
+**Phase 20 decisions:**
+- Resolve timezone once from reminder_settings at pipeline entry, thread as string
+- Changed getWeekStartDate signature from Date? to string? (ISO date)
+- Parse recipe prep+cook time from stored content for reminder timing adjustment
 
 ### Pending Todos
 

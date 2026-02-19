@@ -59,8 +59,8 @@ The LLM is the product. It reasons, decides what to look up, and acts on what it
 - [ ] Delete button on recipe cards in Mini App
 - [ ] Tag click filtering in recipe browser
 - [ ] Remove "done shopping" button from grocery lists
-- [ ] Fix intermittent date bugs in meal plans
-- [ ] Fix start_cooking reminder to account for prep time
+- [x] Fix intermittent date bugs in meal plans -- Phase 20
+- [x] Fix start_cooking reminder to account for prep time -- Phase 20
 - [ ] Grocery store preferences saved and used in list generation
 - [ ] Onboarding pushes users to add existing recipes first
 
@@ -79,7 +79,7 @@ The LLM is the product. It reasons, decides what to look up, and acts on what it
 
 ## Context
 
-- **Current state:** v1.2 shipped with invite-gated access, onboarding, household sharing, and feedback. 19 phases across 3 milestones.
+- **Current state:** v1.3 in progress. Phase 20 (Bug Fixes) complete -- date/timezone issues fixed, reminder timing adjusted for prep time. 20 phases across 3+ milestones.
 - **Tech stack:** Node.js 22, TypeScript (ESM), grammY, better-sqlite3/Drizzle, Anthropic SDK, Pino, Express, React+Vite (Mini App SPA), @telegram-apps SDK
 - **Primary user:** Home cook who loves cooking, time-constrained on weekdays, more flexible weekends
 - **Household:** Partner + 9-month-old. Partner now has access via invite system (v1.2).
@@ -89,8 +89,8 @@ The LLM is the product. It reasons, decides what to look up, and acts on what it
 - **First-run flow:** Onboarding guides new users through preferences → tour → seed recipes (v1.2)
 - **Mini App model:** Hybrid — bot stays primary, Mini Apps open from chat buttons for visual tasks
 - **Frontend:** React+Vite SPA inside Telegram Web Apps, served by existing Express server at /app/*
-- **Real usage feedback:** Sous requires too-explicit language for recipe saves and preference captures. Dates intermittently wrong. Grocery store preferences not factored into lists. Onboarding could be more directive about getting existing recipes in first.
-- **Next step:** v1.3 AI Polish & UX
+- **Real usage feedback:** Sous requires too-explicit language for recipe saves and preference captures. Grocery store preferences not factored into lists. Onboarding could be more directive about getting existing recipes in first.
+- **Next step:** Phase 21 (Implicit AI Behaviors)
 
 ## Current Milestone: v1.3 AI Polish & UX
 
@@ -143,5 +143,8 @@ The LLM is the product. It reasons, decides what to look up, and acts on what it
 | FTS5 two-step query (bm25 + GROUP BY) | SQLite bm25() incompatible with GROUP BY in any context; separate matching from aggregation | ✓ Good -- solved after CTE approach failed, clean separation |
 | Duplicated constants across server/client | No shared imports across Vite/Node build boundary; duplicate SECTION_ORDER, date utils | ⚠️ Revisit -- tech debt, consider shared package if more constants emerge |
 
+| Timezone-aware date pipeline | Resolve timezone once at pipeline entry from reminder_settings, thread through all date consumers | ✓ Good -- eliminates timezone bugs across all date operations |
+| Recipe time parsing for reminder adjustment | Parse prep+cook time from recipe content, adjust start_cooking reminder timing | ✓ Good -- robust multi-format parsing with graceful fallback |
+
 ---
-*Last updated: 2026-02-19 after v1.3 milestone start*
+*Last updated: 2026-02-18 after Phase 20*

@@ -158,10 +158,10 @@ Plans:
   1. Onboarding flow explicitly prompts the user to share 3-5 of their regular go-to meals before moving to meal plan generation
   2. The prompt is encouraging and specific (not just "tell me some recipes" but "what did you cook last week?" or "what are your household's regular rotation meals?")
   3. Users who add recipes during onboarding get a first meal plan that includes those recipes
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 24-01: Onboarding flow updates to prioritize existing recipe seeding
+- [ ] 24-01-PLAN.md -- Rewrite onboarding recipes prompt for directive go-to meal collection with first meal plan offer
 
 ## Progress
 

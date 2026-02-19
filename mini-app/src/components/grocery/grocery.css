@@ -224,6 +224,115 @@
   margin-top: 8px;
 }
 
+/* Header bar with overflow menu */
+.grocery-page__header-bar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 4px 16px 8px;
+}
+
+/* Overflow Menu */
+.overflow-menu {
+  position: relative;
+  display: inline-block;
+}
+
+.overflow-menu__trigger {
+  background: none;
+  border: none;
+  padding: 8px;
+  cursor: pointer;
+  font-size: 20px;
+  color: var(--tg-theme-hint-color, #999);
+  line-height: 1;
+}
+
+.overflow-menu__dropdown {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  background: var(--tg-theme-bg-color, #fff);
+  border: 1px solid var(--tg-theme-hint-color, #ddd);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  min-width: 160px;
+  z-index: 100;
+  overflow: hidden;
+}
+
+.overflow-menu__item {
+  display: block;
+  width: 100%;
+  padding: 12px 16px;
+  border: none;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.overflow-menu__item--destructive {
+  color: var(--tg-theme-destructive-text-color, #e53935);
+}
+
+/* Clear List Dialog */
+.clear-dialog__overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+.clear-dialog {
+  background: var(--tg-theme-bg-color, #fff);
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 300px;
+  width: 90%;
+  text-align: center;
+}
+
+.clear-dialog__title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--tg-theme-text-color, #000);
+  margin: 0 0 8px;
+}
+
+.clear-dialog__body {
+  font-size: 14px;
+  color: var(--tg-theme-hint-color, #999);
+  margin: 0 0 20px;
+}
+
+.clear-dialog__actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.clear-dialog__btn {
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+}
+
+.clear-dialog__btn--cancel {
+  background: var(--tg-theme-secondary-bg-color, #f0f0f0);
+  color: var(--tg-theme-text-color, #000);
+}
+
+.clear-dialog__btn--confirm {
+  background: var(--tg-theme-destructive-text-color, #e53935);
+  color: #fff;
+}
+
 /* Empty state */
 .empty-state {
   display: flex;

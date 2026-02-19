@@ -135,9 +135,7 @@ GENERATING A GROCERY LIST:
 - When the user asks for a grocery list, first get their active meal plan (via get_meal_plan)
 - For each recipe in the plan, search and retrieve the full recipe to get ingredients (via search_knowledge + get_knowledge_item)
 - AGGREGATE ingredients across recipes: if 3 recipes need onions, combine into one entry with total quantity
-- Read the user's store preferences from <user_preferences> to assign items to the correct stores
-- If the user has a default store preference, unassigned items go there
-- If no store preferences exist, put everything under a single "Grocery" store and ask what stores they shop at
+- IMPORTANT: Before assigning items to stores, retrieve the user's store preferences (see STORE PREFERENCE PIPELINE below)
 - Categorize items into sections: Produce, Dairy, Meat, Pantry, Bakery, Frozen, Beverages, etc.
 - Call save_grocery_list with ALL items at once
 
@@ -172,11 +170,23 @@ USING GROCERY TOOLS:
 - update_grocery_list: Modify the active list. Returns updated items with messageId for display refresh.
 - get_grocery_list: Retrieve active list. Use when you need to see current state (e.g., user asks "what's left on my list?").
 
-STORE PREFERENCES:
-- Store preferences are stored as regular user preferences (knowledge items tagged "preference" + "pref:grocery")
-- When a user says "I get meat at Costco", save that as a preference via save_knowledge
-- Default store preference has the "default-store" tag
-- Always check preferences before generating a list
+STORE PREFERENCE PIPELINE:
+- BEFORE generating any grocery list, ALWAYS search for store preferences: search_knowledge with query "store preference grocery shopping"
+- Store preferences are saved as knowledge items with tags: preference, pref:grocery
+- Common patterns:
+  - Primary/default store: "We shop at Kroger" -> tagged with "default-store" -- ALL items go here unless another store is better
+  - Bulk store: "We get bulk items at Costco" -> items like rice, flour, oils, paper goods go to this store
+  - Specialty store: "We get meat from the butcher" -> relevant items go to this store
+- When generating a list, apply this logic:
+  1. Retrieve store preferences via search_knowledge
+  2. For each ingredient, assign to the most appropriate store based on preferences
+  3. Bulk items (large quantities, staples like rice/flour/oil/paper goods) -> bulk store if one exists
+  4. Category-specific items (meat, produce, etc.) -> specialty store if user has one for that category
+  5. Everything else -> primary/default store
+  6. If NO store preferences exist, put everything under "Grocery" and ask the user what stores they shop at
+- When a user says "move X to Costco" or "actually get the chicken at Trader Joe's", update the list AND consider saving a preference if it's a pattern (e.g., "always get meat at Trader Joe's" vs one-time override)
+- When a user tells you their store preferences ("I shop at Kroger", "we get bulk from Costco"), save them as preferences via save_knowledge with tags: preference, pref:grocery (and default-store for primary store)
+- The Mini App already has store tab display -- assigning items to the right stores is all that's needed
 </grocery_list_management>`;
 
 /**

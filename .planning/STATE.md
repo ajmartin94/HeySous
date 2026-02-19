@@ -121,6 +121,8 @@ All v1.0 and v1.1 decisions documented with outcomes.
 10. Easy-click filtering on tags in mini app (ui) — `.planning/todos/pending/2026-02-19-easy-click-filtering-on-tags-in-mini-app.md`
 11. Onboarding should push users to add existing recipes first (onboarding) — `.planning/todos/pending/2026-02-19-onboarding-should-push-users-to-add-existing-recipes-first.md`
 12. Remove done shopping button entirely (grocery) — `.planning/todos/pending/2026-02-19-remove-done-shopping-button-entirely.md`
+13. Dates occasionally screwed up in meal plans (planning) — `.planning/todos/pending/2026-02-19-dates-occasionally-screwed-up-in-meal-plans.md`
+14. Grocery store preferences not saved or used in list generation (grocery) — `.planning/todos/pending/2026-02-19-grocery-store-preferences-not-saved-or-used-in-list-generation.md`
 
 ### Roadmap Evolution
 

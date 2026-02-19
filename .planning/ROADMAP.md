@@ -103,8 +103,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 20-01-PLAN.md -- Add current date context to system prompt, make date utilities and week boundaries timezone-aware
-- [ ] 20-02-PLAN.md -- Parse recipe prep/cook times and adjust start_cooking reminder timing to fire early enough
+- [x] 20-01-PLAN.md -- Add current date context to system prompt, make date utilities and week boundaries timezone-aware
+- [x] 20-02-PLAN.md -- Parse recipe prep/cook times and adjust start_cooking reminder timing to fire early enough
 
 ### Phase 21: Implicit AI Behaviors
 **Goal**: Sous proactively recognizes recipe content, preference statements, and pantry mentions in natural conversation and acts on them without requiring explicit commands
@@ -180,7 +180,7 @@ Plans:
 | 17. Guided Onboarding | v1.2 | 2/2 | Complete | 2026-02-11 |
 | 18. App Feedback | v1.2 | 2/2 | Complete | 2026-02-11 |
 | 19. User Help Functionality | v1.2 | 2/2 | Complete | 2026-02-11 |
-| 20. Bug Fixes | v1.3 | 0/2 | Not started | - |
+| 20. Bug Fixes | v1.3 | 2/2 | Verifying | - |
 | 21. Implicit AI Behaviors | v1.3 | 0/2 | Not started | - |
 | 22. Recipe Variations & Grocery Intelligence | v1.3 | 0/2 | Not started | - |
 | 23. Mini App Enhancements | v1.3 | 0/2 | Not started | - |

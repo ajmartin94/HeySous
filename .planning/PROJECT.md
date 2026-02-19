@@ -43,18 +43,29 @@ The LLM is the product. It reasons, decides what to look up, and acts on what it
 - ✓ Recipe browser Mini App (FTS5 search, tag filter, sort, recipe detail, scroll preservation) — v1.1
 - ✓ Weekly meal plan Mini App (7-day grid, swipe weeks, today highlight, recipe drill-down) — v1.1
 
+- ✓ Gated invite system with deep link tokens (no unfiltered access) — v1.2
+- ✓ Guided onboarding flow (preference Q&A → tour → seed recipes) — v1.2
+- ✓ Multi-user support with per-user identity — v1.2
+- ✓ Household sharing (shared recipes, meal plans, grocery lists) — v1.2
+- ✓ App feedback system (/feedback command, silent detection, hub button, periodic check-in, admin dashboard) — v1.2
+- ✓ User help functionality (/help command, Mini App help page) — v1.2
+
 ### Active
 
-- [ ] Gated invite system with deep link tokens (no unfiltered access)
-- [ ] Guided onboarding flow (preference Q&A → tour → seed recipes)
-- [ ] Multi-user support with per-user identity
-- [ ] Household sharing (shared recipes, meal plans, grocery lists)
-- [ ] App feedback system (/feedback command, silent detection, hub button, periodic check-in, admin dashboard)
+- [ ] Implicit recipe card creation (Sous proactively recognizes recipes without explicit commands)
+- [ ] Implicit preference detection (Sous saves preferences from natural conversation)
+- [ ] Improved pantry check response (Mini App link or conversational walk-through)
+- [ ] Recipe variation handling (modify existing vs create new card)
+- [ ] Delete button on recipe cards in Mini App
+- [ ] Tag click filtering in recipe browser
+- [ ] Remove "done shopping" button from grocery lists
+- [ ] Fix intermittent date bugs in meal plans
+- [ ] Fix start_cooking reminder to account for prep time
+- [ ] Grocery store preferences saved and used in list generation
+- [ ] Onboarding pushes users to add existing recipes first
 
 ### Out of Scope
 
-- ~~Mini Apps (Telegram rich UI)~~ — **Shipped in v1.1**
-- ~~Multi-user / partner access~~ — **Active in v1.2**
 - URL recipe import -- conversational entry sufficient for now
 - Photo/image recipe capture -- requires vision pipeline, defer
 - Voice interaction / cooking mode -- future capability
@@ -62,31 +73,38 @@ The LLM is the product. It reasons, decides what to look up, and acts on what it
 - Nutritional tracking / calorie counting -- changes product from cooking partner to diet app
 - Recipe catalog / discovery database -- this is YOUR recipes, not a browsable catalog
 - Grocery delivery integration -- user shops in-person at Kroger/Costco
+- Bot update notification system -- deferred to future milestone
+- Data migration framework -- deferred to future milestone
+- Web search + picture analysis for byo-recipe -- deferred to future milestone
 
 ## Context
 
-- **Current state:** v1.1 shipped with 12,726 LOC TypeScript across 14 phases and 40 plans. Mini App UI layer added on top of v1.0 bot.
+- **Current state:** v1.2 shipped with invite-gated access, onboarding, household sharing, and feedback. 19 phases across 3 milestones.
 - **Tech stack:** Node.js 22, TypeScript (ESM), grammY, better-sqlite3/Drizzle, Anthropic SDK, Pino, Express, React+Vite (Mini App SPA), @telegram-apps SDK
 - **Primary user:** Home cook who loves cooking, time-constrained on weekdays, more flexible weekends
-- **Household:** Partner + 9-month-old. Partner collaboration deferred to v2.
+- **Household:** Partner + 9-month-old. Partner now has access via invite system (v1.2).
 - **Dinner target:** 6pm daily
 - **Shopping:** Kroger (primary), Costco (bulk)
 - **Devices:** Apple ecosystem (iPhone, iPad) -- Telegram works cross-platform
-- **First-run flow:** User seeds 10-15 rotating recipes before planning first week
+- **First-run flow:** Onboarding guides new users through preferences → tour → seed recipes (v1.2)
 - **Mini App model:** Hybrid — bot stays primary, Mini Apps open from chat buttons for visual tasks
 - **Frontend:** React+Vite SPA inside Telegram Web Apps, served by existing Express server at /app/*
-- **Next step:** v1.2 Onboarding and Feedback
+- **Real usage feedback:** Sous requires too-explicit language for recipe saves and preference captures. Dates intermittently wrong. Grocery store preferences not factored into lists. Onboarding could be more directive about getting existing recipes in first.
+- **Next step:** v1.3 AI Polish & UX
 
-## Current Milestone: v1.2 Onboarding and Feedback
+## Current Milestone: v1.3 AI Polish & UX
 
-**Goal:** Enable multi-user access with gated invitations, guided onboarding for new users, full household sharing, and an app feedback system.
+**Goal:** Make Sous smarter and more natural through implicit behavior detection, fix UX rough edges from real usage, and improve the onboarding recipe seeding flow.
 
 **Target features:**
-- Invite-gated access via Telegram deep links (single-use tokens)
-- Guided first-run flow: preference Q&A → capability tour → seed recipes
-- Per-user identity model (Telegram user ID) with household grouping
-- Full household sharing: recipes, meal plans, and grocery lists shared between members
-- App feedback: /feedback command, silent sentiment detection, hub button, periodic check-in, admin dashboard
+- Implicit recipe card creation (no explicit "save this recipe" needed)
+- Implicit preference detection from natural conversation
+- Smarter pantry check response with Mini App grocery list link
+- Recipe variation handling (modify vs new card)
+- Mini App UX: delete recipe cards, tag click filtering, remove done shopping button
+- Bug fixes: intermittent date issues, prep time in start_cooking reminders
+- Grocery store preferences in list generation
+- Onboarding refinement: push existing recipes first
 
 ## Constraints
 
@@ -126,4 +144,4 @@ The LLM is the product. It reasons, decides what to look up, and acts on what it
 | Duplicated constants across server/client | No shared imports across Vite/Node build boundary; duplicate SECTION_ORDER, date utils | ⚠️ Revisit -- tech debt, consider shared package if more constants emerge |
 
 ---
-*Last updated: 2026-02-10 after v1.2 milestone start*
+*Last updated: 2026-02-19 after v1.3 milestone start*

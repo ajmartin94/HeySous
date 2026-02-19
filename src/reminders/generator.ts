@@ -7,12 +7,98 @@ import { addDays } from "../planning/date-utils.js";
 import { localTimeToUtc, getTodayInTimezone } from "../clock.js";
 
 /**
+ * Parse a time string like "30 minutes", "1 hour 30 minutes", "1 hr", "45 min", "1:30" into minutes.
+ * Returns null if unparseable.
+ */
+function parseTimeToMinutes(timeStr: string): number | null {
+  const s = timeStr.trim().toLowerCase();
+
+  // Handle "H:MM" format (e.g., "1:30")
+  const colonMatch = s.match(/^(\d+):(\d+)$/);
+  if (colonMatch) {
+    return parseInt(colonMatch[1], 10) * 60 + parseInt(colonMatch[2], 10);
+  }
+
+  let total = 0;
+  let found = false;
+
+  // Extract hours
+  const hourMatch = s.match(/(\d+)\s*(?:hours?|hrs?|h)\b/);
+  if (hourMatch) {
+    total += parseInt(hourMatch[1], 10) * 60;
+    found = true;
+  }
+
+  // Extract minutes
+  const minMatch = s.match(/(\d+)\s*(?:minutes?|mins?|m)\b/);
+  if (minMatch) {
+    total += parseInt(minMatch[1], 10);
+    found = true;
+  }
+
+  // Handle bare number (assume minutes)
+  if (!found) {
+    const bareMatch = s.match(/^(\d+)$/);
+    if (bareMatch) {
+      total = parseInt(bareMatch[1], 10);
+      found = true;
+    }
+  }
+
+  return found ? total : null;
+}
+
+/**
+ * Parse total recipe time (prep + cook) from recipe content text.
+ * Returns total minutes, or null if no times found.
+ */
+export function parseRecipeTotalMinutes(content: string): number | null {
+  const lines = content.split("\n");
+  let prepMinutes: number | null = null;
+  let cookMinutes: number | null = null;
+  let totalMinutes: number | null = null;
+
+  for (const line of lines) {
+    const prepMatch = line.match(/^Prep\s*Time:\s*(.+)$/i);
+    if (prepMatch) {
+      prepMinutes = parseTimeToMinutes(prepMatch[1]);
+    }
+
+    const cookMatch = line.match(/^Cook\s*Time:\s*(.+)$/i);
+    if (cookMatch) {
+      cookMinutes = parseTimeToMinutes(cookMatch[1]);
+    }
+
+    const totalMatch = line.match(/^Total\s*Time:\s*(.+)$/i);
+    if (totalMatch) {
+      totalMinutes = parseTimeToMinutes(totalMatch[1]);
+    }
+  }
+
+  // Prefer explicit prep + cook if both found
+  if (prepMinutes !== null && cookMinutes !== null) {
+    return prepMinutes + cookMinutes;
+  }
+
+  // Fall back to total time
+  if (totalMinutes !== null) {
+    return totalMinutes;
+  }
+
+  // If only one of prep/cook found, use it (better than nothing)
+  if (prepMinutes !== null) return prepMinutes;
+  if (cookMinutes !== null) return cookMinutes;
+
+  return null;
+}
+
+/**
  * Generate reminder rows from active meal plan data.
  *
  * Creates three types of reminders:
  * 1. morning_summary -- daily overview of planned meals (or nudge if no meals)
  * 2. prep_alert -- day-before morning alert for recipes with knowledge items
- * 3. start_cooking -- dinner-time nudge to start cooking
+ * 3. start_cooking -- dinner-time nudge to start cooking (adjusted for total recipe prep+cook time)
  *
  * On days with no meal plan, a "no_plan_nudge" morning summary is generated
  * instead of silence.
@@ -175,12 +261,39 @@ export function generateReminders(deps: {
     }
 
     // c. Start-cooking nudge: for each dinner entry
+    // Adjusted for total recipe prep+cook time when available
     if (meals) {
       for (const meal of meals) {
         if (meal.mealType === "dinner") {
+          // Calculate start time: dinner time minus total recipe time
+          let reminderTime = settings.dinnerTime; // default fallback
+
+          if (meal.knowledgeItemId && deps.sqlite) {
+            try {
+              const row = deps.sqlite
+                .prepare("SELECT content FROM knowledge_items WHERE id = ? AND household_id = ?")
+                .get(meal.knowledgeItemId, householdId) as { content: string } | undefined;
+
+              if (row) {
+                const recipeTotalMinutes = parseRecipeTotalMinutes(row.content);
+                if (recipeTotalMinutes !== null && recipeTotalMinutes > 0) {
+                  // Parse dinner time and subtract total recipe minutes
+                  const [dinnerHours, dinnerMinutes] = settings.dinnerTime.split(":").map(Number);
+                  const dinnerTotalMin = dinnerHours * 60 + dinnerMinutes;
+                  const startMin = Math.max(0, dinnerTotalMin - recipeTotalMinutes);
+                  const startHours = Math.floor(startMin / 60);
+                  const startMins = startMin % 60;
+                  reminderTime = `${String(startHours).padStart(2, "0")}:${String(startMins).padStart(2, "0")}`;
+                }
+              }
+            } catch {
+              // On any error, fall back to dinner time
+            }
+          }
+
           const dueAt = localTimeToUtc(
             currentDate,
-            settings.dinnerTime,
+            reminderTime,
             settings.timezone,
           );
 

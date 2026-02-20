@@ -64,20 +64,20 @@ The LLM is the product. It reasons, decides what to look up, and acts on what it
 
 ### Active
 
-(No active requirements -- planning next milestone)
+- [ ] Knowledge dedup: save_knowledge returns existing match instead of creating duplicates; update_knowledge rejects no-op calls
+- [ ] Notification tone: rewrite reminder and feedback templates to match conversational Sous personality
+- [ ] Bot update notifications: version-based system for announcing meaningful updates to users
+- [ ] Data migration framework: lightweight numbered migration runner with decision criteria
+- [ ] Recipe import from URL: fetch and parse recipe from a link
+- [ ] Recipe import from photo: use Claude vision to extract recipe from images
 
 ### Out of Scope
 
-- URL recipe import -- conversational entry sufficient for now
-- Photo/image recipe capture -- requires vision pipeline, defer
 - Voice interaction / cooking mode -- future capability
 - Monetization / paid features -- personal dogfooding first
 - Nutritional tracking / calorie counting -- changes product from cooking partner to diet app
 - Recipe catalog / discovery database -- this is YOUR recipes, not a browsable catalog
 - Grocery delivery integration -- user shops in-person at Kroger/Costco
-- Bot update notification system -- deferred to future milestone
-- Data migration framework -- deferred to future milestone
-- Web search + picture analysis for byo-recipe -- deferred to future milestone
 
 ## Context
 
@@ -92,13 +92,18 @@ The LLM is the product. It reasons, decides what to look up, and acts on what it
 - **Mini App model:** Hybrid — bot stays primary, Mini Apps open from chat buttons for visual tasks
 - **Frontend:** React+Vite SPA inside Telegram Web Apps, served by existing Express server at /app/*
 - **Known issues:** save_knowledge duplicate prevention needs design decision (auto-upsert vs title uniqueness)
-- **Next step:** Plan next milestone (/gsd:new-milestone)
+- **Next step:** v1.4 in progress
 
-## Latest Milestone: v1.3 AI Polish & UX (Shipped 2026-02-19)
+## Current Milestone: v1.4 Backlog Sweep
 
-**Delivered:** Smarter implicit AI behaviors, recipe variation handling, grocery store preferences, Mini App recipe deletion, bug fixes, and directive onboarding recipe seeding.
+**Goal:** Clear the accumulated todo backlog — fix knowledge duplication bugs, add recipe import (URL + photo), improve notification personality, add update notifications, and establish a data migration framework.
 
-**Next milestone:** Not yet planned. Run `/gsd:new-milestone` to start.
+**Target features:**
+- Knowledge dedup fix (save_knowledge returns match, update_knowledge validation)
+- Notification tone overhaul (Sous personality in all automated messages)
+- Bot update notification system (version-based announcements)
+- Data migration framework (numbered scripts, idempotent, tracked)
+- Recipe import from URL and photo (web fetch + Claude vision)
 
 ## Constraints
 
@@ -150,4 +155,4 @@ The LLM is the product. It reasons, decides what to look up, and acts on what it
 | Directive onboarding recipe prompting with soft target | Ask for 3-5 go-to meals with concrete questions and first meal plan motivation, gentle encouragement but no hard gate | ✓ Good -- balances directiveness with user comfort |
 
 ---
-*Last updated: 2026-02-19 after v1.3 milestone*
+*Last updated: 2026-02-19 after v1.4 milestone start*

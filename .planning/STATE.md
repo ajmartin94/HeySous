@@ -51,6 +51,7 @@ All decisions documented in PROJECT.md Key Decisions table.
 - Data migration framework (INFR-01)
 - Web search + picture analysis for byo-recipe (CAPS-01, CAPS-02)
 - save_knowledge duplicate prevention (needs design decision)
+- Change notification tone to conversational Sous style (16 pending todos total)
 
 ### Blockers/Concerns
 

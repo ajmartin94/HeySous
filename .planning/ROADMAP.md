@@ -78,10 +78,10 @@ Plans:
   2. Sous never auto-merges or silently overwrites an existing recipe -- the user always decides
   3. Calling update_knowledge with no actual content changes returns an error message to Claude instead of silently succeeding
   4. Dedup detection works for both recipes and preferences (e.g., duplicate "no cilantro" preferences are caught too)
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 26-01: TBD
+- [ ] 26-01-PLAN.md -- Dedup check in save_knowledge, update_knowledge validation, system prompt instructions, tests
 
 ### Phase 27: Notification Tone Overhaul
 **Goal**: Every bot-initiated message sounds like Sous the cooking partner, not a generic system notification

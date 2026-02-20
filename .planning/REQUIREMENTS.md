@@ -77,32 +77,32 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| IMPORT-01 | — | Pending |
-| IMPORT-02 | — | Pending |
-| IMPORT-03 | — | Pending |
-| IMPORT-04 | — | Pending |
-| IMPORT-05 | — | Pending |
-| IMPORT-06 | — | Pending |
-| KNOW-01 | — | Pending |
-| KNOW-02 | — | Pending |
-| KNOW-03 | — | Pending |
-| KNOW-04 | — | Pending |
-| MIGR-01 | — | Pending |
-| MIGR-02 | — | Pending |
-| MIGR-03 | — | Pending |
-| MIGR-04 | — | Pending |
-| NOTIF-01 | — | Pending |
-| NOTIF-02 | — | Pending |
-| NOTIF-03 | — | Pending |
-| TONE-01 | — | Pending |
-| TONE-02 | — | Pending |
-| TONE-03 | — | Pending |
+| IMPORT-01 | Phase 28 | Pending |
+| IMPORT-02 | Phase 29 | Pending |
+| IMPORT-03 | Phase 28 | Pending |
+| IMPORT-04 | Phase 28 | Pending |
+| IMPORT-05 | Phase 28 | Pending |
+| IMPORT-06 | Phase 28 | Pending |
+| KNOW-01 | Phase 26 | Pending |
+| KNOW-02 | Phase 26 | Pending |
+| KNOW-03 | Phase 26 | Pending |
+| KNOW-04 | Phase 26 | Pending |
+| MIGR-01 | Phase 25 | Pending |
+| MIGR-02 | Phase 25 | Pending |
+| MIGR-03 | Phase 25 | Pending |
+| MIGR-04 | Phase 25 | Pending |
+| NOTIF-01 | Phase 30 | Pending |
+| NOTIF-02 | Phase 30 | Pending |
+| NOTIF-03 | Phase 30 | Pending |
+| TONE-01 | Phase 27 | Pending |
+| TONE-02 | Phase 27 | Pending |
+| TONE-03 | Phase 27 | Pending |
 
 **Coverage:**
 - v1.4 requirements: 20 total
-- Mapped to phases: 0
-- Unmapped: 20 (pending roadmap creation)
+- Mapped to phases: 20
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-19*
-*Last updated: 2026-02-19 after initial definition*
+*Last updated: 2026-02-19 after roadmap creation*

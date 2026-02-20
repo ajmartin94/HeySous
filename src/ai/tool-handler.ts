@@ -12,6 +12,7 @@ import { logMeal, getCookingHistory } from "../planning/history.js";
 import { getWeekStartDate, DAY_NAMES } from "../planning/date-utils.js";
 import type { DrizzleDatabase } from "../db/index.js";
 import { knowledgeChangelog } from "../knowledge/schema.js";
+import { searchFts } from "../knowledge/fts.js";
 
 /**
  * Create a tool call dispatcher that routes Claude's tool use requests
@@ -96,6 +97,51 @@ export function createToolHandler(deps: {
           const summary = input.summary as string;
           const content = input.content as string;
           const tags = input.tags as string[];
+          const skipDedup = input.skip_dedup as boolean | undefined;
+
+          // Dedup check: search for existing items with similar titles
+          if (!skipDedup && sqlite) {
+            try {
+              const matches = searchFts(sqlite, title, householdId, 3);
+
+              // Check for exact title match (case-insensitive)
+              const exactMatch = matches.find(
+                (m) => m.title.toLowerCase() === title.toLowerCase()
+              );
+
+              if (exactMatch) {
+                return JSON.stringify({
+                  duplicate_found: true,
+                  message: `A knowledge item with a very similar title already exists: "${exactMatch.title}" (ID: ${exactMatch.id}). Ask the user if they want to update the existing item or save as new.`,
+                  existing_item: {
+                    id: exactMatch.id,
+                    title: exactMatch.title,
+                    summary: exactMatch.summary,
+                  },
+                });
+              }
+
+              // Check for close FTS match (top result with strong relevance)
+              if (matches.length > 0) {
+                const topMatch = matches[0];
+                // BM25 relevance is negative (closer to 0 = better match).
+                // Title-weighted search: a score better than -5 suggests strong title overlap.
+                if (topMatch.relevance > -5) {
+                  return JSON.stringify({
+                    duplicate_found: true,
+                    message: `Found a similar existing item: "${topMatch.title}" (ID: ${topMatch.id}). Ask the user if they want to update the existing item or save this as a new item.`,
+                    existing_item: {
+                      id: topMatch.id,
+                      title: topMatch.title,
+                      summary: topMatch.summary,
+                    },
+                  });
+                }
+              }
+            } catch {
+              // If search fails, proceed with save (dedup is best-effort)
+            }
+          }
 
           try {
             const item = knowledgeRepository.create(householdId, {
@@ -133,6 +179,13 @@ export function createToolHandler(deps: {
           const changeDescription = input.change_description as
             | string
             | undefined;
+
+          // Validate that at least one substantive field is provided
+          if (title === undefined && summary === undefined && content === undefined && tags === undefined) {
+            return JSON.stringify({
+              error: "No substantive fields provided. Include at least one of: title, summary, content, or tags to update. The change_description field alone is not an update.",
+            });
+          }
 
           try {
             // Get current item for changelog snapshot

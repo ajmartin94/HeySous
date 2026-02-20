@@ -54,6 +54,9 @@ export const KNOWLEDGE_TOOLS: Anthropic.Tool[] = [
     name: "save_knowledge",
     description:
       "Save a new item to the user's knowledge base (recipe, preference, cooking note). " +
+      "Automatically checks for similar existing items before saving. If a match is found, " +
+      "returns the match info instead of saving -- present the match to the user and ask " +
+      "whether to update the existing item or save as new (with skip_dedup: true). " +
       "Use this after the user confirms they want to save. Include a descriptive title, " +
       "a brief summary (1-2 sentences for search results), the full content, and relevant tags. " +
       "For recipes, tags should include: 'recipe', cuisine type (e.g., 'cuisine:italian'), " +
@@ -84,6 +87,12 @@ export const KNOWLEDGE_TOOLS: Anthropic.Tool[] = [
           items: { type: "string" },
           description:
             "Relevant tags for categorization and filtering",
+        },
+        skip_dedup: {
+          type: "boolean",
+          description:
+            "Set to true to skip duplicate checking and force save. " +
+            "Use when the user explicitly says to save as new after seeing a duplicate match.",
         },
       },
       required: ["title", "summary", "content", "tags"],

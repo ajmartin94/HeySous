@@ -8,6 +8,7 @@ interface CreateKnowledgeInput {
   summary: string;
   content: string;
   source?: string;
+  sourceUrl?: string;
   tags: string[];
 }
 
@@ -35,6 +36,7 @@ export function createKnowledgeRepository(db: DrizzleDatabase) {
       summary: item.summary,
       content: item.content,
       source: item.source,
+      sourceUrl: item.sourceUrl ?? null,
       tags,
       createdAt: item.createdAt,
       updatedAt: item.updatedAt,
@@ -55,6 +57,7 @@ export function createKnowledgeRepository(db: DrizzleDatabase) {
           summary: input.summary,
           content: input.content,
           source: input.source ?? null,
+          sourceUrl: input.sourceUrl ?? null,
         })
         .returning()
         .get();

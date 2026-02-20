@@ -97,12 +97,12 @@ describe("save_knowledge dedup", () => {
     sqlite.close();
   });
 
-  it("returns duplicate_found for exact title match", () => {
+  it("returns duplicate_found for exact title match", async () => {
     insertKnowledgeItem(sqlite, 1, "Chicken Parmesan", "Classic Italian chicken dish", "Ingredients: chicken, mozzarella...");
 
     const { handler } = createMockDeps(sqlite);
     const result = JSON.parse(
-      handler.handleToolCall("save_knowledge", {
+      await handler.handleToolCall("save_knowledge", {
         title: "Chicken Parmesan",
         summary: "A chicken parmesan recipe",
         content: "New chicken parmesan recipe...",
@@ -115,12 +115,12 @@ describe("save_knowledge dedup", () => {
     expect(result.existing_item.id).toBe(1);
   });
 
-  it("returns duplicate_found for case-insensitive title match", () => {
+  it("returns duplicate_found for case-insensitive title match", async () => {
     insertKnowledgeItem(sqlite, 1, "Chicken Parmesan", "Classic Italian chicken dish", "Ingredients: chicken...");
 
     const { handler } = createMockDeps(sqlite);
     const result = JSON.parse(
-      handler.handleToolCall("save_knowledge", {
+      await handler.handleToolCall("save_knowledge", {
         title: "chicken parmesan",
         summary: "A chicken parmesan recipe",
         content: "New recipe...",
@@ -132,12 +132,12 @@ describe("save_knowledge dedup", () => {
     expect(result.existing_item.title).toBe("Chicken Parmesan");
   });
 
-  it("allows save when skip_dedup is true", () => {
+  it("allows save when skip_dedup is true", async () => {
     insertKnowledgeItem(sqlite, 1, "Chicken Parmesan", "Classic Italian chicken dish", "Ingredients: chicken...");
 
     const { handler, mockKnowledgeRepository } = createMockDeps(sqlite);
     const result = JSON.parse(
-      handler.handleToolCall("save_knowledge", {
+      await handler.handleToolCall("save_knowledge", {
         title: "Chicken Parmesan",
         summary: "A different chicken parm",
         content: "Different recipe...",
@@ -151,10 +151,10 @@ describe("save_knowledge dedup", () => {
     expect(mockKnowledgeRepository.create).toHaveBeenCalled();
   });
 
-  it("allows save when no similar items exist", () => {
+  it("allows save when no similar items exist", async () => {
     const { handler, mockKnowledgeRepository } = createMockDeps(sqlite);
     const result = JSON.parse(
-      handler.handleToolCall("save_knowledge", {
+      await handler.handleToolCall("save_knowledge", {
         title: "Unique Thai Basil Stir Fry",
         summary: "Quick Thai stir fry",
         content: "Ingredients: basil, tofu...",
@@ -167,12 +167,12 @@ describe("save_knowledge dedup", () => {
     expect(mockKnowledgeRepository.create).toHaveBeenCalled();
   });
 
-  it("dedup works for preferences", () => {
+  it("dedup works for preferences", async () => {
     insertKnowledgeItem(sqlite, 1, "No Cilantro", "Dietary restriction - no cilantro", "I do not like cilantro in any dishes.");
 
     const { handler } = createMockDeps(sqlite);
     const result = JSON.parse(
-      handler.handleToolCall("save_knowledge", {
+      await handler.handleToolCall("save_knowledge", {
         title: "No Cilantro",
         summary: "Hates cilantro",
         content: "No cilantro please",
@@ -196,23 +196,23 @@ describe("update_knowledge validation", () => {
     sqlite.close();
   });
 
-  it("rejects update with no substantive fields", () => {
+  it("rejects update with no substantive fields", async () => {
     insertKnowledgeItem(sqlite, 1, "Test Recipe", "Summary", "Content");
 
     const { handler } = createMockDeps(sqlite);
     const result = JSON.parse(
-      handler.handleToolCall("update_knowledge", { id: 1 }),
+      await handler.handleToolCall("update_knowledge", { id: 1 }),
     );
 
     expect(result.error).toContain("No substantive fields");
   });
 
-  it("rejects update with only change_description", () => {
+  it("rejects update with only change_description", async () => {
     insertKnowledgeItem(sqlite, 1, "Test Recipe", "Summary", "Content");
 
     const { handler } = createMockDeps(sqlite);
     const result = JSON.parse(
-      handler.handleToolCall("update_knowledge", {
+      await handler.handleToolCall("update_knowledge", {
         id: 1,
         change_description: "Some change note",
       }),
@@ -221,12 +221,12 @@ describe("update_knowledge validation", () => {
     expect(result.error).toContain("No substantive fields");
   });
 
-  it("allows update with title change", () => {
+  it("allows update with title change", async () => {
     insertKnowledgeItem(sqlite, 1, "Test Recipe", "Summary", "Content");
 
     const { handler } = createMockDeps(sqlite);
     const result = JSON.parse(
-      handler.handleToolCall("update_knowledge", {
+      await handler.handleToolCall("update_knowledge", {
         id: 1,
         title: "New Title",
       }),

@@ -39,11 +39,11 @@ function createMockDeps() {
 }
 
 describe("tool-handler save_meal_plan", () => {
-  it("includes knowledgeItemId in result when provided", () => {
+  it("includes knowledgeItemId in result when provided", async () => {
     const { handler, mockPlanRepository } = createMockDeps();
 
     const result = JSON.parse(
-      handler.handleToolCall("save_meal_plan", {
+      await handler.handleToolCall("save_meal_plan", {
         week_start_date: "2026-02-16",
         entries: [
           { day: 0, recipe_name: "Fish Tacos", knowledge_item_id: 31 },
@@ -65,11 +65,11 @@ describe("tool-handler save_meal_plan", () => {
     expect(savedEntries[1].knowledgeItemId).toBe(28);
   });
 
-  it("has null knowledgeItemId when not provided", () => {
+  it("has null knowledgeItemId when not provided", async () => {
     const { handler } = createMockDeps();
 
     const result = JSON.parse(
-      handler.handleToolCall("save_meal_plan", {
+      await handler.handleToolCall("save_meal_plan", {
         week_start_date: "2026-02-16",
         entries: [{ day: 0, recipe_name: "New Recipe" }],
       }),

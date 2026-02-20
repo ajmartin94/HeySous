@@ -13,6 +13,7 @@ import { getWeekStartDate, DAY_NAMES } from "../planning/date-utils.js";
 import type { DrizzleDatabase } from "../db/index.js";
 import { knowledgeChangelog } from "../knowledge/schema.js";
 import { searchFts } from "../knowledge/fts.js";
+import { fetchAndParseRecipe } from "../knowledge/url-import.js";
 
 /**
  * Create a tool call dispatcher that routes Claude's tool use requests
@@ -44,14 +45,15 @@ export function createToolHandler(deps: {
      * Handle a tool call from Claude's response.
      * Dispatches to the appropriate retrieval service method by tool name.
      *
-     * All underlying operations (FTS5 search, SQLite queries) are synchronous
-     * via better-sqlite3, so this method is synchronous.
+     * Most operations (FTS5 search, SQLite queries) are synchronous via
+     * better-sqlite3. The import_from_url case is async (HTTP fetch).
+     * The method is async to support both sync and async tool handlers.
      *
      * @param name - The tool name from Claude's tool_use block
      * @param input - The parsed input object from Claude's tool_use block
      * @returns String result for the tool_result block
      */
-    handleToolCall(name: string, input: Record<string, unknown>): string {
+    async handleToolCall(name: string, input: Record<string, unknown>): Promise<string> {
       switch (name) {
         case "search_knowledge": {
           const query = input.query as string;
@@ -98,6 +100,7 @@ export function createToolHandler(deps: {
           const content = input.content as string;
           const tags = input.tags as string[];
           const skipDedup = input.skip_dedup as boolean | undefined;
+          const sourceUrl = input.source_url as string | undefined;
 
           // Dedup check: search for existing items with similar titles
           if (!skipDedup && sqlite) {
@@ -149,6 +152,7 @@ export function createToolHandler(deps: {
               summary,
               content,
               tags,
+              sourceUrl,
             });
 
             db.insert(knowledgeChangelog)
@@ -648,6 +652,21 @@ export function createToolHandler(deps: {
           });
 
           return JSON.stringify({ saved: true });
+        }
+
+        case "import_from_url": {
+          const url = input.url as string;
+          try {
+            const result = await fetchAndParseRecipe(url);
+            return JSON.stringify(result);
+          } catch (error) {
+            const msg = error instanceof Error ? error.message : String(error);
+            return JSON.stringify({
+              success: false,
+              error: `Failed to import recipe from URL: ${msg}`,
+              suggestion: "Try copy-pasting the recipe text directly instead.",
+            });
+          }
         }
 
         default:

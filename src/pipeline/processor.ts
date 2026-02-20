@@ -61,7 +61,7 @@ interface ClaudeClient {
   sendMessageWithTools(
     messages: Anthropic.MessageParam[],
     tools: Anthropic.Tool[],
-    onToolCall: (name: string, input: Record<string, unknown>) => string,
+    onToolCall: (name: string, input: Record<string, unknown>) => string | Promise<string>,
     maxIterations?: number,
     systemPrompt?: string,
   ): Promise<ClaudeResponse>;

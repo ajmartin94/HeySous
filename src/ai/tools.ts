@@ -94,8 +94,32 @@ export const KNOWLEDGE_TOOLS: Anthropic.Tool[] = [
             "Set to true to skip duplicate checking and force save. " +
             "Use when the user explicitly says to save as new after seeing a duplicate match.",
         },
+        source_url: {
+          type: "string",
+          description:
+            "Source URL for imported recipes. Include this when saving a recipe that was imported from a URL.",
+        },
       },
       required: ["title", "summary", "content", "tags"],
+    },
+  },
+  {
+    name: "import_from_url",
+    description:
+      "Import a recipe from a URL. Fetches the page and extracts recipe data " +
+      "(title, ingredients, instructions, times) using structured data (JSON-LD, Microdata) " +
+      "or AI extraction as fallback. Returns the extracted recipe for you to present to the user " +
+      "for confirmation before saving. Always show the extracted recipe to the user and wait for " +
+      "confirmation before calling save_knowledge.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        url: {
+          type: "string",
+          description: "The recipe URL to import from",
+        },
+      },
+      required: ["url"],
     },
   },
   {

@@ -255,6 +255,7 @@ export function getFullItem(
         summary: string;
         content: string;
         source: string | null;
+        source_url: string | null;
         created_at: number;
         updated_at: number;
         last_accessed_at: number;
@@ -277,6 +278,7 @@ export function getFullItem(
     summary: row.summary,
     content: row.content,
     source: row.source,
+    sourceUrl: row.source_url ?? null,
     tags,
     createdAt: new Date(row.created_at * 1000),
     updatedAt: new Date(row.updated_at * 1000),

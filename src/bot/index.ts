@@ -22,7 +22,7 @@
  * 15. remindersHandler (/reminders reminder settings display)
  * 16. helpHandler (/help command -- help page deep link)
  * 17. feedbackTextHandler (free-text feedback replies -- before catch-all)
- * 18. messageHandler (catch-all message:text -- MUST be last)
+ * 18. messageHandler (catch-all message:text + message:photo -- MUST be last)
  * 19. error boundary
  */
 
@@ -107,7 +107,7 @@ export function createBot(
   if (feedbackTextHandler) {
     bot.use(feedbackTextHandler); // free-text feedback replies -- must be before catch-all
   }
-  bot.use(messageHandler); // catch-all message:text -- MUST be last
+  bot.use(messageHandler); // catch-all message:text + message:photo -- MUST be last
 
   // Set up error boundary
   setupErrorHandler(bot);

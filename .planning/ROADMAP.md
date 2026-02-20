@@ -159,7 +159,7 @@ Plans:
 | 22. Recipe Variations & Grocery Intelligence | v1.3 | 3/3 | Complete | 2026-02-19 |
 | 23. Mini App Enhancements | v1.3 | 1/1 | Complete | 2026-02-19 |
 | 24. Onboarding Refinement | v1.3 | 1/1 | Complete | 2026-02-19 |
-| 25. Data Migration Framework | 1/1 | Complete   | 2026-02-20 | - |
+| 25. Data Migration Framework | 1/1 | Complete    | 2026-02-20 | - |
 | 26. Knowledge Dedup | v1.4 | 0/? | Not started | - |
 | 27. Notification Tone Overhaul | v1.4 | 0/? | Not started | - |
 | 28. Recipe URL Import | v1.4 | 0/? | Not started | - |

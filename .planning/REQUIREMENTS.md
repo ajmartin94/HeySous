@@ -18,10 +18,10 @@ Requirements for v1.4 milestone. Each maps to roadmap phases.
 
 ### Knowledge Quality
 
-- [ ] **KNOW-01**: save_knowledge checks for existing similar items before creating; returns match info to Claude if found
-- [ ] **KNOW-02**: Claude presents existing match to user and asks whether to update or create new (never auto-merges)
-- [ ] **KNOW-03**: update_knowledge rejects calls with no substantive fields (title/summary/content/tags) and returns guidance
-- [ ] **KNOW-04**: Dedup works for both recipe and preference knowledge types with appropriate matching strategies
+- [x] **KNOW-01**: save_knowledge checks for existing similar items before creating; returns match info to Claude if found
+- [x] **KNOW-02**: Claude presents existing match to user and asks whether to update or create new (never auto-merges)
+- [x] **KNOW-03**: update_knowledge rejects calls with no substantive fields (title/summary/content/tags) and returns guidance
+- [x] **KNOW-04**: Dedup works for both recipe and preference knowledge types with appropriate matching strategies
 
 ### Data Migration
 
@@ -83,10 +83,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | IMPORT-04 | Phase 28 | Pending |
 | IMPORT-05 | Phase 28 | Pending |
 | IMPORT-06 | Phase 28 | Pending |
-| KNOW-01 | Phase 26 | Pending |
-| KNOW-02 | Phase 26 | Pending |
-| KNOW-03 | Phase 26 | Pending |
-| KNOW-04 | Phase 26 | Pending |
+| KNOW-01 | Phase 26 | Complete |
+| KNOW-02 | Phase 26 | Complete |
+| KNOW-03 | Phase 26 | Complete |
+| KNOW-04 | Phase 26 | Complete |
 | MIGR-01 | Phase 25 | Complete |
 | MIGR-02 | Phase 25 | Complete |
 | MIGR-03 | Phase 25 | Complete |
@@ -105,4 +105,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-02-19*
-*Last updated: 2026-02-19 after roadmap creation*
+*Last updated: 2026-02-20 after Phase 26 completion*

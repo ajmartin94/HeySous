@@ -106,10 +106,10 @@ Plans:
   3. When a URL is shared mid-conversation (not as a standalone message), Sous detects it and offers to import
   4. Saved imported recipes retain their source URL on the knowledge item for future reference
   5. Paywalled sites, non-recipe URLs, unreachable sites, and other failures produce helpful messages suggesting alternatives (paste the text, send a photo)
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 28-01: TBD
+- [ ] 28-01-PLAN.md -- URL import module, async tool handler, import_from_url tool, migration, system prompt
 
 ### Phase 29: Recipe Photo Import
 **Goal**: Users can snap a photo of a cookbook page or handwritten recipe and Sous extracts it

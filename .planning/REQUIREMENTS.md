@@ -10,7 +10,7 @@ Requirements for v1.4 milestone. Each maps to roadmap phases.
 ### Recipe Import
 
 - [x] **IMPORT-01**: User can send a recipe URL and Sous extracts the recipe (JSON-LD/Microdata with Claude AI fallback)
-- [ ] **IMPORT-02**: User can send a photo of a recipe and Sous extracts it via Claude vision
+- [x] **IMPORT-02**: User can send a photo of a recipe and Sous extracts it via Claude vision
 - [x] **IMPORT-03**: Sous auto-detects recipe URLs shared mid-conversation (via Telegram message entities) and offers to import
 - [x] **IMPORT-04**: Imported recipes store their source URL on the knowledge item
 - [x] **IMPORT-05**: User sees extracted recipe for confirmation before it is saved
@@ -78,7 +78,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | IMPORT-01 | Phase 28 | Complete |
-| IMPORT-02 | Phase 29 | Pending |
+| IMPORT-02 | Phase 29 | Complete |
 | IMPORT-03 | Phase 28 | Complete |
 | IMPORT-04 | Phase 28 | Complete |
 | IMPORT-05 | Phase 28 | Complete |
@@ -105,4 +105,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-02-19*
-*Last updated: 2026-02-20 after Phase 28 completion*
+*Last updated: 2026-02-20 after Phase 29 completion*

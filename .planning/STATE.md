@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** The recipe brain -- an AI agent that remembers everything about your meals and reasons over that knowledge to help you plan.
-**Current focus:** Phase 29 - Recipe Photo Import
+**Current focus:** Phase 30 - Update Notifications
 
 ## Current Position
 
-Phase: 29 of 30 (Recipe Photo Import)
+Phase: 30 of 30 (Update Notifications)
 Plan: 0 of ? in current phase
 Status: Ready to discuss/plan
-Last activity: 2026-02-20 -- Phase 28 complete, transitioning to Phase 29
+Last activity: 2026-02-20 -- Phase 29 complete, transitioning to Phase 30
 
-Progress: [██████████████████████████████████████████████████░] 96% (63/65 plans est.)
+Progress: [██████████████████████████████████████████████████░] 97% (64/65 plans est.)
 
 ## Performance Metrics
 
@@ -52,6 +52,7 @@ Recent decisions affecting current work:
 - v1.4-26: FTS5-based dedup in save_knowledge with BM25 threshold -5; skip_dedup bypass parameter; update_knowledge validation rejects empty updates
 - v1.4-27: Centralized message module at src/bot/messages.ts with pickRandom variant selection; all bot-initiated messages use Sous personality
 - v1.4-28: Recipe URL import via cheerio + 3-strategy extraction (JSON-LD, Microdata, raw text fallback); async tool handler; source_url column via migration 001
+- v1.4-29: Photo import via multimodal message pipeline; Claude vision handles OCR + recipe understanding; no new dependencies
 
 ### Pending Todos
 
@@ -70,5 +71,5 @@ Total: 30 phases, 60+ plans.
 ## Session Continuity
 
 Last session: 2026-02-20
-Stopped at: Phase 28 complete
-Next action: Discuss/Plan Phase 29 (Recipe Photo Import)
+Stopped at: Phase 29 complete
+Next action: Discuss/Plan Phase 30 (Update Notifications)

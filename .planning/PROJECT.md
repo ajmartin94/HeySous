@@ -65,7 +65,7 @@ The LLM is the product. It reasons, decides what to look up, and acts on what it
 
 ### Active
 
-- [ ] Knowledge dedup: save_knowledge returns existing match instead of creating duplicates; update_knowledge rejects no-op calls
+- ✓ Knowledge dedup: save_knowledge returns existing match instead of creating duplicates; update_knowledge rejects no-op calls — v1.4 Phase 26
 - [ ] Notification tone: rewrite reminder and feedback templates to match conversational Sous personality
 - [ ] Bot update notifications: version-based system for announcing meaningful updates to users
 - [ ] Recipe import from URL: fetch and parse recipe from a link
@@ -81,7 +81,7 @@ The LLM is the product. It reasons, decides what to look up, and acts on what it
 
 ## Context
 
-- **Current state:** v1.4 in progress. Phase 25 complete (migration framework). ~22,700 LOC TypeScript (18,735 server + 3,966 Mini App). 60 plans total across 25 phases.
+- **Current state:** v1.4 in progress. Phase 26 complete (knowledge dedup). ~22,800 LOC TypeScript. 61 plans total across 26 phases.
 - **Tech stack:** Node.js 22, TypeScript (ESM), grammY, better-sqlite3/Drizzle, Anthropic SDK, Pino, Express, React+Vite (Mini App SPA), @telegram-apps SDK
 - **Primary user:** Home cook who loves cooking, time-constrained on weekdays, more flexible weekends
 - **Household:** Partner + 9-month-old. Partner now has access via invite system (v1.2).
@@ -91,8 +91,8 @@ The LLM is the product. It reasons, decides what to look up, and acts on what it
 - **First-run flow:** Onboarding guides new users through preferences → tour → seed 3-5 go-to recipes (v1.3 refinement)
 - **Mini App model:** Hybrid — bot stays primary, Mini Apps open from chat buttons for visual tasks
 - **Frontend:** React+Vite SPA inside Telegram Web Apps, served by existing Express server at /app/*
-- **Known issues:** save_knowledge duplicate prevention needs design decision (auto-upsert vs title uniqueness)
-- **Next step:** Phase 26 (Knowledge Dedup)
+- **Known issues:** None current
+- **Next step:** Phase 27 (Notification Tone Overhaul)
 
 ## Current Milestone: v1.4 Backlog Sweep
 
@@ -154,6 +154,7 @@ The LLM is the product. It reasons, decides what to look up, and acts on what it
 | Cascading delete with manual cooking_history cleanup | cooking_history has no ON DELETE CASCADE FK; delete manually before knowledge_items (which cascades tags + FTS5) | ✓ Good -- ensures complete cleanup without orphaned records |
 | Directive onboarding recipe prompting with soft target | Ask for 3-5 go-to meals with concrete questions and first meal plan motivation, gentle encouragement but no hard gate | ✓ Good -- balances directiveness with user comfort |
 | PRAGMA user_version for migration tracking | Single integer stored in SQLite header, no migrations table needed, inspectable via CLI | ✓ Good -- ~50 LOC runner, simpler than table-based approaches |
+| Tool-level dedup with skip_dedup bypass | Dedup happens in tool handler (not Claude reasoning), returns match info for Claude to present conversationally, skip_dedup param for explicit override | ✓ Good -- keeps dedup deterministic, UX flexible |
 
 ---
-*Last updated: 2026-02-20 after Phase 25*
+*Last updated: 2026-02-20 after Phase 26*

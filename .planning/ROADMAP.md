@@ -46,7 +46,7 @@ See .planning/milestones/v1.3-ROADMAP.md for full phase history.
 
 **Milestone Goal:** Clear the accumulated todo backlog -- fix knowledge duplication bugs, add recipe import (URL + photo), improve notification personality, add update notifications, and establish a data migration framework.
 
-- [ ] **Phase 25: Data Migration Framework** - Lightweight migration runner using PRAGMA user_version, integrated into database init
+- [x] **Phase 25: Data Migration Framework** - Lightweight migration runner using PRAGMA user_version, integrated into database init (completed 2026-02-20)
 - [ ] **Phase 26: Knowledge Dedup** - save_knowledge checks for duplicates and lets Claude + user decide; update_knowledge validates inputs
 - [ ] **Phase 27: Notification Tone Overhaul** - Centralized message module with Sous personality and randomized variation across all bot-initiated messages
 - [ ] **Phase 28: Recipe URL Import** - Extract recipes from URLs via JSON-LD/Microdata/Claude fallback, with confirmation and edge case handling
@@ -159,7 +159,7 @@ Plans:
 | 22. Recipe Variations & Grocery Intelligence | v1.3 | 3/3 | Complete | 2026-02-19 |
 | 23. Mini App Enhancements | v1.3 | 1/1 | Complete | 2026-02-19 |
 | 24. Onboarding Refinement | v1.3 | 1/1 | Complete | 2026-02-19 |
-| 25. Data Migration Framework | v1.4 | 0/? | Not started | - |
+| 25. Data Migration Framework | 1/1 | Complete   | 2026-02-20 | - |
 | 26. Knowledge Dedup | v1.4 | 0/? | Not started | - |
 | 27. Notification Tone Overhaul | v1.4 | 0/? | Not started | - |
 | 28. Recipe URL Import | v1.4 | 0/? | Not started | - |

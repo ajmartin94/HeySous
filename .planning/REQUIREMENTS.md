@@ -25,10 +25,10 @@ Requirements for v1.4 milestone. Each maps to roadmap phases.
 
 ### Data Migration
 
-- [ ] **MIGR-01**: Lightweight migration runner using PRAGMA user_version tracks which migrations have run
-- [ ] **MIGR-02**: Each migration runs in a transaction and is idempotent
-- [ ] **MIGR-03**: Migration runner executes during database init, after pragmas, before table init functions
-- [ ] **MIGR-04**: Existing migrateToHouseholdId left as-is; framework handles v1.4+ schema changes only
+- [x] **MIGR-01**: Lightweight migration runner using PRAGMA user_version tracks which migrations have run
+- [x] **MIGR-02**: Each migration runs in a transaction and is idempotent
+- [x] **MIGR-03**: Migration runner executes during database init, after pragmas, before table init functions
+- [x] **MIGR-04**: Existing migrateToHouseholdId left as-is; framework handles v1.4+ schema changes only
 
 ### Notifications
 
@@ -87,10 +87,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | KNOW-02 | Phase 26 | Pending |
 | KNOW-03 | Phase 26 | Pending |
 | KNOW-04 | Phase 26 | Pending |
-| MIGR-01 | Phase 25 | Pending |
-| MIGR-02 | Phase 25 | Pending |
-| MIGR-03 | Phase 25 | Pending |
-| MIGR-04 | Phase 25 | Pending |
+| MIGR-01 | Phase 25 | Complete |
+| MIGR-02 | Phase 25 | Complete |
+| MIGR-03 | Phase 25 | Complete |
+| MIGR-04 | Phase 25 | Complete |
 | NOTIF-01 | Phase 30 | Pending |
 | NOTIF-02 | Phase 30 | Pending |
 | NOTIF-03 | Phase 30 | Pending |

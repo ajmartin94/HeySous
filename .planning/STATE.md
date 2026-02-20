@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-19)
 ## Current Position
 
 Phase: 25 of 30 (Data Migration Framework)
-Plan: 0 of ? in current phase
-Status: Ready to plan
-Last activity: 2026-02-19 -- Roadmap created for v1.4
+Plan: 1 of 1 in current phase
+Status: Phase 25 complete
+Last activity: 2026-02-20 -- Phase 25 executed (migration framework)
 
-Progress: [██████████████████████████████████████████████░░░░] 91% (59/65 plans est.)
+Progress: [███████████████████████████████████████████████░░░] 92% (60/65 plans est.)
 
 ## Performance Metrics
 
@@ -48,6 +48,7 @@ Recent decisions affecting current work:
 - v1.3: Auto-upsert dedup reverted; search-then-suggest with Claude + user deciding is the correct pattern
 - v1.4: Photo import goes through message pipeline as multimodal content block, not a separate tool
 - v1.4: Only one new dependency needed (cheerio) -- everything else already installed
+- v1.4-25: Used PRAGMA user_version for migration versioning -- simpler than a migrations table, inspectable via sqlite3 CLI
 
 ### Pending Todos
 
@@ -65,6 +66,6 @@ Total: 30 phases, 59+ plans.
 
 ## Session Continuity
 
-Last session: 2026-02-19
-Stopped at: Roadmap created for v1.4 Backlog Sweep
-Next action: Plan Phase 25 (Data Migration Framework)
+Last session: 2026-02-20
+Stopped at: Completed 25-01-PLAN.md (Phase 25 complete)
+Next action: Plan Phase 26 (Knowledge Dedup)

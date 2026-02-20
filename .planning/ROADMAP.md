@@ -91,10 +91,10 @@ Plans:
   1. Error messages, timeout messages, and access gate messages read as conversational Sous personality (no "Error:", no "Access denied")
   2. Receiving the same type of notification multiple times produces varied phrasing (not identical text each time)
   3. All bot-initiated messages import from a single centralized message module rather than having inline string literals scattered across handlers
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 27-01: TBD
+- [ ] 27-01-PLAN.md -- Centralized message module with Sous-personality variants, migrate all handlers
 
 ### Phase 28: Recipe URL Import
 **Goal**: Users can share a recipe link and Sous extracts, presents, and saves it -- the most-requested missing capability

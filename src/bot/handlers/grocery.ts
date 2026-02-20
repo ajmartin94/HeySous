@@ -18,6 +18,7 @@ import {
   buildGroceryKeyboard,
   parseGroceryCallback,
 } from "../../grocery/buttons.js";
+import { getNoGroceryListMessage } from "../messages.js";
 
 /**
  * Create a /grocery command handler with SQLite access.
@@ -36,9 +37,7 @@ export function createGroceryHandler(
     const activeList = groceryRepository.getActiveList(householdId);
 
     if (!activeList) {
-      await ctx.reply(
-        "No grocery list yet! Just say something like \"make my grocery list\" and I'll generate one from your meal plan.",
-      );
+      await ctx.reply(getNoGroceryListMessage());
       return;
     }
 

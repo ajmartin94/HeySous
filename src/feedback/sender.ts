@@ -4,6 +4,7 @@ import type { Reminder } from "../reminders/types.js";
 import type { FeedbackCheckin } from "./types.js";
 import { buildFeedbackKeyboard } from "./buttons.js";
 import { getHouseholdMembers } from "../users/repository.js";
+import { getCheckinMessageSingle, getCheckinMessageMultiple, getCheckinMessageGeneric } from "../bot/messages.js";
 
 /**
  * Minimal interface for bot API -- keeps sender decoupled from grammY types.
@@ -35,24 +36,12 @@ function buildCheckinMessage(
   meals: Array<{ mealType: string; recipeName: string }>,
 ): string {
   if (meals.length === 0) {
-    return "How was dinner tonight?";
+    return getCheckinMessageGeneric();
   }
-
   if (meals.length === 1) {
-    return `How was the <b>${meals[0].recipeName}</b> tonight?`;
+    return getCheckinMessageSingle(meals[0].recipeName);
   }
-
-  // Multiple meals: list recipe names
-  const names = meals.map((m) => `<b>${m.recipeName}</b>`);
-
-  if (names.length === 2) {
-    return `How was dinner tonight? You had ${names[0]} and ${names[1]}.`;
-  }
-
-  // 3+ meals: comma-separated with "and" before last
-  const allButLast = names.slice(0, -1).join(", ");
-  const last = names[names.length - 1];
-  return `How was dinner tonight? You had ${allButLast}, and ${last}.`;
+  return getCheckinMessageMultiple(meals.map((m) => m.recipeName));
 }
 
 /**

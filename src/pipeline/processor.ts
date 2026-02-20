@@ -49,10 +49,9 @@ import { updateOnboardingState } from "../users/repository.js";
 import type { User } from "../users/types.js";
 import type { DrizzleDatabase } from "../db/index.js";
 import type { Logger } from "pino";
+import { getErrorMessage, getTimeoutMessage } from "../bot/messages.js";
 
 const TIMEOUT_WARNING_MS = 30_000;
-const IN_CHARACTER_ERROR =
-  "Sorry, I'm having trouble thinking right now. Try again in a moment!";
 
 /** Default conversation history token budget. */
 const CONVERSATION_TOKEN_BUDGET = 2000;
@@ -231,9 +230,7 @@ export function createProcessor(deps: ProcessorDeps) {
       const timeoutTimer = setTimeout(async () => {
         timeoutFired = true;
         try {
-          await ctx.reply(
-            "This is taking longer than usual, hang tight...",
-          );
+          await ctx.reply(getTimeoutMessage());
         } catch {
           // Best-effort timeout message
         }
@@ -286,7 +283,7 @@ export function createProcessor(deps: ProcessorDeps) {
             "Claude API call failed (attempt 2), sending error to user",
           );
           try {
-            await ctx.reply(IN_CHARACTER_ERROR);
+            await ctx.reply(getErrorMessage());
           } catch {
             // Best-effort error message
           }
@@ -398,7 +395,7 @@ export function createProcessor(deps: ProcessorDeps) {
         "Unexpected error in pipeline processor",
       );
       try {
-        await ctx.reply(IN_CHARACTER_ERROR);
+        await ctx.reply(getErrorMessage());
       } catch {
         // Best-effort error message
       }

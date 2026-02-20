@@ -2,6 +2,13 @@ import type BetterSqlite3 from "better-sqlite3";
 import type { Logger } from "pino";
 import type { Reminder, ReminderType } from "./types.js";
 import { getHouseholdMembers } from "../users/repository.js";
+import {
+  getReminderFallbackMorning,
+  getReminderFallbackPrep,
+  getReminderFallbackCooking,
+  getReminderFallbackCheckin,
+  getReminderFallbackGeneric,
+} from "../bot/messages.js";
 
 /**
  * Minimal interface for bot API -- keeps sender decoupled from grammY types.
@@ -138,37 +145,19 @@ function getFallbackText(
   context: Record<string, unknown>,
 ): string {
   switch (type) {
-    case "morning_summary": {
-      if (context.noPlanNudge) {
-        return "Good morning! No meal plan for today yet -- want to plan something delicious?";
-      }
-      const meals = context.meals as
-        | Array<{ mealType: string; recipeName: string }>
-        | undefined;
-      if (meals && meals.length > 0) {
-        const mealList = meals
-          .map((m) => `  ${m.mealType}: ${m.recipeName}`)
-          .join("\n");
-        return `Good morning! Here's today's plan:\n${mealList}`;
-      }
-      return "Good morning! You have meals planned for today.";
-    }
-
-    case "prep_alert": {
-      const recipeName = (context.recipeName as string) || "your meal";
-      return `Heads up! Time to start prepping ${recipeName}.`;
-    }
-
-    case "start_cooking": {
-      const recipeName = (context.recipeName as string) || "dinner";
-      return `Time to start cooking ${recipeName}!`;
-    }
-
+    case "morning_summary":
+      return getReminderFallbackMorning(
+        context.meals as Array<{ mealType: string; recipeName: string }> | undefined,
+        context.noPlanNudge as boolean | undefined,
+      );
+    case "prep_alert":
+      return getReminderFallbackPrep((context.recipeName as string) || "your meal");
+    case "start_cooking":
+      return getReminderFallbackCooking((context.recipeName as string) || "dinner");
     case "feedback_checkin":
-      return "How was dinner tonight?";
-
+      return getReminderFallbackCheckin();
     default:
-      return "Reminder from Sous!";
+      return getReminderFallbackGeneric();
   }
 }
 

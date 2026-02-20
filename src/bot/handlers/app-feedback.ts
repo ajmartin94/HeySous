@@ -11,6 +11,7 @@ import { Composer } from "grammy";
 import type BetterSqlite3 from "better-sqlite3";
 import type { BotContext } from "../context.js";
 import { createAppFeedbackRepository } from "../../app-feedback/repository.js";
+import { getFeedbackEmptyMessage, getFeedbackThanksMessage } from "../messages.js";
 
 /**
  * Create a /feedback command handler with SQLite access.
@@ -27,7 +28,7 @@ export function createAppFeedbackHandler(
     const text = (ctx.match as string)?.trim();
 
     if (!text) {
-      await ctx.reply("Just type /feedback followed by your thoughts!");
+      await ctx.reply(getFeedbackEmptyMessage());
       return;
     }
 
@@ -38,7 +39,7 @@ export function createAppFeedbackHandler(
       source: "command",
     });
 
-    await ctx.reply("Thanks for the feedback!");
+    await ctx.reply(getFeedbackThanksMessage());
   });
 
   return handler;

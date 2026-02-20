@@ -21,6 +21,28 @@ export const migrations: Migration[] = [
       }
     },
   },
+  {
+    version: 2,
+    name: "create-notifications-tables",
+    up: (sqlite) => {
+      sqlite.exec(`
+        CREATE TABLE IF NOT EXISTS notifications (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          version TEXT NOT NULL UNIQUE,
+          content TEXT NOT NULL,
+          created_at INTEGER NOT NULL DEFAULT (unixepoch())
+        )
+      `);
+      sqlite.exec(`
+        CREATE TABLE IF NOT EXISTS notification_deliveries (
+          notification_id INTEGER NOT NULL REFERENCES notifications(id),
+          household_id TEXT NOT NULL,
+          delivered_at INTEGER NOT NULL DEFAULT (unixepoch()),
+          PRIMARY KEY (notification_id, household_id)
+        )
+      `);
+    },
+  },
 ];
 
 export function runMigrations(sqlite: BetterSqlite3.Database): void {

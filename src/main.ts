@@ -49,6 +49,7 @@ import { createAccessGate } from "./bot/middlewares/access-gate.js";
 import { createStartHandler } from "./bot/handlers/start.js";
 import { createInviteHandler } from "./bot/handlers/invite.js";
 import { createClock, createTestClock } from "./clock.js";
+import { seedNotifications } from "./notifications/update-notifier.js";
 import { logger } from "./logger.js";
 
 async function main(): Promise<void> {
@@ -65,6 +66,9 @@ async function main(): Promise<void> {
   // Get raw better-sqlite3 instance for direct FTS5 access
   // Drizzle exposes the underlying driver via $client (not in public type defs)
   const sqlite = (db as unknown as { $client: BetterSqlite3.Database }).$client;
+
+  // Seed update notifications (idempotent -- safe to call on every startup)
+  seedNotifications(sqlite);
 
   // Get bot info for username (needed for invite deep links)
   const api = new Api(config.botToken);

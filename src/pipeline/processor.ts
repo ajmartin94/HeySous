@@ -41,6 +41,7 @@ import type { createAppFeedbackRepository } from "../app-feedback/repository.js"
 import { formatGroceryList } from "../grocery/formatter.js";
 import { buildGroceryKeyboard } from "../grocery/buttons.js";
 import { getPreferenceSummaries } from "../knowledge/preferences.js";
+import { checkPendingNotification } from "../notifications/update-notifier.js";
 import { config } from "../config.js";
 import { buildSystemPrompt } from "../ai/system-prompt.js";
 import { extractOnboardingMarker, getNextOnboardingState } from "../onboarding/state.js";
@@ -122,6 +123,18 @@ export function createProcessor(deps: ProcessorDeps) {
           direction: "in" as const,
         })
         .run();
+
+      // c2. Check for pending update notifications (lazy delivery)
+      if (!config.isDev) {
+        const notification = checkPendingNotification(deps.sqlite, householdId);
+        if (notification) {
+          try {
+            await sendFormattedMessage(ctx, notification);
+          } catch {
+            // Best-effort notification delivery -- don't block processing
+          }
+        }
+      }
 
       // d. Load conversation history from messages table
       const rows = db

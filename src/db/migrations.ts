@@ -8,7 +8,20 @@ export interface Migration {
 }
 
 // Add new migrations here. Versions must be sequential integers starting at 1.
-export const migrations: Migration[] = [];
+export const migrations: Migration[] = [
+  {
+    version: 1,
+    name: "add-source-url-to-knowledge-items",
+    up: (sqlite) => {
+      // Check if column already exists (idempotent)
+      const columns = sqlite.pragma("table_info(knowledge_items)") as Array<{ name: string }>;
+      const hasSourceUrl = columns.some((c) => c.name === "source_url");
+      if (!hasSourceUrl) {
+        sqlite.exec("ALTER TABLE knowledge_items ADD COLUMN source_url TEXT");
+      }
+    },
+  },
+];
 
 export function runMigrations(sqlite: BetterSqlite3.Database): void {
   const currentVersion = sqlite.pragma("user_version", {

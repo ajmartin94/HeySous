@@ -107,14 +107,18 @@ export function createProcessor(deps: ProcessorDeps) {
       }
 
       // b. Build user message from batch
-      const userText = batch.messages.map((m) => m.text).join("\n\n");
+      const userText = batch.messages.map((m) => m.text).filter(Boolean).join("\n\n");
+
+      // b2. Collect images from batch (for multimodal messages)
+      const batchImages = batch.messages.filter((m) => m.imageBase64 && m.imageMimeType);
 
       // c. Save incoming user message to messages table BEFORE Claude call
+      const savedText = userText || (batchImages.length > 0 ? "[photo]" : "");
       db.insert(messages)
         .values({
           chatId,
           userId,
-          text: userText,
+          text: savedText,
           direction: "in" as const,
         })
         .run();
@@ -143,9 +147,40 @@ export function createProcessor(deps: ProcessorDeps) {
       );
 
       // f. Construct full messages array: prior history + current user message
+      //    For photos, build multimodal content blocks (image + text)
+      let userContent: string | Anthropic.ContentBlockParam[];
+
+      if (batchImages.length > 0) {
+        const contentBlocks: Anthropic.ContentBlockParam[] = [];
+
+        // Add image blocks first
+        for (const msg of batchImages) {
+          contentBlocks.push({
+            type: "image" as const,
+            source: {
+              type: "base64" as const,
+              media_type: msg.imageMimeType as "image/jpeg" | "image/png" | "image/gif" | "image/webp",
+              data: msg.imageBase64!,
+            },
+          });
+        }
+
+        // Add text block if present
+        if (userText) {
+          contentBlocks.push({
+            type: "text" as const,
+            text: userText,
+          });
+        }
+
+        userContent = contentBlocks;
+      } else {
+        userContent = userText;
+      }
+
       const fullMessages: Anthropic.MessageParam[] = [
         ...priorMessages,
-        { role: "user" as const, content: userText },
+        { role: "user" as const, content: userContent },
       ];
 
       // g. Resolve user timezone for date calculations

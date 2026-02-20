@@ -49,7 +49,7 @@ See .planning/milestones/v1.3-ROADMAP.md for full phase history.
 - [x] **Phase 25: Data Migration Framework** - Lightweight migration runner using PRAGMA user_version, integrated into database init (completed 2026-02-20)
 - [x] **Phase 26: Knowledge Dedup** - save_knowledge checks for duplicates and lets Claude + user decide; update_knowledge validates inputs (completed 2026-02-20)
 - [x] **Phase 27: Notification Tone Overhaul** - Centralized message module with Sous personality and randomized variation across all bot-initiated messages (completed 2026-02-20)
-- [ ] **Phase 28: Recipe URL Import** - Extract recipes from URLs via JSON-LD/Microdata/Claude fallback, with confirmation and edge case handling
+- [x] **Phase 28: Recipe URL Import** - Extract recipes from URLs via JSON-LD/Microdata/Claude fallback, with confirmation and edge case handling (completed 2026-02-20)
 - [ ] **Phase 29: Recipe Photo Import** - Extract recipes from photos via Claude vision through the message pipeline
 - [ ] **Phase 30: Update Notifications** - Lazy-delivery "what's new" notifications tracked per household
 
@@ -109,7 +109,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 28-01-PLAN.md -- URL import module, async tool handler, import_from_url tool, migration, system prompt
+- [x] 28-01-PLAN.md -- URL import module, async tool handler, import_from_url tool, migration, system prompt
 
 ### Phase 29: Recipe Photo Import
 **Goal**: Users can snap a photo of a cookbook page or handwritten recipe and Sous extracts it
@@ -162,6 +162,6 @@ Plans:
 | 25. Data Migration Framework | 1/1 | Complete    | 2026-02-20 | - |
 | 26. Knowledge Dedup | v1.4 | 1/1 | Complete | 2026-02-20 |
 | 27. Notification Tone Overhaul | v1.4 | 1/1 | Complete | 2026-02-20 |
-| 28. Recipe URL Import | v1.4 | 0/? | Not started | - |
+| 28. Recipe URL Import | v1.4 | 1/1 | Complete | 2026-02-20 |
 | 29. Recipe Photo Import | v1.4 | 0/? | Not started | - |
 | 30. Update Notifications | v1.4 | 0/? | Not started | - |

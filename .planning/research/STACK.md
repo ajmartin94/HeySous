@@ -1,310 +1,266 @@
-# Stack Research: Multi-User, Invites, Onboarding, Feedback
+# Technology Stack
 
-**Domain:** Multi-user Telegram bot with invite-gated access, household sharing, onboarding, and feedback
-**Researched:** 2026-02-10
-**Confidence:** HIGH
-
-## Executive Summary
-
-The existing stack (Node.js 22, grammY, better-sqlite3/Drizzle, Express, React+Vite Mini App) requires **zero new npm dependencies** for this milestone. All four feature areas -- invite system, multi-user identity, onboarding flow, and app feedback system -- can be built entirely with existing packages plus Node.js built-ins.
-
-This is deliberate. The project already has all the primitives:
-- **Deep link tokens:** grammY `ctx.match` on `/start` command provides deep link payloads natively
-- **Token generation:** Node.js 22 `crypto.randomBytes()` with `base64url` encoding (no nanoid/uuid needed)
-- **Session/onboarding state:** SQLite table (project pattern) beats grammY session middleware for persistence across restarts
-- **Admin dashboard:** Existing Express + React Mini App infrastructure handles new routes/pages
-- **Feedback system:** Existing `feedback_checkins` table and patterns extend naturally
-
-The work is **schema design + data migration + code restructuring**, not technology adoption.
-
----
+**Project:** HeySous v1.4 Backlog Sweep
+**Researched:** 2026-02-19
 
 ## Recommended Stack
 
-### Core Technologies (EXISTING -- no changes)
+### One New Dependency (cheerio), Rest Existing
 
-| Technology | Version | Purpose | Status |
-|------------|---------|---------|--------|
-| Node.js | 22.x | Runtime | Already installed |
-| TypeScript | ^5.9.3 | Type safety | Already installed |
-| grammY | ^1.39.3 | Telegram Bot API | Already installed |
-| better-sqlite3 | ^12.6.2 | SQLite driver | Already installed |
-| drizzle-orm | ^0.45.1 | ORM (schema definition, typed queries) | Already installed |
-| Express | ^5.2.1 | HTTP server, API routes | Already installed |
-| React | ^19.2.4 | Mini App UI | Already installed |
-| Vite | ^7.3.1 | Mini App bundler | Already installed |
-| @tma.js/init-data-node | ^2.0.6 | initData HMAC-SHA256 validation | Already installed |
-| @tma.js/sdk-react | ^3.0.15 | Mini App SDK (client-side) | Already installed |
-| Anthropic SDK | ^0.73.0 | Claude API | Already installed |
-| Pino | ^10.3.0 | Logging | Already installed |
+v1.4 requires **one new npm package** (cheerio for HTML parsing) and leverages existing dependencies for everything else. The Anthropic SDK (v0.73.0) already includes full vision/image types. grammY's built-in `ctx.getFile()` plus Node.js `fetch()` handles Telegram photo downloads without an additional plugin. The migration framework is a DIY pattern (~50 lines) using SQLite's `PRAGMA user_version`.
 
-### Supporting Libraries (EXISTING -- no additions needed)
+### Core Technologies (all existing)
 
-| Library | Version | New Usage | Why Sufficient |
-|---------|---------|-----------|----------------|
-| `node:crypto` | Built-in | Invite token generation | `randomBytes(16).toString('base64url')` generates 22-char URL-safe tokens. No external dependency needed. |
-| grammY core | ^1.39.3 | Deep link parsing via `ctx.match` | `bot.command('start', ctx => ctx.match)` provides the `/start TOKEN` payload natively. Documented in grammY composer. |
-| react-router-dom | ^7.13.0 | Admin dashboard + onboarding Mini App routes | Already supports nested routes and layout patterns needed. |
-| @telegram-apps/telegram-ui | ^2.1.13 | Onboarding UI components, feedback forms | Existing component library covers buttons, inputs, cells, modals. |
-| lucide-react | ^0.563.0 | Icons for onboarding steps, feedback UI | Already installed. |
-| vitest | ^4.0.18 | Testing invite token logic, migration scripts | Already installed. |
+| Technology | Version | Purpose | Why (for v1.4) |
+|------------|---------|---------|----------------|
+| Node.js | >= 22 | Runtime | Built-in `fetch()` for URL import and Telegram file download. `Buffer.from()` for base64 encoding. |
+| TypeScript | ^5.9.3 | Language | Existing. Anthropic SDK types include `ImageBlockParam`, `Base64ImageSource`, `URLImageSource`. |
+| @anthropic-ai/sdk | ^0.73.0 | AI | Already supports vision/multimodal messages. No upgrade needed. Verified in installed `node_modules`. |
+| grammY | ^1.39.3 | Bot framework | `ctx.getFile()` returns file path. `message:photo` filter for photo handling. No plugin needed. |
+| better-sqlite3 | ^12.6.2 | Database | Synchronous API ideal for migration runner. `PRAGMA user_version` for migration tracking. Transaction support for atomic migrations. |
+| Drizzle ORM | ^0.45.1 | ORM | Existing. Schema definitions if needed for new columns. |
+| Express | ^5.2.1 | HTTP server | No changes needed for v1.4. |
+| Pino | ^10.3.0 | Logging | Migration runner and import operations use existing logger. |
 
-### Development Tools (EXISTING -- no additions needed)
+### New Dependency
 
-| Tool | Purpose | Notes |
-|------|---------|-------|
-| drizzle-kit ^0.31.8 | Schema generation | Schema-only; project uses raw `CREATE TABLE IF NOT EXISTS` for init |
-| vitest ^4.0.18 | Testing | Covers unit tests for new token/invite logic |
-| tsx ^4.21.0 | Dev mode runner | No changes needed |
+| Technology | Version | Purpose | Why |
+|------------|---------|---------|-----|
+| **cheerio** | ^1.2.0 | HTML parsing for recipe URL import | Extracts JSON-LD `<script>` tags AND Microdata `itemprop` attributes from recipe pages. 28M+ weekly downloads, actively maintained, lightweight (~1MB). Handles edge cases (malformed HTML, multiple script tags, `@graph` patterns) that regex cannot. |
+
+### URL Import Stack
+
+| Component | Technology | Notes |
+|-----------|-----------|-------|
+| HTTP fetching | Node.js built-in `fetch()` | Stable since Node 21. Zero dependencies. Handles redirects, timeouts, streaming. |
+| HTML parsing | cheerio ^1.2.0 | Parse HTML, extract `<script type="application/ld+json">` content, handle `@graph` nesting, extract Microdata `itemprop` attributes as fallback. |
+| JSON-LD parsing | `JSON.parse()` | Standard. JSON-LD content is valid JSON once extracted from script tag. |
+| Claude fallback | Existing @anthropic-ai/sdk | When no structured data found, send page text to Claude for extraction. |
+
+**Why cheerio over regex:**
+
+Regex CAN extract JSON-LD from `<script>` tags (~80% of recipe sites), and some prior analysis suggested this is sufficient with Claude as fallback. However, cheerio is recommended because:
+
+1. **Microdata support.** Some recipe sites (especially older ones, food blogs with custom themes) use Microdata (`itemprop="recipeIngredient"`) instead of JSON-LD. Cheerio handles both; regex only handles JSON-LD.
+2. **Robustness.** Real-world HTML has malformed tags, multiple JSON-LD blocks (some for BreadcrumbList, some for Recipe), HTML comments, CDATA sections. Cheerio's parser handles all of this. Regex handles the common case but breaks on edge cases.
+3. **Marginal cost.** cheerio is ~1MB in node_modules with its parse5/htmlparser2 dependencies. The project already has 200MB+ of node_modules. This is noise.
+4. **Maintenance.** A 5-line cheerio extraction is easier to understand and debug than a regex with capture groups and post-processing.
+
+**If the team strongly prefers zero new dependencies**, a regex approach works for the MVP:
+```typescript
+const jsonLdRegex = /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+```
+This handles ~80% of recipe sites. Claude fallback covers the rest. The cost is that Microdata-only sites go straight to Claude fallback (more token usage, slightly slower), and debugging HTML edge cases becomes harder.
+
+**Recommendation: use cheerio.** The dependency is tiny, well-maintained, and eliminates a class of edge-case bugs.
+
+### Photo Import Stack
+
+| Component | Technology | Notes |
+|-----------|-----------|-------|
+| Photo detection | grammY `bot.on("message:photo")` | Built-in message filter. No plugin needed. |
+| File info | grammY `ctx.getFile()` | Returns `File` object with `file_path`. No plugin needed. |
+| File download | Node.js `fetch()` | Construct URL: `https://api.telegram.org/file/bot${token}/${file.file_path}`. |
+| Base64 encoding | `Buffer.from(arrayBuffer).toString("base64")` | Node.js built-in. |
+| Vision API | @anthropic-ai/sdk `ImageBlockParam` | `{ type: "image", source: { type: "base64", media_type: "image/jpeg", data } }` |
+| MIME type | Hardcoded `"image/jpeg"` | Telegram sends photos as JPEG. For documents (PDFs, etc.), detect from filename. |
+
+**Why NOT `@grammyjs/files` plugin:**
+
+The official grammY files plugin adds a `.download()` convenience method to `getFile()` results. However:
+- Photo download is 5 lines of code: `getFile()` + construct URL + `fetch()` + `arrayBuffer()` + `Buffer.from()`
+- The plugin saves ~3 lines but adds a dependency and requires `FileFlavor` context type extension
+- The manual approach is transparent and debuggable
+
+The plugin is fine if the team prefers it (`npm install @grammyjs/files`), but it is not necessary.
+
+### Migration Framework - DIY with user_version
+
+| Component | Mechanism |
+|-----------|-----------|
+| Version tracking | `PRAGMA user_version` -- SQLite built-in integer, no extra table needed |
+| Migration execution | better-sqlite3 transactions for atomicity |
+| Migration discovery | Static import array in migration runner (avoids filesystem reads) |
+| Version ordering | Integer versions: 1, 2, 3... |
+
+**Why `user_version` over a `schema_migrations` table:**
+
+- `user_version` is a single integer pragma built into SQLite -- zero schema overhead
+- Reads with `sqlite.pragma("user_version", { simple: true })`
+- Writes with `sqlite.pragma("user_version = N")`
+- Simpler than creating and querying a migrations table
+- Sufficient when migrations are strictly sequential (no cherry-picking)
+
+**Migration runner pattern (~50 LOC):**
+```typescript
+interface Migration {
+  version: number;
+  description: string;
+  up(sqlite: BetterSqlite3.Database): void;
+}
+
+export function runMigrations(
+  sqlite: BetterSqlite3.Database,
+  migrations: Migration[],
+  logger: Logger,
+): void {
+  const current = sqlite.pragma("user_version", { simple: true }) as number;
+  const sorted = [...migrations].sort((a, b) => a.version - b.version);
+  const pending = sorted.filter(m => m.version > current);
+
+  for (const migration of pending) {
+    logger.info({ version: migration.version, description: migration.description }, "Running migration");
+    sqlite.transaction(() => {
+      migration.up(sqlite);
+      sqlite.pragma(`user_version = ${migration.version}`);
+    })();
+  }
+
+  if (pending.length > 0) {
+    logger.info({ from: current, to: pending[pending.length - 1].version, count: pending.length }, "Migrations complete");
+  }
+}
+```
+
+**First migration:**
+```typescript
+// src/db/migrations/001-add-source-url.ts
+export const migration: Migration = {
+  version: 1,
+  description: "Add source_url column to knowledge_items",
+  up(sqlite) {
+    sqlite.exec(`ALTER TABLE knowledge_items ADD COLUMN source_url TEXT`);
+  },
+};
+```
+
+### Knowledge Dedup, Bot Notifications, Notification Tone
+
+These features require **zero new dependencies**:
+
+| Feature | Stack Impact | Notes |
+|---------|-------------|-------|
+| Knowledge dedup | None | Pre-save FTS5 title search in `save_knowledge` tool handler. Existing retrieval service. |
+| Bot update notifications | None | `bot.api.sendMessage()` from grammY. Iterate users table. Rate-limit with `setTimeout`. |
+| Notification tone overhaul | None | System prompt text changes in `src/ai/system-prompt.ts`. Pure content work. |
+
+---
+
+## Anthropic Vision API Reference
+
+Verified against installed `@anthropic-ai/sdk@0.73.0` type definitions in `node_modules`:
+
+```typescript
+import Anthropic from "@anthropic-ai/sdk";
+
+// Image content block (from SDK types: ImageBlockParam, Base64ImageSource)
+const imageBlock: Anthropic.ImageBlockParam = {
+  type: "image",
+  source: {
+    type: "base64",                    // or "url" (URLImageSource)
+    media_type: "image/jpeg",          // "image/jpeg" | "image/png" | "image/gif" | "image/webp"
+    data: "<base64-encoded-string>",   // without data: URI prefix
+  },
+};
+
+// Mixed content message for photo + text
+const message: Anthropic.MessageParam = {
+  role: "user",
+  content: [
+    imageBlock,
+    { type: "text", text: "Extract the recipe from this photo." },
+  ],
+};
+
+// This works with existing sendMessageWithTools() -- the messages array
+// already accepts Anthropic.MessageParam[], which supports content arrays.
+```
+
+**SDK type hierarchy (verified in node_modules):**
+```
+ContentBlockParam = TextBlockParam | ImageBlockParam | DocumentBlockParam | ...
+ImageBlockParam = { type: "image", source: Base64ImageSource | URLImageSource }
+Base64ImageSource = { type: "base64", media_type: "image/jpeg"|"image/png"|"image/gif"|"image/webp", data: string }
+URLImageSource = { type: "url", url: string }
+```
+
+**Image constraints (from official docs):**
+
+| Property | Value |
+|----------|-------|
+| Supported formats | JPEG, PNG, GIF, WebP |
+| Max file size (API) | 5 MB per image |
+| Max dimensions | 8000x8000 px (single image), 2000x2000 px (>20 images) |
+| Optimal size | 1568px max on long edge, ~1600 tokens |
+| Token formula | `tokens = (width * height) / 750` |
+| Placement | Images before text in content array for best results |
+| Telegram photos | JPEG, typically ~1280px on long edge, well within all limits |
 
 ---
 
 ## Installation
 
 ```bash
-# No new packages to install.
-# All features are built with the existing stack.
+# One new production dependency
+npm install cheerio
 
-# If starting fresh, the existing install commands cover everything:
-npm install
-cd mini-app && npm install
+# If team prefers the grammY files plugin (optional convenience):
+# npm install @grammyjs/files
 ```
 
----
-
-## Stack Patterns for Each Feature Area
-
-### 1. Invite System (Deep Link Tokens)
-
-**How it works (no new packages):**
-
-```
-Telegram deep link URL: https://t.me/BotUsername?start=INVITE_TOKEN
-User clicks link -> opens bot -> /start command fires
-grammY: ctx.match === "INVITE_TOKEN"
-```
-
-**Key grammY mechanism (verified from source):**
-- `bot.command('start', ctx => { ... })` -- the `ctx.match` property contains everything after `/start `
-- This is a `string` type (from `composer.d.ts` line 233: "you will receive `custom-payload` in the `ctx.match` property")
-- Telegram deep link `start` parameter limit: 64 characters (A-Z, a-z, 0-9, _, -)
-- `base64url` encoding uses only URL-safe chars (A-Z, a-z, 0-9, -, _) -- fits perfectly
-
-**Token generation pattern:**
-```typescript
-import { randomBytes } from "node:crypto";
-
-function generateInviteToken(): string {
-  // 16 bytes -> 22 chars base64url, well under 64-char Telegram limit
-  return randomBytes(16).toString("base64url");
-}
-```
-
-**Token storage:** SQLite table `invite_tokens` with columns: `token`, `household_id`, `created_by_user_id`, `expires_at`, `used_by_user_id`, `used_at`.
-
-**Confidence:** HIGH -- verified `ctx.match` behavior from grammY source code (`composer.d.ts` lines 226-237), verified `base64url` encoding from Node.js 22 runtime test.
-
-### 2. Multi-User Identity & Household Data Model
-
-**Current state:** All tables use `chat_id TEXT NOT NULL` as the partition key. `chat_id` is `String(ctx.chat.id)` which in private chats equals the user's Telegram ID.
-
-**Required change:** Introduce `users` and `households` tables. Migrate existing data partition key from `chat_id` to `household_id` across ALL domain tables.
-
-**New tables (using existing `CREATE TABLE IF NOT EXISTS` pattern):**
-
-```sql
--- Core identity tables
-users:         id, telegram_id (UNIQUE), household_id (FK), display_name, role, onboarding_status, created_at
-households:    id, name, created_by_user_id, created_at
-invite_tokens: id, token (UNIQUE), household_id, created_by_user_id, max_uses, use_count, expires_at, created_at
-```
-
-**Migration strategy for existing `chat_id` columns:**
-- Add `household_id` column to all domain tables (knowledge_items, meal_plans, grocery_lists, reminders, etc.)
-- For existing single-user data: create a household per existing `chat_id`, create a user row, set `household_id`
-- Uses `ALTER TABLE ADD COLUMN` with `IF NOT EXISTS` pattern (SQLite 3.35+ supports this)
-
-**Key architectural decision:** `household_id` replaces `chat_id` as the data partition key. `chat_id` stays on messages/reminders (for Telegram delivery targeting) but data ownership moves to households.
-
-**No new packages needed.** Drizzle schema definitions + raw SQL init functions.
-
-**Confidence:** HIGH -- pattern matches existing codebase exactly.
-
-### 3. Guided Onboarding Flow
-
-**Implementation approach:** SQLite-backed state machine, NOT grammY conversations plugin.
-
-**Why NOT `@grammyjs/conversations`:**
-1. The conversations plugin uses JavaScript generators (`function*`) which are hard to debug and test
-2. State is lost on bot restart unless you add persistent storage (back to SQLite anyway)
-3. The plugin adds ~15KB and a new abstraction layer for what is essentially a 5-step Q&A
-4. The existing codebase has zero generator functions -- introducing them breaks style consistency
-
-**Why SQLite state table:**
-1. Existing pattern: `feedback_checkins` already tracks multi-step interaction state (pending -> sent -> responded)
-2. Survives bot restarts (critical for onboarding that may span multiple sessions)
-3. Can be queried for analytics (how many users completed step 3? where do users drop off?)
-4. Simple `switch` on `onboarding_step` in the message handler
-
-**Onboarding state table:**
-```sql
-onboarding_state: user_id, current_step, preferences_json, started_at, completed_at
-```
-
-**Onboarding steps** (each is a message handler check, not a conversation):
-1. Welcome + household setup (create or join via invite)
-2. Dietary preferences Q&A (via inline keyboard selections)
-3. Cooking frequency / household size
-4. Cuisine preferences
-5. Seed initial recipes (Claude generates based on preferences)
-
-**No new packages needed.** `InlineKeyboard` from grammY core for option selection, SQLite for state persistence.
-
-**Confidence:** HIGH -- matches existing `feedback_checkins` state tracking pattern exactly.
-
-### 4. App Feedback System
-
-**Components:**
-- `/feedback` command handler (text + inline keyboard)
-- Silent detection (track usage patterns, prompt inactive users)
-- Periodic check-in (extends existing `feedback_checkins` system)
-- Admin dashboard (new Mini App page at `/admin/feedback`)
-
-**Existing infrastructure that covers this:**
-- `feedback_checkins` table and `createFeedbackRepository` already exist
-- `feedbackCallbackHandler` and `feedbackTextHandler` already exist
-- Express API routes pattern + React pages pattern established
-- `config.adminUserIds` already exists for admin gating
-
-**New admin route protection:**
-```typescript
-// In auth-middleware.ts -- add admin check
-export function validateAdmin(req: Request, res: Response, next: NextFunction): void {
-  const userId = res.locals.chatId; // Already set by validateInitData
-  if (!config.adminUserIds.includes(userId)) {
-    res.status(403).json({ error: "Admin access required" });
-    return;
-  }
-  next();
-}
-```
-
-**No new packages needed.** The admin dashboard is a new React page served from the same Mini App SPA, protected by an admin middleware on API routes.
-
-**Confidence:** HIGH -- direct extension of existing patterns.
+**Total dependency impact:**
+- cheerio ^1.2.0 -- adds parse5, htmlparser2, domhandler, domutils, dom-serializer (~1MB total)
+- No new dev dependencies
 
 ---
 
 ## Alternatives Considered
 
-| Recommended | Alternative | Why Not Alternative |
-|-------------|-------------|---------------------|
-| `crypto.randomBytes` (Node.js built-in) | `nanoid` | Adds a dependency for a one-liner. Node.js 22 `base64url` encoding is native and sufficient. |
-| SQLite onboarding state table | `@grammyjs/conversations` plugin | Conversations plugin uses generators, loses state on restart, adds unfamiliar abstraction. SQLite matches existing patterns. |
-| SQLite onboarding state table | `@grammyjs/session` with SQLite adapter | Session plugin requires external storage adapter package (`@grammyjs/storage-*`). Adds complexity for what is just a table row. |
-| Raw `InlineKeyboard` for onboarding | `@grammyjs/menu` plugin | Menu plugin adds a DSL on top of inline keyboards. Project already uses raw `InlineKeyboard` everywhere (grocery, feedback). Keep consistent. |
-| Express admin middleware | `passport` / auth library | Single auth provider (Telegram) + simple admin ID list. Full auth framework is massive overkill. |
-| `ALTER TABLE ADD COLUMN` migration | Drizzle Kit `generate` + `push` | Project uses raw SQL `CREATE TABLE IF NOT EXISTS` pattern consistently. Mixing Drizzle migrations would create two competing schema management approaches. |
-| SQLite for all state | Redis for session/invite state | No caching layer needed. SQLite WAL handles this concurrency level. Redis would add operational complexity (another service to run). |
+| Category | Recommended | Alternative | Why Not |
+|----------|-------------|-------------|---------|
+| HTML parsing | cheerio ^1.2.0 | Regex extraction | Regex works for JSON-LD (~80% of sites) but fails on Microdata, malformed HTML, multiple script tags with different types. cheerio handles all cases for ~1MB of dependencies. |
+| HTML parsing | cheerio ^1.2.0 | jsdom, linkedom | jsdom is heavy (~9MB, full browser DOM). linkedom is lighter but less established. cheerio is purpose-built for extraction. |
+| HTTP client | Node.js `fetch()` | axios, got, node-fetch | Zero-dependency approach. Built-in fetch is stable in Node 22. |
+| Recipe extraction | cheerio + Claude fallback | recipe-data-scraper, @dimfu/recipe-scraper | All recipe-scraper packages have <100 weekly downloads, fragile site-specific logic, risk of abandonment. |
+| Photo download | Manual `getFile()` + `fetch()` | @grammyjs/files plugin | Plugin saves ~3 lines but adds dependency and context type changes. Manual approach is 5 lines and fully transparent. |
+| Vision API | Existing @anthropic-ai/sdk | OpenAI Vision, Google Vision | Already using Anthropic. SDK already has types. No reason for second AI provider. |
+| Migration tracking | `PRAGMA user_version` | `schema_migrations` table | user_version is simpler, zero schema overhead. Sufficient for sequential migrations. |
+| Migration framework | DIY ~50 LOC | @blackglory/better-sqlite3-migrations | Library has ~4 weekly downloads. DIY is same amount of code with no dependency. |
+| Migration framework | DIY ~50 LOC | drizzle-kit migrations | drizzle-kit generates migrations from schema diffs. Project uses `CREATE TABLE IF NOT EXISTS` init pattern. Paradigm mismatch. |
+| Image processing | None (raw buffer) | sharp, jimp | Telegram photos are JPEG, ~1280px, <5MB. Within Anthropic limits. No processing needed. |
 
 ---
 
 ## What NOT to Use
 
-| Avoid | Why | Use Instead |
-|-------|-----|-------------|
-| `nanoid` / `uuid` / `cuid2` | Node.js 22 has native `crypto.randomBytes().toString('base64url')`. Adding a package for token generation is unnecessary. | `import { randomBytes } from 'node:crypto'` |
-| `@grammyjs/conversations` | Generator-based conversations are fragile, lose state on restart, and introduce a paradigm foreign to this codebase. | SQLite `onboarding_state` table + state machine pattern (matches existing `feedback_checkins`) |
-| `@grammyjs/session` with external storage | Adds storage adapter dependency + config for something a single SQLite table handles. | Direct SQLite table access via `better-sqlite3` |
-| `jsonwebtoken` / `jose` | No JWT needed. Telegram initData provides auth. Admin is an ID check. | `@tma.js/init-data-node` (already installed) + `config.adminUserIds` (already exists) |
-| `Redis` / `ioredis` | No caching layer needed. SQLite WAL handles this concurrency level. Would add operational complexity. | SQLite with WAL mode (already configured) |
-| `@grammyjs/menu` | Plugin for menu-style inline keyboards. Adds abstraction over what the project already does manually with `InlineKeyboard`. | `InlineKeyboard` from grammY core (already used throughout) |
-| Any ORM migration tool | Project pattern is `CREATE TABLE IF NOT EXISTS` + `ALTER TABLE ADD COLUMN`. Drizzle Kit is installed but only for schema type generation, not runtime migrations. | Raw SQL in `init*.ts` files following existing pattern |
-| `passport` / `express-session` | Full auth framework for a single-provider (Telegram) system is massive overkill. | `validateInitData` middleware (already exists) + admin ID check |
-| React Query / SWR | Over-engineering for the admin dashboard's simple data fetching. Existing Mini App pages use plain `fetch`. | `useEffect` + `fetch` (matches existing Mini App pattern) |
-
----
-
-## Data Model Changes (Schema, Not Stack)
-
-While no new packages are needed, the data model changes are significant. This section documents what the schema work involves:
-
-### New Tables
-
-1. **`users`** -- Maps Telegram user IDs to internal user records with household membership
-2. **`households`** -- Groups of users sharing meal plans, recipes, and grocery lists
-3. **`invite_tokens`** -- Invite links with expiry, usage tracking, and household binding
-4. **`onboarding_state`** -- Tracks each user's progress through guided setup
-5. **`app_feedback`** -- General app feedback (distinct from meal feedback in `feedback_checkins`)
-
-### Modified Tables (add `household_id` column)
-
-All existing domain tables currently keyed on `chat_id` need a `household_id` column:
-- `knowledge_items`, `knowledge_changelog`
-- `meal_plans`, `cooking_history`
-- `grocery_lists`
-- `reminder_settings`, `reminders`
-- `feedback_checkins`
-
-`chat_id` remains for message-delivery targeting (which Telegram chat to send to), but data ownership moves to `household_id`.
-
-### Migration Safety
-
-SQLite `ALTER TABLE ... ADD COLUMN` is safe and fast (no table rewrite). The migration:
-1. Add `household_id TEXT` column (nullable initially)
-2. Create households for each unique `chat_id`
-3. Backfill `household_id` from the new households
-4. For new rows, `household_id` is required (enforced in application code, not `NOT NULL` constraint, to avoid breaking existing data)
-
----
-
-## Version Compatibility
-
-| Package | Current | Required | Compatible? |
-|---------|---------|----------|-------------|
-| Node.js | 22.x | 22.x | YES -- `crypto.randomBytes` with `base64url` works natively |
-| grammY | ^1.39.3 | ^1.39.3 | YES -- `ctx.match` for deep links, `InlineKeyboard` for onboarding |
-| better-sqlite3 | ^12.6.2 | ^12.6.2 | YES -- `ALTER TABLE ADD COLUMN` supported |
-| drizzle-orm | ^0.45.1 | ^0.45.1 | YES -- schema definitions extend naturally |
-| Express | ^5.2.1 | ^5.2.1 | YES -- admin middleware follows existing pattern |
-| React | ^19.2.4 | ^19.2.4 | YES -- new pages fit existing SPA structure |
-| react-router-dom | ^7.13.0 | ^7.13.0 | YES -- add routes for admin dashboard, onboarding pages |
-| @telegram-apps/telegram-ui | ^2.1.13 | ^2.1.13 | YES -- UI components for feedback forms, admin dashboard |
-| @tma.js/init-data-node | ^2.0.6 | ^2.0.6 | YES -- same initData validation, admin check added on top |
-| TypeScript | ^5.9.3 | ^5.9.3 | YES -- no new type features needed |
-
-**No version bumps required.** All existing packages at their current versions support the new features.
-
----
-
-## Node.js Built-in Capabilities Used (No External Packages)
-
-These Node.js 22 built-ins replace what would otherwise require npm packages:
-
-| Built-in | Purpose | Replaces |
-|----------|---------|----------|
-| `crypto.randomBytes(16).toString('base64url')` | Invite token generation | nanoid, uuid |
-| `crypto.randomUUID()` | Internal IDs if needed | uuid |
-| `crypto.createHmac()` | Already used via @tma.js for initData | jsonwebtoken |
-| `URL` / `URLSearchParams` | Deep link URL construction | url-parse, query-string |
-| `structuredClone()` | Deep-cloning preferences during onboarding | lodash.cloneDeep |
-
-All verified working in the Node.js 22 runtime in this environment.
+| Technology | Why Avoid |
+|------------|-----------|
+| **Puppeteer / Playwright** | Headless browser for recipe scraping adds 200MB+ Chromium, seconds of latency, massive memory. JSON-LD extraction + Claude fallback handles everything. |
+| **Any recipe-scraper npm package** | Fragmented ecosystem (<100 downloads each), abandoned/archived repos, brittle site-specific scrapers. |
+| **sharp / jimp** | Image processing not needed. Telegram photos fit within Anthropic API limits without resizing. |
+| **Spoonacular / Edamam APIs** | External API keys, rate limits, ongoing costs. Claude already handles recipe extraction. |
+| **jsdom** | Full browser DOM simulation (~9MB) for a task that needs jQuery-like selectors on static HTML. cheerio is 10x lighter. |
+| **Tesseract.js** | OCR library. Claude vision handles text extraction natively, including handwriting. |
 
 ---
 
 ## Sources
 
-- **grammY deep link / `ctx.match`:** Verified from `/workspace/node_modules/grammy/out/composer.d.ts` lines 226-237 -- `ctx.match` contains the deep link payload as a `string`
-- **grammY `SessionFlavor`:** Verified from `/workspace/node_modules/grammy/out/convenience/session.d.ts` -- in-memory by default, requires external adapter for persistence
-- **Node.js `crypto.randomBytes` with `base64url`:** Verified by runtime test in Node.js 22 -- `randomBytes(16).toString('base64url')` produces 22-char URL-safe tokens
-- **Telegram deep link `start` parameter:** From `@grammyjs/types` types verified in `/workspace/node_modules/@grammyjs/types/`
-- **Existing project patterns:** All assertions about `chatId`, `CREATE TABLE IF NOT EXISTS`, `InlineKeyboard` usage, and factory function patterns verified by reading source files in `/workspace/src/`
-- **`config.adminUserIds`:** Verified in `/workspace/src/config.ts` line 16 and 57 -- already parsed from `ADMIN_USER_IDS` env var
-- **`validateInitData` middleware:** Verified in `/workspace/src/mini-app/auth-middleware.ts` -- sets `res.locals.chatId` from Telegram user ID
-- **SQLite `ALTER TABLE ADD COLUMN`:** Standard SQLite feature, safe with no table rewrite. Supported in better-sqlite3.
-- **Existing feedback system:** Verified `feedback_checkins` table and `createFeedbackRepository` in `/workspace/src/feedback/`
+### HIGH Confidence (verified against installed code / official docs)
+- Anthropic Vision docs: https://platform.claude.com/docs/en/docs/build-with-claude/vision
+- Anthropic SDK types: verified in `/workspace/node_modules/@anthropic-ai/sdk/resources/messages/messages.d.ts` -- `ImageBlockParam`, `Base64ImageSource`, `URLImageSource` confirmed
+- Installed SDK version: `@anthropic-ai/sdk@0.73.0` confirmed in package.json
+- grammY file handling: https://grammy.dev/guide/files -- `ctx.getFile()` returns `File` with `file_path`
+- grammY files plugin: https://grammy.dev/plugins/files -- v1.2.0 (optional, not recommended)
+- cheerio: https://cheerio.js.org/ -- v1.2.0, 28M+ weekly downloads, actively maintained
+- Node.js built-in fetch: stable since Node 21, project requires Node 22
+- SQLite `PRAGMA user_version`: standard SQLite feature, well-documented
 
----
-*Stack research for: HeySous v1.2 -- Multi-user, invites, onboarding, feedback*
-*Researched: 2026-02-10*
+### MEDIUM Confidence (web search, multiple sources agree)
+- JSON-LD recipe extraction pattern: https://www.raymondcamden.com/2024/06/12/scraping-recipes-using-nodejs-pipedream-and-json-ld
+- Schema.org Recipe type: https://schema.org/Recipe
+- Recipe scraper library ecosystem assessment: based on GitHub stars, npm downloads, last commit dates across recipe-scraper, @dimfu/recipe-scraper, recipe-data-scraper, scrape-recipe-schema
+
+### LOW Confidence (estimates, not measured)
+- "~80% of recipe sites have JSON-LD" -- based on Google's structured data requirements for rich snippets, not empirically measured
+- Telegram photo typical size (~1280px JPEG) -- from documentation patterns, not tested with real devices

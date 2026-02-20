@@ -48,7 +48,7 @@ See .planning/milestones/v1.3-ROADMAP.md for full phase history.
 
 - [x] **Phase 25: Data Migration Framework** - Lightweight migration runner using PRAGMA user_version, integrated into database init (completed 2026-02-20)
 - [x] **Phase 26: Knowledge Dedup** - save_knowledge checks for duplicates and lets Claude + user decide; update_knowledge validates inputs (completed 2026-02-20)
-- [ ] **Phase 27: Notification Tone Overhaul** - Centralized message module with Sous personality and randomized variation across all bot-initiated messages
+- [x] **Phase 27: Notification Tone Overhaul** - Centralized message module with Sous personality and randomized variation across all bot-initiated messages (completed 2026-02-20)
 - [ ] **Phase 28: Recipe URL Import** - Extract recipes from URLs via JSON-LD/Microdata/Claude fallback, with confirmation and edge case handling
 - [ ] **Phase 29: Recipe Photo Import** - Extract recipes from photos via Claude vision through the message pipeline
 - [ ] **Phase 30: Update Notifications** - Lazy-delivery "what's new" notifications tracked per household
@@ -94,7 +94,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 27-01-PLAN.md -- Centralized message module with Sous-personality variants, migrate all handlers
+- [x] 27-01-PLAN.md -- Centralized message module with Sous-personality variants, migrate all handlers
 
 ### Phase 28: Recipe URL Import
 **Goal**: Users can share a recipe link and Sous extracts, presents, and saves it -- the most-requested missing capability
@@ -161,7 +161,7 @@ Plans:
 | 24. Onboarding Refinement | v1.3 | 1/1 | Complete | 2026-02-19 |
 | 25. Data Migration Framework | 1/1 | Complete    | 2026-02-20 | - |
 | 26. Knowledge Dedup | v1.4 | 1/1 | Complete | 2026-02-20 |
-| 27. Notification Tone Overhaul | v1.4 | 0/? | Not started | - |
+| 27. Notification Tone Overhaul | v1.4 | 1/1 | Complete | 2026-02-20 |
 | 28. Recipe URL Import | v1.4 | 0/? | Not started | - |
 | 29. Recipe Photo Import | v1.4 | 0/? | Not started | - |
 | 30. Update Notifications | v1.4 | 0/? | Not started | - |

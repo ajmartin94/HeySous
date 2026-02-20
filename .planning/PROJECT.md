@@ -66,7 +66,7 @@ The LLM is the product. It reasons, decides what to look up, and acts on what it
 ### Active
 
 - ✓ Knowledge dedup: save_knowledge returns existing match instead of creating duplicates; update_knowledge rejects no-op calls — v1.4 Phase 26
-- [ ] Notification tone: rewrite reminder and feedback templates to match conversational Sous personality
+- ✓ Notification tone: centralized message module with Sous personality variants for all bot-initiated messages -- v1.4 Phase 27
 - [ ] Bot update notifications: version-based system for announcing meaningful updates to users
 - [ ] Recipe import from URL: fetch and parse recipe from a link
 - [ ] Recipe import from photo: use Claude vision to extract recipe from images
@@ -81,7 +81,7 @@ The LLM is the product. It reasons, decides what to look up, and acts on what it
 
 ## Context
 
-- **Current state:** v1.4 in progress. Phase 26 complete (knowledge dedup). ~22,800 LOC TypeScript. 61 plans total across 26 phases.
+- **Current state:** v1.4 in progress. Phase 27 complete (notification tone). ~22,900 LOC TypeScript. 62 plans total across 27 phases.
 - **Tech stack:** Node.js 22, TypeScript (ESM), grammY, better-sqlite3/Drizzle, Anthropic SDK, Pino, Express, React+Vite (Mini App SPA), @telegram-apps SDK
 - **Primary user:** Home cook who loves cooking, time-constrained on weekdays, more flexible weekends
 - **Household:** Partner + 9-month-old. Partner now has access via invite system (v1.2).
@@ -92,7 +92,7 @@ The LLM is the product. It reasons, decides what to look up, and acts on what it
 - **Mini App model:** Hybrid — bot stays primary, Mini Apps open from chat buttons for visual tasks
 - **Frontend:** React+Vite SPA inside Telegram Web Apps, served by existing Express server at /app/*
 - **Known issues:** None current
-- **Next step:** Phase 27 (Notification Tone Overhaul)
+- **Next step:** Phase 28 (Recipe URL Import)
 
 ## Current Milestone: v1.4 Backlog Sweep
 
@@ -155,6 +155,7 @@ The LLM is the product. It reasons, decides what to look up, and acts on what it
 | Directive onboarding recipe prompting with soft target | Ask for 3-5 go-to meals with concrete questions and first meal plan motivation, gentle encouragement but no hard gate | ✓ Good -- balances directiveness with user comfort |
 | PRAGMA user_version for migration tracking | Single integer stored in SQLite header, no migrations table needed, inspectable via CLI | ✓ Good -- ~50 LOC runner, simpler than table-based approaches |
 | Tool-level dedup with skip_dedup bypass | Dedup happens in tool handler (not Claude reasoning), returns match info for Claude to present conversationally, skip_dedup param for explicit override | ✓ Good -- keeps dedup deterministic, UX flexible |
+| Centralized message module with pickRandom variants | All bot-initiated messages in src/bot/messages.ts, each with 3-5 Sous-personality variants, random selection at runtime | ✓ Good -- single source of truth, natural variation, easy to extend |
 
 ---
-*Last updated: 2026-02-20 after Phase 26*
+*Last updated: 2026-02-20 after Phase 27*

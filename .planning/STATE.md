@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-20)
 ## Current Position
 
 Phase: 27 of 30 (Notification Tone Overhaul)
-Plan: 0 of ? in current phase
-Status: Ready to plan
-Last activity: 2026-02-20 -- Phase 26 complete, transitioning to Phase 27
+Plan: 1 of 1 in current phase
+Status: Phase complete
+Last activity: 2026-02-20 -- Phase 27 complete (1 plan, 2 tasks, 3min)
 
-Progress: [████████████████████████████████████████████████░░] 93% (61/65 plans est.)
+Progress: [█████████████████████████████████████████████████░] 95% (62/65 plans est.)
 
 ## Performance Metrics
 
@@ -50,6 +50,7 @@ Recent decisions affecting current work:
 - v1.4: Only one new dependency needed (cheerio) -- everything else already installed
 - v1.4-25: Used PRAGMA user_version for migration versioning -- simpler than a migrations table, inspectable via sqlite3 CLI
 - v1.4-26: FTS5-based dedup in save_knowledge with BM25 threshold -5; skip_dedup bypass parameter; update_knowledge validation rejects empty updates
+- v1.4-27: Centralized message module at src/bot/messages.ts with pickRandom variant selection; all bot-initiated messages use Sous personality
 
 ### Pending Todos
 
@@ -68,5 +69,5 @@ Total: 30 phases, 60+ plans.
 ## Session Continuity
 
 Last session: 2026-02-20
-Stopped at: Phase 27 transition complete
-Next action: Discuss/Plan Phase 27 (Notification Tone Overhaul)
+Stopped at: Phase 27 complete, auto-advancing to Phase 28
+Next action: Transition to Phase 28 (Recipe URL Import)

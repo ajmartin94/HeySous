@@ -38,9 +38,9 @@ Requirements for v1.4 milestone. Each maps to roadmap phases.
 
 ### Tone
 
-- [ ] **TONE-01**: All hardcoded bot messages (errors, timeouts, access gate) rewritten in Sous's conversational voice
-- [ ] **TONE-02**: Messages use random variation (multiple phrasings per message type) to avoid repetitive feel
-- [ ] **TONE-03**: Centralized message module provides consistent tone across all bot-initiated messages
+- [x] **TONE-01**: All hardcoded bot messages (errors, timeouts, access gate) rewritten in Sous's conversational voice
+- [x] **TONE-02**: Messages use random variation (multiple phrasings per message type) to avoid repetitive feel
+- [x] **TONE-03**: Centralized message module provides consistent tone across all bot-initiated messages
 
 ## Future Requirements
 
@@ -94,9 +94,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | NOTIF-01 | Phase 30 | Pending |
 | NOTIF-02 | Phase 30 | Pending |
 | NOTIF-03 | Phase 30 | Pending |
-| TONE-01 | Phase 27 | Pending |
-| TONE-02 | Phase 27 | Pending |
-| TONE-03 | Phase 27 | Pending |
+| TONE-01 | Phase 27 | Complete |
+| TONE-02 | Phase 27 | Complete |
+| TONE-03 | Phase 27 | Complete |
 
 **Coverage:**
 - v1.4 requirements: 20 total
@@ -105,4 +105,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-02-19*
-*Last updated: 2026-02-20 after Phase 26 completion*
+*Last updated: 2026-02-20 after Phase 27 completion*

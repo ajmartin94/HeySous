@@ -6,7 +6,7 @@
 - [x] **v1.1 Mini Apps** - Phases 11-14 (shipped 2026-02-10)
 - [x] **v1.2 Onboarding and Feedback** - Phases 15-19 (shipped 2026-02-11)
 - [x] **v1.3 AI Polish & UX** - Phases 20-24 (shipped 2026-02-19)
-- [ ] **v1.4 Backlog Sweep** - Phases 25-30 (in progress)
+- [x] **v1.4 Backlog Sweep** - Phases 25-30 (shipped 2026-02-20)
 
 ## Phases
 
@@ -51,7 +51,7 @@ See .planning/milestones/v1.3-ROADMAP.md for full phase history.
 - [x] **Phase 27: Notification Tone Overhaul** - Centralized message module with Sous personality and randomized variation across all bot-initiated messages (completed 2026-02-20)
 - [x] **Phase 28: Recipe URL Import** - Extract recipes from URLs via JSON-LD/Microdata/Claude fallback, with confirmation and edge case handling (completed 2026-02-20)
 - [x] **Phase 29: Recipe Photo Import** - Extract recipes from photos via Claude vision through the message pipeline (completed 2026-02-20)
-- [ ] **Phase 30: Update Notifications** - Lazy-delivery "what's new" notifications tracked per household
+- [x] **Phase 30: Update Notifications** - Lazy-delivery "what's new" notifications tracked per household (completed 2026-02-20)
 
 ## Phase Details
 
@@ -136,7 +136,7 @@ Plans:
 **Plans**: TBD
 
 Plans:
-- [ ] 30-01: TBD
+- [x] 30-01-PLAN.md -- Notification tables via migration, lazy delivery in processor, release notes in Sous voice
 
 ## Progress
 
@@ -164,4 +164,4 @@ Plans:
 | 27. Notification Tone Overhaul | v1.4 | 1/1 | Complete | 2026-02-20 |
 | 28. Recipe URL Import | v1.4 | 1/1 | Complete | 2026-02-20 |
 | 29. Recipe Photo Import | v1.4 | 1/1 | Complete | 2026-02-20 |
-| 30. Update Notifications | v1.4 | 0/? | Not started | - |
+| 30. Update Notifications | v1.4 | 1/1 | Complete | 2026-02-20 |

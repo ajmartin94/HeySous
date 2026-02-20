@@ -32,9 +32,9 @@ Requirements for v1.4 milestone. Each maps to roadmap phases.
 
 ### Notifications
 
-- [ ] **NOTIF-01**: Bot delivers "what's new" notification on next user interaction when updates are pending
-- [ ] **NOTIF-02**: Notification delivery tracked per household so each household sees it once
-- [ ] **NOTIF-03**: Notifications written in Sous's conversational voice, not generic changelog format
+- [x] **NOTIF-01**: Bot delivers "what's new" notification on next user interaction when updates are pending
+- [x] **NOTIF-02**: Notification delivery tracked per household so each household sees it once
+- [x] **NOTIF-03**: Notifications written in Sous's conversational voice, not generic changelog format
 
 ### Tone
 
@@ -91,9 +91,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MIGR-02 | Phase 25 | Complete |
 | MIGR-03 | Phase 25 | Complete |
 | MIGR-04 | Phase 25 | Complete |
-| NOTIF-01 | Phase 30 | Pending |
-| NOTIF-02 | Phase 30 | Pending |
-| NOTIF-03 | Phase 30 | Pending |
+| NOTIF-01 | Phase 30 | Complete |
+| NOTIF-02 | Phase 30 | Complete |
+| NOTIF-03 | Phase 30 | Complete |
 | TONE-01 | Phase 27 | Complete |
 | TONE-02 | Phase 27 | Complete |
 | TONE-03 | Phase 27 | Complete |
@@ -105,4 +105,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-02-19*
-*Last updated: 2026-02-20 after Phase 29 completion*
+*Last updated: 2026-02-20 after Phase 30 completion -- ALL v1.4 requirements complete*

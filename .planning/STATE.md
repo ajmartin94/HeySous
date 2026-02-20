@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** The recipe brain -- an AI agent that remembers everything about your meals and reasons over that knowledge to help you plan.
-**Current focus:** Phase 30 - Update Notifications
+**Current focus:** v1.4 Backlog Sweep COMPLETE
 
 ## Current Position
 
-Phase: 30 of 30 (Update Notifications)
-Plan: 0 of ? in current phase
-Status: Ready to discuss/plan
-Last activity: 2026-02-20 -- Phase 29 complete, transitioning to Phase 30
+Phase: 30 of 30 (Update Notifications) -- COMPLETE
+Plan: 1 of 1 in current phase
+Status: Milestone complete
+Last activity: 2026-02-20 -- All v1.4 phases complete (25-30)
 
-Progress: [██████████████████████████████████████████████████░] 97% (64/65 plans est.)
+Progress: [██████████████████████████████████████████████████] 100% (65/65 plans)
 
 ## Performance Metrics
 
@@ -38,6 +38,11 @@ Progress: [███████████████████████
 - Average duration: 2.7 min
 - Total execution time: 24 min
 
+**v1.4 Velocity:**
+- Total plans completed: 6
+- Average duration: 3.2 min
+- Total execution time: 19 min
+
 ## Accumulated Context
 
 ### Decisions
@@ -53,10 +58,11 @@ Recent decisions affecting current work:
 - v1.4-27: Centralized message module at src/bot/messages.ts with pickRandom variant selection; all bot-initiated messages use Sous personality
 - v1.4-28: Recipe URL import via cheerio + 3-strategy extraction (JSON-LD, Microdata, raw text fallback); async tool handler; source_url column via migration 001
 - v1.4-29: Photo import via multimodal message pipeline; Claude vision handles OCR + recipe understanding; no new dependencies
+- v1.4-30: Lazy-delivery update notifications; seed on startup, deliver per-interaction; notifications/notification_deliveries tables via migration 002
 
 ### Pending Todos
 
-All v1.4 todos captured as requirements in REQUIREMENTS.md.
+None -- all v1.4 requirements complete.
 
 ### Blockers/Concerns
 
@@ -64,12 +70,11 @@ None.
 
 ### Roadmap Evolution
 
-4 milestones shipped: v1.0 (10 phases), v1.1 (4 phases), v1.2 (5 phases), v1.3 (5 phases).
-v1.4 in progress: 6 phases (25-30), 20 requirements.
-Total: 30 phases, 60+ plans.
+5 milestones shipped: v1.0 (10 phases), v1.1 (4 phases), v1.2 (5 phases), v1.3 (5 phases), v1.4 (6 phases).
+Total: 30 phases, 65 plans.
 
 ## Session Continuity
 
 Last session: 2026-02-20
-Stopped at: Phase 29 complete
-Next action: Discuss/Plan Phase 30 (Update Notifications)
+Stopped at: v1.4 milestone complete
+Next action: Create PR from milestone branch to main

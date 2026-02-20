@@ -61,13 +61,13 @@ The LLM is the product. It reasons, decides what to look up, and acts on what it
 - ✓ Onboarding pushes users to add existing recipes first — v1.3 Phase 24
 - ✓ Fix intermittent date bugs in meal plans (timezone-aware date pipeline) — v1.3 Phase 20
 - ✓ Fix start_cooking reminder to account for prep time — v1.3 Phase 20
+- ✓ Data migration framework: lightweight numbered migration runner with PRAGMA user_version — v1.4 Phase 25
 
 ### Active
 
 - [ ] Knowledge dedup: save_knowledge returns existing match instead of creating duplicates; update_knowledge rejects no-op calls
 - [ ] Notification tone: rewrite reminder and feedback templates to match conversational Sous personality
 - [ ] Bot update notifications: version-based system for announcing meaningful updates to users
-- [ ] Data migration framework: lightweight numbered migration runner with decision criteria
 - [ ] Recipe import from URL: fetch and parse recipe from a link
 - [ ] Recipe import from photo: use Claude vision to extract recipe from images
 
@@ -81,7 +81,7 @@ The LLM is the product. It reasons, decides what to look up, and acts on what it
 
 ## Context
 
-- **Current state:** v1.3 shipped. All 24 phases across 4 milestones complete. ~22,650 LOC TypeScript (18,685 server + 3,966 Mini App). 59 plans total across 24 phases.
+- **Current state:** v1.4 in progress. Phase 25 complete (migration framework). ~22,700 LOC TypeScript (18,735 server + 3,966 Mini App). 60 plans total across 25 phases.
 - **Tech stack:** Node.js 22, TypeScript (ESM), grammY, better-sqlite3/Drizzle, Anthropic SDK, Pino, Express, React+Vite (Mini App SPA), @telegram-apps SDK
 - **Primary user:** Home cook who loves cooking, time-constrained on weekdays, more flexible weekends
 - **Household:** Partner + 9-month-old. Partner now has access via invite system (v1.2).
@@ -92,7 +92,7 @@ The LLM is the product. It reasons, decides what to look up, and acts on what it
 - **Mini App model:** Hybrid — bot stays primary, Mini Apps open from chat buttons for visual tasks
 - **Frontend:** React+Vite SPA inside Telegram Web Apps, served by existing Express server at /app/*
 - **Known issues:** save_knowledge duplicate prevention needs design decision (auto-upsert vs title uniqueness)
-- **Next step:** v1.4 in progress
+- **Next step:** Phase 26 (Knowledge Dedup)
 
 ## Current Milestone: v1.4 Backlog Sweep
 
@@ -153,6 +153,7 @@ The LLM is the product. It reasons, decides what to look up, and acts on what it
 | Optional onDelete prop for shared detail components | RecipeDetail used by both Recipes and MealPlan pages; onDelete optional so delete only appears where appropriate | ✓ Good -- avoids breaking MealPlan page, clean conditional rendering |
 | Cascading delete with manual cooking_history cleanup | cooking_history has no ON DELETE CASCADE FK; delete manually before knowledge_items (which cascades tags + FTS5) | ✓ Good -- ensures complete cleanup without orphaned records |
 | Directive onboarding recipe prompting with soft target | Ask for 3-5 go-to meals with concrete questions and first meal plan motivation, gentle encouragement but no hard gate | ✓ Good -- balances directiveness with user comfort |
+| PRAGMA user_version for migration tracking | Single integer stored in SQLite header, no migrations table needed, inspectable via CLI | ✓ Good -- ~50 LOC runner, simpler than table-based approaches |
 
 ---
-*Last updated: 2026-02-19 after v1.4 milestone start*
+*Last updated: 2026-02-20 after Phase 25*

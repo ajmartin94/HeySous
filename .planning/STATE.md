@@ -2,17 +2,17 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-19)
+See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** The recipe brain -- an AI agent that remembers everything about your meals and reasons over that knowledge to help you plan.
-**Current focus:** Phase 25 - Data Migration Framework
+**Current focus:** Phase 26 - Knowledge Dedup
 
 ## Current Position
 
-Phase: 25 of 30 (Data Migration Framework)
-Plan: 1 of 1 in current phase
-Status: Phase 25 complete
-Last activity: 2026-02-20 -- Phase 25 executed (migration framework)
+Phase: 26 of 30 (Knowledge Dedup)
+Plan: 0 of ? in current phase
+Status: Ready to plan
+Last activity: 2026-02-20 -- Phase 25 complete, transitioning to Phase 26
 
 Progress: [███████████████████████████████████████████████░░░] 92% (60/65 plans est.)
 
@@ -62,10 +62,10 @@ None.
 
 4 milestones shipped: v1.0 (10 phases), v1.1 (4 phases), v1.2 (5 phases), v1.3 (5 phases).
 v1.4 in progress: 6 phases (25-30), 20 requirements.
-Total: 30 phases, 59+ plans.
+Total: 30 phases, 60+ plans.
 
 ## Session Continuity
 
 Last session: 2026-02-20
-Stopped at: Completed 25-01-PLAN.md (Phase 25 complete)
-Next action: Plan Phase 26 (Knowledge Dedup)
+Stopped at: Phase 25 complete, ready to plan Phase 26
+Next action: Discuss Phase 26 (Knowledge Dedup) -- no CONTEXT.md exists yet

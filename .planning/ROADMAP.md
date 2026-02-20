@@ -64,10 +64,10 @@ See .planning/milestones/v1.3-ROADMAP.md for full phase history.
   2. Running the server twice with the same migrations does not error or re-apply changes (idempotent)
   3. The existing database with household migration already applied works without issues after the framework is added
   4. PRAGMA user_version reflects which migrations have run and can be inspected via SQLite CLI
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 25-01: TBD
+- [ ] 25-01-PLAN.md -- Migration runner with PRAGMA user_version, tests, and createDatabase integration
 
 ### Phase 26: Knowledge Dedup
 **Goal**: Users never accidentally create duplicate recipes -- Sous finds existing matches and asks what to do

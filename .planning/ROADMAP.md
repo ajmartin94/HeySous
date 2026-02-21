@@ -181,4 +181,4 @@ Plans:
 | 28. Recipe URL Import | v1.4 | 1/1 | Complete | 2026-02-20 |
 | 29. Recipe Photo Import | v1.4 | 1/1 | Complete | 2026-02-20 |
 | 30. Update Notifications | v1.4 | 1/1 | Complete | 2026-02-20 |
-| 31. Audit Defect Fixes | 1/1 | Complete   | 2026-02-21 | - |
+| 31. Audit Defect Fixes | 1/1 | Complete    | 2026-02-21 | - |

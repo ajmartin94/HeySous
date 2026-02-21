@@ -5,40 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-21)
 
 **Core value:** The recipe brain -- an AI agent that remembers everything about your meals and reasons over that knowledge to help you plan.
-**Current focus:** v1.5 Agent Hardening & Polish
+**Current focus:** v1.5 Agent Hardening & Polish -- Phase 32: Prompt Quality & Persona
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Status: Defining requirements
-Last activity: 2026-02-21 — Milestone v1.5 started
+Phase: 32 of 39 (Prompt Quality & Persona)
+Plan: 0 of 0 in current phase (not yet planned)
+Status: Ready to plan
+Last activity: 2026-02-21 -- Roadmap created for v1.5 (8 phases, 26 requirements)
+
+Progress: [==============================..........] 76% (66/66 plans complete through v1.4, v1.5 plans TBD)
 
 ## Performance Metrics
 
-**v1.0 Velocity:**
-- Total plans completed: 30
-- Average duration: 2.8 min
-- Total execution time: 83 min
-
-**v1.1 Velocity:**
-- Total plans completed: 10
-- Average duration: 6 min
-- Total execution time: 55 min
-
-**v1.2 Velocity:**
-- Total plans completed: 10
-- Average duration: 5.3 min
-- Total execution time: 53 min
-
-**v1.3 Velocity:**
-- Total plans completed: 9
-- Average duration: 2.7 min
-- Total execution time: 24 min
-
-**v1.4 Velocity:**
-- Total plans completed: 7
-- Average duration: 2.7 min
-- Total execution time: 19 min
+**v1.0-v1.4 Cumulative:**
+- Total plans completed: 66
+- Total execution time: ~234 min across 5 milestones
+- Average: ~3.5 min/plan
 
 ## Accumulated Context
 
@@ -48,7 +31,7 @@ All decisions documented in PROJECT.md Key Decisions table.
 
 ### Pending Todos
 
-26 pending todos in `.planning/todos/pending/`. All scoped into v1.5.
+26 pending todos in `.planning/todos/pending/`. All scoped into v1.5 requirements.
 
 ### Blockers/Concerns
 
@@ -57,10 +40,11 @@ None.
 ### Roadmap Evolution
 
 5 milestones shipped: v1.0 (10 phases), v1.1 (4 phases), v1.2 (5 phases), v1.3 (5 phases), v1.4 (7 phases).
-Total: 31 phases, 66 plans.
+v1.5 planned: 8 phases (32-39), 26 requirements mapped.
+Total: 39 phases across 6 milestones.
 
 ## Session Continuity
 
 Last session: 2026-02-21
-Stopped at: v1.5 milestone initialization
-Next action: Define requirements, create roadmap
+Stopped at: v1.5 roadmap created
+Next action: Plan Phase 32 (Prompt Quality & Persona)

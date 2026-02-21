@@ -77,38 +77,38 @@ None deferred -- all audit findings scoped into v1.5.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SEC-01 | TBD | Pending |
-| SEC-02 | TBD | Pending |
-| SEC-03 | TBD | Pending |
-| SEC-04 | TBD | Pending |
-| RES-01 | TBD | Pending |
-| RES-02 | TBD | Pending |
-| RES-03 | TBD | Pending |
-| RES-04 | TBD | Pending |
-| PERF-01 | TBD | Pending |
-| PERF-02 | TBD | Pending |
-| PERF-03 | TBD | Pending |
-| PERF-04 | TBD | Pending |
-| PROMPT-01 | TBD | Pending |
-| PROMPT-02 | TBD | Pending |
-| PROMPT-03 | TBD | Pending |
-| PROMPT-04 | TBD | Pending |
-| PROMPT-05 | TBD | Pending |
-| PROMPT-06 | TBD | Pending |
-| OBS-01 | TBD | Pending |
-| OBS-02 | TBD | Pending |
-| OBS-03 | TBD | Pending |
-| DATA-01 | TBD | Pending |
-| CFG-01 | TBD | Pending |
-| UX-01 | TBD | Pending |
-| UX-02 | TBD | Pending |
-| DOCS-01 | TBD | Pending |
+| SEC-01 | Phase 36 | Pending |
+| SEC-02 | Phase 33 | Pending |
+| SEC-03 | Phase 33 | Pending |
+| SEC-04 | Phase 33 | Pending |
+| RES-01 | Phase 35 | Pending |
+| RES-02 | Phase 35 | Pending |
+| RES-03 | Phase 35 | Pending |
+| RES-04 | Phase 35 | Pending |
+| PERF-01 | Phase 36 | Pending |
+| PERF-02 | Phase 32 | Pending |
+| PERF-03 | Phase 36 | Pending |
+| PERF-04 | Phase 37 | Pending |
+| PROMPT-01 | Phase 32 | Pending |
+| PROMPT-02 | Phase 32 | Pending |
+| PROMPT-03 | Phase 32 | Pending |
+| PROMPT-04 | Phase 32 | Pending |
+| PROMPT-05 | Phase 32 | Pending |
+| PROMPT-06 | Phase 36 | Pending |
+| OBS-01 | Phase 34 | Pending |
+| OBS-02 | Phase 34 | Pending |
+| OBS-03 | Phase 34 | Pending |
+| DATA-01 | Phase 34 | Pending |
+| CFG-01 | Phase 36 | Pending |
+| UX-01 | Phase 38 | Pending |
+| UX-02 | Phase 39 | Pending |
+| DOCS-01 | Phase 38 | Pending |
 
 **Coverage:**
 - v1.5 requirements: 26 total
-- Mapped to phases: 0
-- Unmapped: 26 (awaiting roadmap)
+- Mapped to phases: 26
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-21*
-*Last updated: 2026-02-21 after initial definition*
+*Last updated: 2026-02-21 after roadmap creation (phases 32-39)*

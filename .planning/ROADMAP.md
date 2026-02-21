@@ -6,7 +6,7 @@
 - [x] **v1.1 Mini Apps** - Phases 11-14 (shipped 2026-02-10)
 - [x] **v1.2 Onboarding and Feedback** - Phases 15-19 (shipped 2026-02-11)
 - [x] **v1.3 AI Polish & UX** - Phases 20-24 (shipped 2026-02-19)
-- [x] **v1.4 Backlog Sweep** - Phases 25-30 (shipped 2026-02-20)
+- [ ] **v1.4 Backlog Sweep** - Phases 25-31 (audit gap closure in progress)
 
 ## Phases
 
@@ -52,6 +52,7 @@ See .planning/milestones/v1.3-ROADMAP.md for full phase history.
 - [x] **Phase 28: Recipe URL Import** - Extract recipes from URLs via JSON-LD/Microdata/Claude fallback, with confirmation and edge case handling (completed 2026-02-20)
 - [x] **Phase 29: Recipe Photo Import** - Extract recipes from photos via Claude vision through the message pipeline (completed 2026-02-20)
 - [x] **Phase 30: Update Notifications** - Lazy-delivery "what's new" notifications tracked per household (completed 2026-02-20)
+- [ ] **Phase 31: Audit Defect Fixes** - Fix fresh install migration ordering, BM25 dedup threshold, and source_url FTS retrieval (gap closure)
 
 ## Phase Details
 
@@ -138,9 +139,24 @@ Plans:
 Plans:
 - [x] 30-01-PLAN.md -- Notification tables via migration, lazy delivery in processor, release notes in Sous voice
 
+### Phase 31: Audit Defect Fixes
+**Goal**: Fix 3 integration defects found during milestone audit -- fresh install works, dedup threshold is accurate, source_url is retrievable
+**Depends on**: Nothing (fixes existing code)
+**Requirements**: MIGR-01, KNOW-01, KNOW-04, IMPORT-04
+**Gap Closure**: Closes gaps from v1.4 audit
+**Success Criteria** (what must be TRUE):
+  1. A fresh database (no prior tables) starts successfully with all migrations applied and tables created
+  2. BM25 dedup threshold only triggers for genuinely similar items (not every FTS match)
+  3. `get_knowledge_item` tool returns the stored source_url for imported recipes (not null)
+  4. All existing tests pass plus new tests covering the 3 fixes
+**Plans**: 1 plan
+
+Plans:
+- [ ] 31-01-PLAN.md -- Guard migration 001, fix BM25 threshold, add source_url to getFullItem SELECT, tests
+
 ## Progress
 
-**Execution Order:** 1 -> 10 (v1.0) -> 11 -> 14 (v1.1) -> 15 -> 19 (v1.2) -> 20 -> 24 (v1.3) -> 25 -> 30 (v1.4)
+**Execution Order:** 1 -> 10 (v1.0) -> 11 -> 14 (v1.1) -> 15 -> 19 (v1.2) -> 20 -> 24 (v1.3) -> 25 -> 31 (v1.4)
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -165,3 +181,4 @@ Plans:
 | 28. Recipe URL Import | v1.4 | 1/1 | Complete | 2026-02-20 |
 | 29. Recipe Photo Import | v1.4 | 1/1 | Complete | 2026-02-20 |
 | 30. Update Notifications | v1.4 | 1/1 | Complete | 2026-02-20 |
+| 31. Audit Defect Fixes | v1.4 | 0/1 | Pending | - |

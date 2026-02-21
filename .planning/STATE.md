@@ -46,5 +46,6 @@ Total: 39 phases across 6 milestones.
 ## Session Continuity
 
 Last session: 2026-02-21
-Stopped at: v1.5 roadmap created
+Stopped at: Phase 32 context gathered
 Next action: Plan Phase 32 (Prompt Quality & Persona)
+Resume file: .planning/phases/32-prompt-quality-persona/32-CONTEXT.md

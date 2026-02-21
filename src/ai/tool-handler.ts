@@ -15,6 +15,71 @@ import { knowledgeChangelog } from "../knowledge/schema.js";
 import { searchFts } from "../knowledge/fts.js";
 import { fetchAndParseRecipe } from "../knowledge/url-import.js";
 
+/** Maximum string lengths for tool inputs */
+const MAX_LENGTHS = {
+  query: 500,           // search_knowledge query
+  title: 200,           // knowledge item title
+  summary: 500,         // knowledge item summary
+  content: 50_000,      // knowledge item content (recipes can be long)
+  tag: 100,             // individual tag
+  changeDescription: 500, // changelog description
+  recipeName: 200,      // meal plan / log_meal recipe name
+  notes: 2000,          // feedback / log_meal notes
+  text: 5000,           // app feedback text
+  url: 2000,            // import URL
+  itemName: 200,        // grocery item name
+  quantity: 100,        // grocery item quantity
+  store: 100,           // store name
+  section: 100,         // section name
+  timezone: 50,         // IANA timezone
+  time: 5,              // HH:MM format
+  date: 10,             // YYYY-MM-DD format
+} as const;
+
+const MAX_ENTRIES = {
+  tags: 30,               // max tags array length
+  mealPlanEntries: 21,    // 7 days x 3 meal types
+  groceryItems: 200,      // reasonable grocery list cap
+  itemIds: 200,           // check/uncheck/remove IDs
+  searchLimit: 20,        // search results limit
+} as const;
+
+function validateString(value: unknown, field: string, maxLength: number): string | null {
+  if (typeof value !== "string") return null; // Let existing type casting handle undefined/null
+  if (value.length > maxLength) {
+    return `${field} must be at most ${maxLength} characters, got ${value.length}`;
+  }
+  return null; // valid
+}
+
+function validatePositiveInt(value: unknown, field: string): string | null {
+  if (value === undefined || value === null) return null;
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 1) {
+    return `${field} must be a positive integer, got ${JSON.stringify(value)}`;
+  }
+  return null;
+}
+
+function validateArray(value: unknown, field: string, maxLength: number): string | null {
+  if (!Array.isArray(value)) return null;
+  if (value.length > maxLength) {
+    return `${field} must have at most ${maxLength} items, got ${value.length}`;
+  }
+  return null;
+}
+
+function validateDay(value: unknown): string | null {
+  if (value === undefined || value === null) return null;
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 0 || value > 6) {
+    return `day must be an integer 0-6 (Mon-Sun), got ${JSON.stringify(value)}`;
+  }
+  return null;
+}
+
+function validationError(msg: string): string {
+  return JSON.stringify({ error: msg, is_error: true });
+}
+
 /**
  * Create a tool call dispatcher that routes Claude's tool use requests
  * to the knowledge retrieval service and knowledge repository.
@@ -56,6 +121,12 @@ export function createToolHandler(deps: {
     async handleToolCall(name: string, input: Record<string, unknown>): Promise<string> {
       switch (name) {
         case "search_knowledge": {
+          const err = validateString(input.query, "query", MAX_LENGTHS.query)
+            ?? (input.limit !== undefined && (typeof input.limit !== "number" || !Number.isInteger(input.limit) || input.limit < 1 || input.limit > MAX_ENTRIES.searchLimit)
+              ? `limit must be 1-${MAX_ENTRIES.searchLimit}, got ${JSON.stringify(input.limit)}`
+              : null);
+          if (err) return validationError(err);
+
           const query = input.query as string;
           const limit = input.limit as number | undefined;
           const { results, metrics } = retrievalService.search(
@@ -77,6 +148,9 @@ export function createToolHandler(deps: {
         }
 
         case "get_knowledge_item": {
+          const err = validatePositiveInt(input.id, "id");
+          if (err) return validationError(err);
+
           const id = input.id as number;
           const item = retrievalService.getItem(id, householdId);
 
@@ -96,6 +170,16 @@ export function createToolHandler(deps: {
         }
 
         case "save_knowledge": {
+          const err = validateString(input.title, "title", MAX_LENGTHS.title)
+            ?? validateString(input.summary, "summary", MAX_LENGTHS.summary)
+            ?? validateString(input.content, "content", MAX_LENGTHS.content)
+            ?? validateArray(input.tags, "tags", MAX_ENTRIES.tags)
+            ?? (Array.isArray(input.tags)
+              ? input.tags.reduce((e: string | null, t: unknown, i: number) => e ?? validateString(t, `tags[${i}]`, MAX_LENGTHS.tag), null as string | null)
+              : null)
+            ?? validateString(input.source_url, "source_url", MAX_LENGTHS.url);
+          if (err) return validationError(err);
+
           const title = input.title as string;
           const summary = input.summary as string;
           const content = input.content as string;
@@ -176,6 +260,17 @@ export function createToolHandler(deps: {
         }
 
         case "update_knowledge": {
+          const err = validatePositiveInt(input.id, "id")
+            ?? validateString(input.title, "title", MAX_LENGTHS.title)
+            ?? validateString(input.summary, "summary", MAX_LENGTHS.summary)
+            ?? validateString(input.content, "content", MAX_LENGTHS.content)
+            ?? validateArray(input.tags, "tags", MAX_ENTRIES.tags)
+            ?? (Array.isArray(input.tags)
+              ? input.tags.reduce((e: string | null, t: unknown, i: number) => e ?? validateString(t, `tags[${i}]`, MAX_LENGTHS.tag), null as string | null)
+              : null)
+            ?? validateString(input.change_description, "change_description", MAX_LENGTHS.changeDescription);
+          if (err) return validationError(err);
+
           const id = input.id as number;
           const title = input.title as string | undefined;
           const summary = input.summary as string | undefined;
@@ -237,6 +332,9 @@ export function createToolHandler(deps: {
         }
 
         case "delete_knowledge": {
+          const err = validatePositiveInt(input.id, "id");
+          if (err) return validationError(err);
+
           const id = input.id as number;
 
           try {
@@ -274,6 +372,23 @@ export function createToolHandler(deps: {
         case "save_meal_plan": {
           if (!planRepository) {
             return JSON.stringify({ error: "Plan tools not available" });
+          }
+
+          {
+            const err = validateString(input.week_start_date, "week_start_date", MAX_LENGTHS.date)
+              ?? validateArray(input.entries, "entries", MAX_ENTRIES.mealPlanEntries);
+            if (err) return validationError(err);
+
+            // Per-entry validation
+            if (Array.isArray(input.entries)) {
+              for (let i = 0; i < input.entries.length; i++) {
+                const entry = input.entries[i] as Record<string, unknown>;
+                const entryErr = validateDay(entry.day)
+                  ?? validateString(entry.recipe_name, `entries[${i}].recipe_name`, MAX_LENGTHS.recipeName)
+                  ?? validatePositiveInt(entry.knowledge_item_id, `entries[${i}].knowledge_item_id`);
+                if (entryErr) return validationError(entryErr);
+              }
+            }
           }
 
           const weekStartDate = input.week_start_date as string;
@@ -314,6 +429,11 @@ export function createToolHandler(deps: {
             return JSON.stringify({ error: "Plan tools not available" });
           }
 
+          {
+            const err = validateString(input.week_start_date, "week_start_date", MAX_LENGTHS.date);
+            if (err) return validationError(err);
+          }
+
           const weekStartDate =
             (input.week_start_date as string | undefined) ??
             getWeekStartDate(deps.timezone ? getTodayInTimezone(deps.timezone, clock) : undefined);
@@ -346,6 +466,14 @@ export function createToolHandler(deps: {
             return JSON.stringify({ error: "Plan tools not available" });
           }
 
+          {
+            const err = validateString(input.recipe_name, "recipe_name", MAX_LENGTHS.recipeName)
+              ?? validateString(input.cooked_date, "cooked_date", MAX_LENGTHS.date)
+              ?? validateString(input.notes, "notes", MAX_LENGTHS.notes)
+              ?? validatePositiveInt(input.knowledge_item_id, "knowledge_item_id");
+            if (err) return validationError(err);
+          }
+
           const recipeName = input.recipe_name as string;
           const cookedDate = input.cooked_date as string;
           const mealType = input.meal_type as string | undefined;
@@ -372,6 +500,12 @@ export function createToolHandler(deps: {
         case "get_cooking_history": {
           if (!sqlite) {
             return JSON.stringify({ error: "Plan tools not available" });
+          }
+
+          {
+            const err = validateString(input.start_date, "start_date", MAX_LENGTHS.date)
+              ?? validateString(input.end_date, "end_date", MAX_LENGTHS.date);
+            if (err) return validationError(err);
           }
 
           const startDate = input.start_date as string | undefined;
@@ -401,6 +535,23 @@ export function createToolHandler(deps: {
             return JSON.stringify({ error: "Grocery tools not available" });
           }
 
+          {
+            const err = validateArray(input.items, "items", MAX_ENTRIES.groceryItems);
+            if (err) return validationError(err);
+
+            // Per-item validation
+            if (Array.isArray(input.items)) {
+              for (let i = 0; i < input.items.length; i++) {
+                const item = input.items[i] as Record<string, unknown>;
+                const itemErr = validateString(item.name, `items[${i}].name`, MAX_LENGTHS.itemName)
+                  ?? validateString(item.quantity, `items[${i}].quantity`, MAX_LENGTHS.quantity)
+                  ?? validateString(item.store, `items[${i}].store`, MAX_LENGTHS.store)
+                  ?? validateString(item.section, `items[${i}].section`, MAX_LENGTHS.section);
+                if (itemErr) return validationError(itemErr);
+              }
+            }
+          }
+
           const items = input.items as Array<{
             name: string;
             quantity?: string;
@@ -428,6 +579,40 @@ export function createToolHandler(deps: {
             return JSON.stringify({
               error: "No active grocery list. Use save_grocery_list to create one first.",
             });
+          }
+
+          {
+            const err = validateArray(input.add_items, "add_items", MAX_ENTRIES.groceryItems)
+              ?? validateArray(input.remove_item_ids, "remove_item_ids", MAX_ENTRIES.itemIds)
+              ?? validateArray(input.check_item_ids, "check_item_ids", MAX_ENTRIES.itemIds)
+              ?? validateArray(input.uncheck_item_ids, "uncheck_item_ids", MAX_ENTRIES.itemIds);
+            if (err) return validationError(err);
+
+            // Per-item validation for add_items
+            if (Array.isArray(input.add_items)) {
+              for (let i = 0; i < input.add_items.length; i++) {
+                const item = input.add_items[i] as Record<string, unknown>;
+                const itemErr = validateString(item.name, `add_items[${i}].name`, MAX_LENGTHS.itemName)
+                  ?? validateString(item.quantity, `add_items[${i}].quantity`, MAX_LENGTHS.quantity)
+                  ?? validateString(item.store, `add_items[${i}].store`, MAX_LENGTHS.store)
+                  ?? validateString(item.section, `add_items[${i}].section`, MAX_LENGTHS.section);
+                if (itemErr) return validationError(itemErr);
+              }
+            }
+
+            // Per-ID validation for ID arrays
+            for (const [arrName, arr] of [
+              ["remove_item_ids", input.remove_item_ids],
+              ["check_item_ids", input.check_item_ids],
+              ["uncheck_item_ids", input.uncheck_item_ids],
+            ] as const) {
+              if (Array.isArray(arr)) {
+                for (let i = 0; i < arr.length; i++) {
+                  const idErr = validatePositiveInt(arr[i], `${arrName}[${i}]`);
+                  if (idErr) return validationError(idErr);
+                }
+              }
+            }
           }
 
           const addItems = input.add_items as
@@ -522,6 +707,14 @@ export function createToolHandler(deps: {
             return JSON.stringify({ error: "Reminder tools not available" });
           }
 
+          {
+            const err = validateString(input.timezone, "timezone", MAX_LENGTHS.timezone)
+              ?? validateString(input.morning_time, "morning_time", MAX_LENGTHS.time)
+              ?? validateString(input.dinner_time, "dinner_time", MAX_LENGTHS.time)
+              ?? validateString(input.muted_until, "muted_until", MAX_LENGTHS.date);
+            if (err) return validationError(err);
+          }
+
           const updates: Record<string, unknown> = {};
 
           if (input.timezone !== undefined) {
@@ -581,6 +774,12 @@ export function createToolHandler(deps: {
         }
 
         case "record_feedback": {
+          const err = validateString(input.recipe_name, "recipe_name", MAX_LENGTHS.recipeName)
+            ?? validatePositiveInt(input.knowledge_item_id, "knowledge_item_id")
+            ?? validateString(input.notes, "notes", MAX_LENGTHS.notes)
+            ?? validateString(input.date, "date", MAX_LENGTHS.date);
+          if (err) return validationError(err);
+
           const recipeName = input.recipe_name as string;
           const knowledgeItemId = input.knowledge_item_id as number | undefined;
           const sentiment = input.sentiment as string;
@@ -644,6 +843,11 @@ export function createToolHandler(deps: {
             return JSON.stringify({ error: "App feedback tools not available" });
           }
 
+          {
+            const err = validateString(input.text, "text", MAX_LENGTHS.text);
+            if (err) return validationError(err);
+          }
+
           const text = input.text as string;
           appFeedbackRepository.saveFeedback({
             householdId,
@@ -656,6 +860,9 @@ export function createToolHandler(deps: {
         }
 
         case "import_from_url": {
+          const err = validateString(input.url, "url", MAX_LENGTHS.url);
+          if (err) return validationError(err);
+
           const url = input.url as string;
           try {
             const result = await fetchAndParseRecipe(url);

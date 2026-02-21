@@ -90,6 +90,7 @@ export function createToolHandler(deps: {
             summary: item.summary,
             content: item.content,
             source: item.source,
+            sourceUrl: item.sourceUrl,
             tags: item.tags,
           });
         }
@@ -127,9 +128,9 @@ export function createToolHandler(deps: {
               // Check for close FTS match (top result with strong relevance)
               if (matches.length > 0) {
                 const topMatch = matches[0];
-                // BM25 relevance is negative (closer to 0 = better match).
-                // Title-weighted search: a score better than -5 suggests strong title overlap.
-                if (topMatch.relevance > -5) {
+                // BM25 relevance is returned as positive values (lower = better match).
+                // Title-weighted search: a score below 5 suggests strong title overlap.
+                if (topMatch.relevance < 5) {
                   return JSON.stringify({
                     duplicate_found: true,
                     message: `Found a similar existing item: "${topMatch.title}" (ID: ${topMatch.id}). Ask the user if they want to update the existing item or save this as a new item.`,

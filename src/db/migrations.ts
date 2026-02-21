@@ -13,7 +13,14 @@ export const migrations: Migration[] = [
     version: 1,
     name: "add-source-url-to-knowledge-items",
     up: (sqlite) => {
-      // Check if column already exists (idempotent)
+      // On fresh install, knowledge_items doesn't exist yet (created later by initializeFts).
+      // Skip — initializeFts CREATE TABLE now includes source_url.
+      const tableExists = sqlite
+        .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='knowledge_items'")
+        .get();
+      if (!tableExists) return;
+
+      // Existing database: add column if missing
       const columns = sqlite.pragma("table_info(knowledge_items)") as Array<{ name: string }>;
       const hasSourceUrl = columns.some((c) => c.name === "source_url");
       if (!hasSourceUrl) {

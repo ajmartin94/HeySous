@@ -87,7 +87,10 @@ See .planning/milestones/v1.4-ROADMAP.md for full phase history.
   1. Display names and preference text containing HTML tags or prompt injection attempts are escaped/stripped before appearing in the system prompt
   2. Tool handler inputs exceeding defined bounds (string length, array size, number ranges) return a clear error to Claude instead of processing
   3. Messages above a configurable character limit are rejected with a friendly user-facing message before entering the pipeline
-**Plans**: TBD
+**Plans**: 3 plans
+  - [ ] 33-01-PLAN.md -- Sanitize user-controlled text (display names, preferences) before system prompt injection (SEC-02)
+  - [ ] 33-02-PLAN.md -- Bounds-validate tool handler inputs (string length, array size, number ranges) (SEC-03)
+  - [ ] 33-03-PLAN.md -- Reject messages above 4,000 character limit with in-character response (SEC-04)
 
 ### Phase 34: Observability & Data Integrity
 **Goal**: Every tool call is traceable in logs with timing and outcome, error details never leak to the LLM, and extracted recipes are validated before save
@@ -168,7 +171,7 @@ Note: Phase 38 (Mini App Theme) has no backend dependencies and can be paralleli
 | 20-24. AI Polish Phases | v1.3 | 9/9 | Complete | 2026-02-19 |
 | 25-31. Backlog Sweep Phases | v1.4 | 7/7 | Complete | 2026-02-21 |
 | 32. Prompt Quality & Persona | v1.5 | 2/2 | Complete | 2026-02-21 |
-| 33. Input Validation & Security | v1.5 | 0/0 | Not started | - |
+| 33. Input Validation & Security | v1.5 | 0/3 | Planned | - |
 | 34. Observability & Data Integrity | v1.5 | 0/0 | Not started | - |
 | 35. Resilience | v1.5 | 0/0 | Not started | - |
 | 36. Pipeline Efficiency | v1.5 | 0/0 | Not started | - |

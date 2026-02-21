@@ -12,20 +12,20 @@ Requirements for v1.4 milestone. Each maps to roadmap phases.
 - [x] **IMPORT-01**: User can send a recipe URL and Sous extracts the recipe (JSON-LD/Microdata with Claude AI fallback)
 - [x] **IMPORT-02**: User can send a photo of a recipe and Sous extracts it via Claude vision
 - [x] **IMPORT-03**: Sous auto-detects recipe URLs shared mid-conversation (via Telegram message entities) and offers to import
-- [ ] **IMPORT-04**: Imported recipes store their source URL on the knowledge item
+- [x] **IMPORT-04**: Imported recipes store their source URL on the knowledge item
 - [x] **IMPORT-05**: User sees extracted recipe for confirmation before it is saved
 - [x] **IMPORT-06**: Sous handles edge cases gracefully (paywalled sites, non-recipe URLs, blurry photos, blocked sites) with helpful messages
 
 ### Knowledge Quality
 
-- [ ] **KNOW-01**: save_knowledge checks for existing similar items before creating; returns match info to Claude if found
+- [x] **KNOW-01**: save_knowledge checks for existing similar items before creating; returns match info to Claude if found
 - [x] **KNOW-02**: Claude presents existing match to user and asks whether to update or create new (never auto-merges)
 - [x] **KNOW-03**: update_knowledge rejects calls with no substantive fields (title/summary/content/tags) and returns guidance
-- [ ] **KNOW-04**: Dedup works for both recipe and preference knowledge types with appropriate matching strategies
+- [x] **KNOW-04**: Dedup works for both recipe and preference knowledge types with appropriate matching strategies
 
 ### Data Migration
 
-- [ ] **MIGR-01**: Lightweight migration runner using PRAGMA user_version tracks which migrations have run
+- [x] **MIGR-01**: Lightweight migration runner using PRAGMA user_version tracks which migrations have run
 - [x] **MIGR-02**: Each migration runs in a transaction and is idempotent
 - [x] **MIGR-03**: Migration runner executes during database init, after pragmas, before table init functions
 - [x] **MIGR-04**: Existing migrateToHouseholdId left as-is; framework handles v1.4+ schema changes only
@@ -80,14 +80,14 @@ Which phases cover which requirements. Updated during roadmap creation.
 | IMPORT-01 | Phase 28 | Complete |
 | IMPORT-02 | Phase 29 | Complete |
 | IMPORT-03 | Phase 28 | Complete |
-| IMPORT-04 | Phase 31 | Pending |
+| IMPORT-04 | Phase 31 | Complete |
 | IMPORT-05 | Phase 28 | Complete |
 | IMPORT-06 | Phase 28 | Complete |
-| KNOW-01 | Phase 31 | Pending |
+| KNOW-01 | Phase 31 | Complete |
 | KNOW-02 | Phase 26 | Complete |
 | KNOW-03 | Phase 26 | Complete |
-| KNOW-04 | Phase 31 | Pending |
-| MIGR-01 | Phase 31 | Pending |
+| KNOW-04 | Phase 31 | Complete |
+| MIGR-01 | Phase 31 | Complete |
 | MIGR-02 | Phase 25 | Complete |
 | MIGR-03 | Phase 25 | Complete |
 | MIGR-04 | Phase 25 | Complete |

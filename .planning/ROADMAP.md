@@ -52,7 +52,7 @@ See .planning/milestones/v1.3-ROADMAP.md for full phase history.
 - [x] **Phase 28: Recipe URL Import** - Extract recipes from URLs via JSON-LD/Microdata/Claude fallback, with confirmation and edge case handling (completed 2026-02-20)
 - [x] **Phase 29: Recipe Photo Import** - Extract recipes from photos via Claude vision through the message pipeline (completed 2026-02-20)
 - [x] **Phase 30: Update Notifications** - Lazy-delivery "what's new" notifications tracked per household (completed 2026-02-20)
-- [ ] **Phase 31: Audit Defect Fixes** - Fix fresh install migration ordering, BM25 dedup threshold, and source_url FTS retrieval (gap closure)
+- [x] **Phase 31: Audit Defect Fixes** - Fix fresh install migration ordering, BM25 dedup threshold, and source_url FTS retrieval (gap closure) (completed 2026-02-21)
 
 ## Phase Details
 
@@ -181,4 +181,4 @@ Plans:
 | 28. Recipe URL Import | v1.4 | 1/1 | Complete | 2026-02-20 |
 | 29. Recipe Photo Import | v1.4 | 1/1 | Complete | 2026-02-20 |
 | 30. Update Notifications | v1.4 | 1/1 | Complete | 2026-02-20 |
-| 31. Audit Defect Fixes | v1.4 | 0/1 | Pending | - |
+| 31. Audit Defect Fixes | 1/1 | Complete   | 2026-02-21 | - |

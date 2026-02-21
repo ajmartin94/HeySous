@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** The recipe brain -- an AI agent that remembers everything about your meals and reasons over that knowledge to help you plan.
-**Current focus:** v1.4 Backlog Sweep COMPLETE
+**Current focus:** v1.4 Gap Closure -- Audit Defect Fixes COMPLETE
 
 ## Current Position
 
-Phase: 30 of 30 (Update Notifications) -- COMPLETE
+Phase: 31 of 31 (Audit Defect Fixes) -- COMPLETE
 Plan: 1 of 1 in current phase
-Status: Milestone complete
-Last activity: 2026-02-20 -- All v1.4 phases complete (25-30)
+Status: Phase complete
+Last activity: 2026-02-21 -- Fixed 3 integration defects from v1.4 audit
 
-Progress: [██████████████████████████████████████████████████] 100% (65/65 plans)
+Progress: [██████████████████████████████████████████████████] 100% (66/66 plans)
 
 ## Performance Metrics
 
@@ -54,15 +54,16 @@ Recent decisions affecting current work:
 - v1.4: Photo import goes through message pipeline as multimodal content block, not a separate tool
 - v1.4: Only one new dependency needed (cheerio) -- everything else already installed
 - v1.4-25: Used PRAGMA user_version for migration versioning -- simpler than a migrations table, inspectable via sqlite3 CLI
-- v1.4-26: FTS5-based dedup in save_knowledge with BM25 threshold -5; skip_dedup bypass parameter; update_knowledge validation rejects empty updates
+- v1.4-26: FTS5-based dedup in save_knowledge with BM25 threshold < 5 (positive values); skip_dedup bypass parameter; update_knowledge validation rejects empty updates
 - v1.4-27: Centralized message module at src/bot/messages.ts with pickRandom variant selection; all bot-initiated messages use Sous personality
 - v1.4-28: Recipe URL import via cheerio + 3-strategy extraction (JSON-LD, Microdata, raw text fallback); async tool handler; source_url column via migration 001
 - v1.4-29: Photo import via multimodal message pipeline; Claude vision handles OCR + recipe understanding; no new dependencies
 - v1.4-30: Lazy-delivery update notifications; seed on startup, deliver per-interaction; notifications/notification_deliveries tables via migration 002
+- v1.4-31: Audit defect fixes -- migration 001 fresh-install guard, source_url end-to-end, BM25 threshold correction
 
 ### Pending Todos
 
-None -- all v1.4 requirements complete.
+None -- all v1.4 requirements complete including audit fixes.
 
 ### Blockers/Concerns
 
@@ -70,11 +71,11 @@ None.
 
 ### Roadmap Evolution
 
-5 milestones shipped: v1.0 (10 phases), v1.1 (4 phases), v1.2 (5 phases), v1.3 (5 phases), v1.4 (6 phases).
-Total: 30 phases, 65 plans.
+5 milestones shipped: v1.0 (10 phases), v1.1 (4 phases), v1.2 (5 phases), v1.3 (5 phases), v1.4 (6 phases + 1 gap closure).
+Total: 31 phases, 66 plans.
 
 ## Session Continuity
 
-Last session: 2026-02-20
-Stopped at: v1.4 milestone complete
+Last session: 2026-02-21
+Stopped at: Completed 31-01-PLAN.md (audit defect fixes)
 Next action: Create PR from milestone branch to main

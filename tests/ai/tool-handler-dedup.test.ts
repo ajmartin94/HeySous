@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import Database from "better-sqlite3";
 import { createToolHandler } from "../../src/ai/tool-handler.js";
 import { initializeFts } from "../../src/knowledge/fts.js";
+import * as ftsModule from "../../src/knowledge/fts.js";
 import { createTestClock } from "../../src/clock.js";
 
 vi.mock("../../src/logger.js", () => ({
@@ -234,5 +235,100 @@ describe("update_knowledge validation", () => {
 
     expect(result.error).toBeUndefined();
     expect(result.message).toContain("Updated");
+  });
+});
+
+describe("BM25 threshold accuracy", () => {
+  let sqlite: InstanceType<typeof Database>;
+
+  beforeEach(() => {
+    sqlite = createTestDb();
+  });
+
+  afterEach(() => {
+    sqlite.close();
+  });
+
+  // NOTE: BM25 scores depend on corpus statistics (document count, term frequency).
+  // With a single-document corpus, absolute score values may differ from production.
+  // This test validates the threshold DIRECTION (< 5 rejects weak matches) rather
+  // than exact score values.
+  it("does NOT trigger dedup for weak FTS matches (different recipes sharing a word)", async () => {
+    insertKnowledgeItem(
+      sqlite,
+      1,
+      "Classic Beef Stew",
+      "Hearty winter beef stew with root vegetables",
+      "A slow-cooked beef stew recipe with carrots, potatoes, and herbs",
+    );
+
+    const { handler, mockKnowledgeRepository } = createMockDeps(sqlite);
+    const result = JSON.parse(
+      await handler.handleToolCall("save_knowledge", {
+        title: "Beef Tacos",
+        summary: "Quick weeknight beef tacos",
+        content: "Ground beef tacos with toppings and salsa verde",
+        tags: ["recipe"],
+      }),
+    );
+
+    // Weak match — should NOT trigger dedup
+    expect(result.duplicate_found).toBeUndefined();
+    expect(mockKnowledgeRepository.create).toHaveBeenCalled();
+  });
+
+  it("does NOT trigger dedup when searchFts returns relevance >= 5 (weak match)", async () => {
+    // Mock searchFts to return a weak match (relevance 8.5 = far from title)
+    vi.spyOn(ftsModule, "searchFts").mockReturnValue([
+      {
+        id: 1,
+        title: "Classic Beef Stew",
+        summary: "A stew",
+        relevance: 8.5,
+        tags: [],
+        lastAccessedAt: new Date(),
+      },
+    ]);
+
+    const { handler, mockKnowledgeRepository } = createMockDeps(sqlite);
+    const result = JSON.parse(
+      await handler.handleToolCall("save_knowledge", {
+        title: "Beef Tacos",
+        summary: "Quick tacos",
+        content: "Tacos...",
+        tags: ["recipe"],
+      }),
+    );
+
+    expect(result.duplicate_found).toBeUndefined();
+    expect(mockKnowledgeRepository.create).toHaveBeenCalled();
+    vi.restoreAllMocks();
+  });
+
+  it("DOES trigger dedup when searchFts returns relevance < 5 (strong match)", async () => {
+    // Mock searchFts to return a strong match (relevance 2.1 = close title overlap)
+    vi.spyOn(ftsModule, "searchFts").mockReturnValue([
+      {
+        id: 1,
+        title: "Chicken Tikka Masala",
+        summary: "Indian curry",
+        relevance: 2.1,
+        tags: [],
+        lastAccessedAt: new Date(),
+      },
+    ]);
+
+    const { handler } = createMockDeps(sqlite);
+    const result = JSON.parse(
+      await handler.handleToolCall("save_knowledge", {
+        title: "Chicken Tikka Masala Recipe",
+        summary: "Tikka masala",
+        content: "Recipe...",
+        tags: ["recipe"],
+      }),
+    );
+
+    expect(result.duplicate_found).toBe(true);
+    vi.restoreAllMocks();
   });
 });

@@ -75,6 +75,16 @@ export const migrations: Migration[] = [
       );
     },
   },
+  {
+    version: 4,
+    name: "clear-inherited-notification-deliveries",
+    up: (sqlite) => {
+      // Migration 3 incorrectly marked all household members as "delivered"
+      // even though only one member actually saw each notification.
+      // Clear all records so every user gets a fresh delivery.
+      sqlite.exec("DELETE FROM notification_deliveries");
+    },
+  },
 ];
 
 export function runMigrations(sqlite: BetterSqlite3.Database): void {

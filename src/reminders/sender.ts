@@ -9,6 +9,7 @@ import {
   getReminderFallbackCheckin,
   getReminderFallbackGeneric,
 } from "../bot/messages.js";
+import { SOUS_PERSONA } from "../ai/system-prompt.js";
 
 /**
  * Minimal interface for bot API -- keeps sender decoupled from grammY types.
@@ -59,19 +60,21 @@ export interface ReminderSenderDeps {
   sqlite: BetterSqlite3.Database;
 }
 
-/** System prompt for reminder text generation -- focused, not the full Sous persona. */
-const REMINDER_SYSTEM_PROMPT = `You are Sous, a friendly kitchen companion. Generate short, warm reminder messages for Telegram.
+/** System prompt for reminder text generation -- uses shared Sous persona. */
+const REMINDER_SYSTEM_PROMPT = `${SOUS_PERSONA}
+
+Your current task: Generate short, warm reminder messages for Telegram.
 
 Rules:
-- Use HTML formatting (Telegram parse mode): <b>bold</b>, <i>italic</i>
 - Keep messages concise (2-4 sentences max)
 - Be encouraging and varied -- never repeat the same phrasing
 - Include relevant meal details when provided
-- Match the reminder type's tone (morning = upbeat, prep = practical, cooking = energetic)
-- Do NOT use markdown. Only HTML tags.`;
+- Match the reminder type's tone (morning = upbeat, prep = practical, cooking = energetic)`;
 
-/** System prompt specifically for prep alert analysis. */
-const PREP_ALERT_SYSTEM_PROMPT = `You are Sous, a friendly kitchen companion. Analyze this recipe and generate a prep alert for Telegram.
+/** System prompt specifically for prep alert analysis -- uses shared Sous persona. */
+const PREP_ALERT_SYSTEM_PROMPT = `${SOUS_PERSONA}
+
+Your current task: Analyze this recipe and generate a prep alert for Telegram.
 
 Your job:
 1. Look at the recipe content and identify what needs advance preparation
@@ -80,10 +83,8 @@ Your job:
 4. If nothing needs advance prep, say so cheerfully
 
 Rules:
-- Use HTML formatting: <b>bold</b>, <i>italic</i>
 - Keep it concise (2-4 sentences)
-- Be specific about what to prep and roughly how long it takes
-- Do NOT use markdown. Only HTML tags.`;
+- Be specific about what to prep and roughly how long it takes`;
 
 /**
  * Build a user prompt for Claude based on reminder type and context.

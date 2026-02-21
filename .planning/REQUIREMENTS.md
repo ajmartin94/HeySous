@@ -10,9 +10,9 @@ Requirements for v1.5 Agent Hardening & Polish. Sourced from comprehensive 3-age
 ### Security & Input Validation
 
 - [ ] **SEC-01**: System enforces per-household message rate limits and daily token cost budgets
-- [ ] **SEC-02**: User-controlled text (display names, preferences) is sanitized before system prompt injection
+- [x] **SEC-02**: User-controlled text (display names, preferences) is sanitized before system prompt injection
 - [ ] **SEC-03**: Tool handler inputs are bounds-validated (string length, array size, number ranges)
-- [ ] **SEC-04**: Incoming user messages are rejected above a configurable length threshold
+- [x] **SEC-04**: Incoming user messages are rejected above a configurable length threshold
 
 ### Resilience
 
@@ -78,9 +78,9 @@ None deferred -- all audit findings scoped into v1.5.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | SEC-01 | Phase 36 | Pending |
-| SEC-02 | Phase 33 | Pending |
+| SEC-02 | Phase 33 | Complete |
 | SEC-03 | Phase 33 | Pending |
-| SEC-04 | Phase 33 | Pending |
+| SEC-04 | Phase 33 | Complete |
 | RES-01 | Phase 35 | Pending |
 | RES-02 | Phase 35 | Pending |
 | RES-03 | Phase 35 | Pending |

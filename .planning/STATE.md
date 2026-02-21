@@ -30,6 +30,7 @@ Progress: [================================........] 81% (71/88 plans complete t
 All decisions documented in PROJECT.md Key Decisions table.
 - Phase 33-03: Hardcoded 4,000 char limit on combined debounced content, rejected before DB persistence
 - [Phase 33]: Dual-layer sanitization: sanitizeAndLog in processor for logging + sanitizeForPrompt in system prompt builder as defense-in-depth safety net
+- Phase 33-02: Validation returns JSON with is_error:true flag; per-item array validation reports specific index for Claude self-correction
 
 ### Pending Todos
 
@@ -48,6 +49,6 @@ Total: 39 phases across 6 milestones.
 ## Session Continuity
 
 Last session: 2026-02-21
-Stopped at: Completed 33-03-PLAN.md
+Stopped at: Completed 33-02-PLAN.md (all Phase 33 plans complete)
 Next action: Transition to Phase 34 or verify Phase 33
 Resume file: None

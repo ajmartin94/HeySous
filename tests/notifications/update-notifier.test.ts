@@ -10,7 +10,7 @@ function createTestDb() {
   sqlite.pragma("journal_mode = WAL");
   sqlite.pragma("foreign_keys = ON");
 
-  // Create notifications tables (same as migration 002)
+  // Create notifications tables (post-migration-3 schema)
   sqlite.exec(`
     CREATE TABLE notifications (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -22,9 +22,9 @@ function createTestDb() {
   sqlite.exec(`
     CREATE TABLE notification_deliveries (
       notification_id INTEGER NOT NULL REFERENCES notifications(id),
-      household_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
       delivered_at INTEGER NOT NULL DEFAULT (unixepoch()),
-      PRIMARY KEY (notification_id, household_id)
+      PRIMARY KEY (notification_id, user_id)
     )
   `);
 
@@ -62,11 +62,11 @@ describe("update-notifier", () => {
     sqlite.close();
   });
 
-  it("returns pending notification for household", () => {
+  it("returns pending notification for user", () => {
     const sqlite = createTestDb();
     seedNotifications(sqlite);
 
-    const result = checkPendingNotification(sqlite, "household-1");
+    const result = checkPendingNotification(sqlite, "user-1");
     expect(result).toBeTruthy();
     expect(result).toContain("new tricks");
 
@@ -78,29 +78,29 @@ describe("update-notifier", () => {
     seedNotifications(sqlite);
 
     // First call delivers
-    checkPendingNotification(sqlite, "household-1");
+    checkPendingNotification(sqlite, "user-1");
 
     // Second call returns null (already delivered)
-    const result = checkPendingNotification(sqlite, "household-1");
+    const result = checkPendingNotification(sqlite, "user-1");
     expect(result).toBeNull();
 
     sqlite.close();
   });
 
-  it("delivers independently to different households", () => {
+  it("delivers independently to different users", () => {
     const sqlite = createTestDb();
     seedNotifications(sqlite);
 
-    // Deliver to household 1
-    const result1 = checkPendingNotification(sqlite, "household-1");
+    // Deliver to user 1
+    const result1 = checkPendingNotification(sqlite, "user-1");
     expect(result1).toBeTruthy();
 
-    // Household 2 still has pending
-    const result2 = checkPendingNotification(sqlite, "household-2");
+    // User 2 still has pending
+    const result2 = checkPendingNotification(sqlite, "user-2");
     expect(result2).toBeTruthy();
 
-    // Household 1 has no more pending
-    const result1Again = checkPendingNotification(sqlite, "household-1");
+    // User 1 has no more pending
+    const result1Again = checkPendingNotification(sqlite, "user-1");
     expect(result1Again).toBeNull();
 
     sqlite.close();
@@ -110,7 +110,7 @@ describe("update-notifier", () => {
     const sqlite = createTestDb();
     // Do NOT seed
 
-    const result = checkPendingNotification(sqlite, "household-1");
+    const result = checkPendingNotification(sqlite, "user-1");
     expect(result).toBeNull();
 
     sqlite.close();
@@ -128,15 +128,15 @@ describe("update-notifier", () => {
       .run("1.1.0", "Second update");
 
     // First call returns first notification
-    const first = checkPendingNotification(sqlite, "household-1");
+    const first = checkPendingNotification(sqlite, "user-1");
     expect(first).toBe("First update");
 
     // Second call returns second notification
-    const second = checkPendingNotification(sqlite, "household-1");
+    const second = checkPendingNotification(sqlite, "user-1");
     expect(second).toBe("Second update");
 
     // Third call returns null (all delivered)
-    const third = checkPendingNotification(sqlite, "household-1");
+    const third = checkPendingNotification(sqlite, "user-1");
     expect(third).toBeNull();
 
     sqlite.close();

@@ -2,11 +2,11 @@
  * Update Notification System
  *
  * Handles seeding release notes into the notifications table and
- * lazy delivery of unseen notifications to households.
+ * lazy delivery of unseen notifications to users.
  *
  * Lazy delivery pattern: when a user sends a message, the processor
  * checks for pending notifications and delivers them before the Claude
- * call. Each household sees each notification exactly once.
+ * call. Each user sees each notification exactly once.
  */
 
 import type BetterSqlite3 from "better-sqlite3";
@@ -26,17 +26,17 @@ export function seedNotifications(sqlite: BetterSqlite3.Database): void {
 }
 
 /**
- * Check for and deliver any unseen notifications to a household.
+ * Check for and deliver any unseen notifications to a user.
  * Returns the notification text if one was delivered, null otherwise.
  *
  * Lazy delivery pattern: called during message processing, before the
- * Claude call. Each household sees each notification exactly once.
+ * Claude call. Each user sees each notification exactly once.
  */
 export function checkPendingNotification(
   sqlite: BetterSqlite3.Database,
-  householdId: string,
+  userId: string,
 ): string | null {
-  // Find the oldest notification not yet delivered to this household
+  // Find the oldest notification not yet delivered to this user
   const pending = sqlite
     .prepare(
       `
@@ -45,22 +45,22 @@ export function checkPendingNotification(
     WHERE n.id NOT IN (
       SELECT notification_id
       FROM notification_deliveries
-      WHERE household_id = ?
+      WHERE user_id = ?
     )
     ORDER BY n.created_at ASC
     LIMIT 1
   `,
     )
-    .get(householdId) as { id: number; content: string } | undefined;
+    .get(userId) as { id: number; content: string } | undefined;
 
   if (!pending) return null;
 
   // Record delivery
   sqlite
     .prepare(
-      "INSERT INTO notification_deliveries (notification_id, household_id) VALUES (?, ?)",
+      "INSERT INTO notification_deliveries (notification_id, user_id) VALUES (?, ?)",
     )
-    .run(pending.id, householdId);
+    .run(pending.id, userId);
 
   return pending.content;
 }

@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-21)
 
 **Core value:** The recipe brain -- an AI agent that remembers everything about your meals and reasons over that knowledge to help you plan.
-**Current focus:** v1.5 Agent Hardening & Polish -- Phase 32: Prompt Quality & Persona
+**Current focus:** v1.5 Agent Hardening & Polish -- Phase 33: Input Validation & Security
 
 ## Current Position
 
-Phase: 32 of 39 (Prompt Quality & Persona)
+Phase: 33 of 39 (Input Validation & Security)
 Plan: 0 of 0 in current phase (not yet planned)
 Status: Ready to plan
-Last activity: 2026-02-21 -- Roadmap created for v1.5 (8 phases, 26 requirements)
+Last activity: 2026-02-21 -- Phase 32 completed (2 plans: persona unification + prompt caching restructure)
 
-Progress: [==============================..........] 76% (66/66 plans complete through v1.4, v1.5 plans TBD)
+Progress: [==============================..........] 78% (68/68 plans complete through Phase 32, v1.5 phases 33-39 TBD)
 
 ## Performance Metrics
 
@@ -46,6 +46,6 @@ Total: 39 phases across 6 milestones.
 ## Session Continuity
 
 Last session: 2026-02-21
-Stopped at: Phase 32 context gathered
-Next action: Plan Phase 32 (Prompt Quality & Persona)
-Resume file: .planning/phases/32-prompt-quality-persona/32-CONTEXT.md
+Stopped at: Phase 32 complete
+Next action: Plan Phase 33 (Input Validation & Security)
+Resume file: N/A (phase 33 not yet started)

@@ -24,17 +24,17 @@ Requirements for v1.5 Agent Hardening & Polish. Sourced from comprehensive 3-age
 ### Performance & Cost
 
 - [ ] **PERF-01**: Preference loading uses a single query instead of N+1 pattern
-- [ ] **PERF-02**: Static system prompt instructions are separated from dynamic context for effective prompt caching
+- [x] **PERF-02**: Static system prompt instructions are separated from dynamic context for effective prompt caching
 - [ ] **PERF-03**: Token estimation uses accurate counting instead of 4 chars/token heuristic
 - [ ] **PERF-04**: Claude responses stream to Telegram for lower perceived latency
 
 ### Prompt Quality
 
-- [ ] **PROMPT-01**: import_from_url tool description matches system prompt (no conflicting instructions)
-- [ ] **PROMPT-02**: Preference capture includes explicit durability signals for save vs. skip decisions
-- [ ] **PROMPT-03**: Recipe ID format [recipe #ID] is explicitly documented for plan modification
-- [ ] **PROMPT-04**: Dinner time sync requirement is cross-referenced in reminder prompt section
-- [ ] **PROMPT-05**: All Claude interactions share a unified Sous persona definition
+- [x] **PROMPT-01**: import_from_url tool description matches system prompt (no conflicting instructions)
+- [x] **PROMPT-02**: Preference capture includes explicit durability signals for save vs. skip decisions
+- [x] **PROMPT-03**: Recipe ID format [recipe #ID] is explicitly documented for plan modification
+- [x] **PROMPT-04**: Dinner time sync requirement is cross-referenced in reminder prompt section
+- [x] **PROMPT-05**: All Claude interactions share a unified Sous persona definition
 - [ ] **PROMPT-06**: Knowledge deduplication searches content beyond title-only matching
 
 ### Observability
@@ -86,14 +86,14 @@ None deferred -- all audit findings scoped into v1.5.
 | RES-03 | Phase 35 | Pending |
 | RES-04 | Phase 35 | Pending |
 | PERF-01 | Phase 36 | Pending |
-| PERF-02 | Phase 32 | Pending |
+| PERF-02 | Phase 32 | Complete |
 | PERF-03 | Phase 36 | Pending |
 | PERF-04 | Phase 37 | Pending |
-| PROMPT-01 | Phase 32 | Pending |
-| PROMPT-02 | Phase 32 | Pending |
-| PROMPT-03 | Phase 32 | Pending |
-| PROMPT-04 | Phase 32 | Pending |
-| PROMPT-05 | Phase 32 | Pending |
+| PROMPT-01 | Phase 32 | Complete |
+| PROMPT-02 | Phase 32 | Complete |
+| PROMPT-03 | Phase 32 | Complete |
+| PROMPT-04 | Phase 32 | Complete |
+| PROMPT-05 | Phase 32 | Complete |
 | PROMPT-06 | Phase 36 | Pending |
 | OBS-01 | Phase 34 | Pending |
 | OBS-02 | Phase 34 | Pending |

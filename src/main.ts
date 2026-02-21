@@ -255,7 +255,9 @@ async function main(): Promise<void> {
     app.listen(config.port, () => {
       logger.info({ port: config.port }, "Webhook server listening");
     });
-    await bot.api.setWebhook(`${config.webhookUrl}/webhook/${bot.token}`);
+    await bot.api.setWebhook(`${config.webhookUrl}/webhook/${bot.token}`, {
+      allowed_updates: ["message", "callback_query", "my_chat_member"],
+    });
     logger.info({ url: config.webhookUrl }, "Webhook set");
   } else {
     // Polling mode (development) -- start Express for API/Mini App access
@@ -266,6 +268,7 @@ async function main(): Promise<void> {
 
     await bot.api.deleteWebhook();
     await bot.start({
+      allowed_updates: ["message", "callback_query", "my_chat_member"],
       onStart: () => logger.info("Bot started in polling mode"),
     });
   }

@@ -50,7 +50,7 @@ All decisions documented in PROJECT.md Key Decisions table.
 
 ### Pending Todos
 
-None -- all v1.0-v1.4 requirements validated.
+6 pending todos in `.planning/todos/pending/`.
 
 ### Blockers/Concerns
 

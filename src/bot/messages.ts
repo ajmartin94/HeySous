@@ -38,6 +38,15 @@ export function getTimeoutMessage(): string {
   ]);
 }
 
+export function getMessageTooLongResponse(): string {
+  return pickRandom([
+    "Whoa, that's a novel! I can handle messages up to about 4,000 characters -- mind breaking it up a bit?",
+    "That's a lot to take in! I work best with messages under 4,000 characters. Could you split it up?",
+    "I appreciate the detail, but that's more than I can chew at once! Try keeping messages under about 4,000 characters.",
+    "That message is a bit too long for me to digest -- I'm best with under 4,000 characters. Mind breaking it into smaller bites?",
+  ]);
+}
+
 // ---------------------------------------------------------------------------
 // Access gate messages
 // ---------------------------------------------------------------------------

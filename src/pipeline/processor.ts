@@ -51,9 +51,16 @@ import { updateOnboardingState } from "../users/repository.js";
 import type { User } from "../users/types.js";
 import type { DrizzleDatabase } from "../db/index.js";
 import type { Logger } from "pino";
-import { getErrorMessage, getTimeoutMessage } from "../bot/messages.js";
+import { getErrorMessage, getTimeoutMessage, getMessageTooLongResponse } from "../bot/messages.js";
 
 const TIMEOUT_WARNING_MS = 30_000;
+
+/**
+ * Maximum combined character length for debounced messages.
+ * Messages exceeding this limit are rejected before entering the AI pipeline.
+ * Applies to all message types including photo captions.
+ */
+const MAX_MESSAGE_LENGTH = 4_000;
 
 /** Default conversation history token budget. */
 const CONVERSATION_TOKEN_BUDGET = 2000;
@@ -110,6 +117,20 @@ export function createProcessor(deps: ProcessorDeps) {
 
       // b. Build user message from batch
       const userText = batch.messages.map((m) => m.text).filter(Boolean).join("\n\n");
+
+      // b1. Reject messages exceeding length limit (before saving to DB)
+      if (userText.length > MAX_MESSAGE_LENGTH) {
+        log.info(
+          { chatId, userId, messageLength: userText.length, limit: MAX_MESSAGE_LENGTH },
+          "Message rejected: exceeds length limit",
+        );
+        try {
+          await ctx.reply(getMessageTooLongResponse());
+        } catch {
+          // Best-effort rejection message
+        }
+        return; // Discard -- do not save to conversation history or process
+      }
 
       // b2. Collect images from batch (for multimodal messages)
       const batchImages = batch.messages.filter((m) => m.imageBase64 && m.imageMimeType);

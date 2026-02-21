@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildSystemPrompt } from "../../src/ai/system-prompt.js";
+import { buildSystemPrompt, buildDynamicContext } from "../../src/ai/system-prompt.js";
 
 describe("buildSystemPrompt", () => {
   const prompt = buildSystemPrompt();
@@ -23,5 +23,51 @@ describe("buildSystemPrompt", () => {
   it("does not include date context when not provided", () => {
     const prompt = buildSystemPrompt();
     expect(prompt).not.toContain("<current_date>");
+  });
+});
+
+describe("buildDynamicContext sanitization", () => {
+  it("sanitizes HTML from userName", () => {
+    const result = buildDynamicContext({ userName: "<b>John</b>" });
+    expect(result).toContain("John");
+    expect(result).not.toContain("<b>");
+    expect(result).not.toContain("</b>");
+  });
+
+  it("passes clean userName through unchanged", () => {
+    const result = buildDynamicContext({ userName: "Alice" });
+    expect(result).toContain("Alice");
+  });
+
+  it("sanitizes HTML from preference titles and summaries", () => {
+    const result = buildDynamicContext({
+      preferences: [
+        {
+          id: 1,
+          title: "<script>No Pork</script>",
+          summary: "<b>Does not eat</b> pork products",
+          tags: ["preference", "pref:dietary"],
+        },
+      ],
+    });
+    expect(result).toContain("No Pork");
+    expect(result).not.toContain("<script>");
+    expect(result).toContain("Does not eat pork products");
+    expect(result).not.toContain("<b>");
+  });
+
+  it("preserves clean preference text unchanged", () => {
+    const result = buildDynamicContext({
+      preferences: [
+        {
+          id: 1,
+          title: "Vegetarian",
+          summary: "Prefers vegetarian meals",
+          tags: ["preference"],
+        },
+      ],
+    });
+    expect(result).toContain("Vegetarian");
+    expect(result).toContain("Prefers vegetarian meals");
   });
 });

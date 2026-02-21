@@ -44,6 +44,7 @@ import { getPreferenceSummaries } from "../knowledge/preferences.js";
 import { checkPendingNotification } from "../notifications/update-notifier.js";
 import { config } from "../config.js";
 import { buildStaticPrompt, buildDynamicContext } from "../ai/system-prompt.js";
+import { sanitizeAndLog } from "../ai/sanitize.js";
 import type { SystemPromptInput } from "../ai/claude-client.js";
 import { extractOnboardingMarker, getNextOnboardingState } from "../onboarding/state.js";
 import { buildOnboardingPrompt } from "../onboarding/prompt.js";
@@ -275,7 +276,15 @@ export function createProcessor(deps: ProcessorDeps) {
 
       // h. Load user preferences for system prompt injection
       const preferences = getPreferenceSummaries(deps.sqlite, householdId);
-      const userName = ctx.user?.displayName;
+      const rawUserName = ctx.user?.displayName;
+
+      // h1. Sanitize user-controlled text with logging (per security policy)
+      const userName = rawUserName ? sanitizeAndLog(rawUserName, "userName", log) : undefined;
+      const sanitizedPreferences = preferences.map((pref) => ({
+        ...pref,
+        title: sanitizeAndLog(pref.title, "preference.title", log),
+        summary: sanitizeAndLog(pref.summary, "preference.summary", log),
+      }));
 
       // h2. Build onboarding context if user is in onboarding
       const onboardingContext = ctx.user && ctx.user.onboardingState !== "complete"
@@ -295,7 +304,7 @@ export function createProcessor(deps: ProcessorDeps) {
 
       const staticPrompt = buildStaticPrompt(config.miniAppUrl);
       const dynamicContext = buildDynamicContext({
-        preferences,
+        preferences: sanitizedPreferences,
         planContext,
         groceryContext,
         reminderContext,

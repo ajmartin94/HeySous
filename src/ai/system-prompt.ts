@@ -1,4 +1,5 @@
 import type { PreferenceSummary } from "../knowledge/preferences.js";
+import { sanitizeForPrompt } from "./sanitize.js";
 
 /**
  * Unified Sous persona definition -- the single source of truth for Sous's
@@ -58,7 +59,7 @@ function buildPreferenceContext(preferences: PreferenceSummary[]): string {
     if (pref.tags.includes("inferred")) markers.push("[inferred]");
 
     const markerStr = markers.length > 0 ? ` ${markers.join(" ")}` : "";
-    return `- ${pref.title}${markerStr}: ${pref.summary}`;
+    return `- ${sanitizeForPrompt(pref.title)}${markerStr}: ${sanitizeForPrompt(pref.summary)}`;
   });
 
   return `
@@ -735,8 +736,10 @@ export function buildDynamicContext(params: DynamicContextParams): string {
     ? buildPreferenceContext(preferences)
     : "";
 
-  const userNameLine = userName
-    ? `\nThe user's name is ${userName}. Address them by name naturally when it feels right -- don't force it into every message.`
+  const safeName = userName ? sanitizeForPrompt(userName) : undefined;
+
+  const userNameLine = safeName
+    ? `\nThe user's name is ${safeName}. Address them by name naturally when it feels right -- don't force it into every message.`
     : "";
 
   return `${userNameLine ? "\n" + userNameLine : ""}${dateContext ? "\n" + dateContext : ""}${preferenceContext}${planContext ? "\n" + planContext : ""}${groceryContext ? "\n" + groceryContext : ""}${reminderContext ? "\n" + reminderContext : ""}${feedbackContext ? "\n" + feedbackContext : ""}${onboardingContext ? "\n" + onboardingContext : ""}${appFeedbackContext ? "\n" + appFeedbackContext : ""}`;

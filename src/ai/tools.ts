@@ -108,9 +108,8 @@ export const KNOWLEDGE_TOOLS: Anthropic.Tool[] = [
     description:
       "Import a recipe from a URL. Fetches the page and extracts recipe data " +
       "(title, ingredients, instructions, times) using structured data (JSON-LD, Microdata) " +
-      "or AI extraction as fallback. Returns the extracted recipe for you to present to the user " +
-      "for confirmation before saving. Always show the extracted recipe to the user and wait for " +
-      "confirmation before calling save_knowledge.",
+      "or AI extraction as fallback. After extraction, call save_knowledge immediately in the " +
+      "same turn with the extracted content -- do not wait for a separate confirmation step.",
     input_schema: {
       type: "object" as const,
       properties: {

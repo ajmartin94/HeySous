@@ -5,7 +5,7 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** The recipe brain -- an AI agent that remembers everything about your meals and reasons over that knowledge to help you plan.
-**Current focus:** v1.4 Gap Closure -- Audit Defect Fixes COMPLETE
+**Current focus:** v1.4 Backlog Sweep COMPLETE — all 31 phases shipped
 
 ## Current Position
 
@@ -77,5 +77,5 @@ Total: 31 phases, 66 plans.
 ## Session Continuity
 
 Last session: 2026-02-21
-Stopped at: Completed 31-01-PLAN.md (audit defect fixes)
-Next action: Create PR from milestone branch to main
+Stopped at: v1.4 milestone complete — all 7 phases (25-31), 7 plans, audit clean
+Next action: /gsd:complete-milestone v1.4

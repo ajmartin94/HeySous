@@ -62,14 +62,16 @@ The LLM is the product. It reasons, decides what to look up, and acts on what it
 - ✓ Fix intermittent date bugs in meal plans (timezone-aware date pipeline) — v1.3 Phase 20
 - ✓ Fix start_cooking reminder to account for prep time — v1.3 Phase 20
 - ✓ Data migration framework: lightweight numbered migration runner with PRAGMA user_version — v1.4 Phase 25
+- ✓ Knowledge dedup: save_knowledge returns existing match instead of creating duplicates; update_knowledge rejects no-op calls — v1.4 Phase 26
+- ✓ Notification tone: centralized message module with Sous personality variants for all bot-initiated messages — v1.4 Phase 27
+- ✓ Recipe import from URL: fetch and parse recipe from a link (JSON-LD/Microdata/Claude fallback) — v1.4 Phase 28
+- ✓ Recipe import from photo: use Claude vision to extract recipe from images — v1.4 Phase 29
+- ✓ Bot update notifications: lazy-delivery "what's new" per household — v1.4 Phase 30
+- ✓ Audit defect fixes: migration fresh-install guard, source_url end-to-end, BM25 threshold — v1.4 Phase 31
 
 ### Active
 
-- ✓ Knowledge dedup: save_knowledge returns existing match instead of creating duplicates; update_knowledge rejects no-op calls — v1.4 Phase 26
-- ✓ Notification tone: centralized message module with Sous personality variants for all bot-initiated messages -- v1.4 Phase 27
-- [ ] Bot update notifications: version-based system for announcing meaningful updates to users
-- [ ] Recipe import from URL: fetch and parse recipe from a link
-- [ ] Recipe import from photo: use Claude vision to extract recipe from images
+None -- all requirements for v1.0-v1.4 validated.
 
 ### Out of Scope
 
@@ -81,7 +83,7 @@ The LLM is the product. It reasons, decides what to look up, and acts on what it
 
 ## Context
 
-- **Current state:** v1.4 in progress. Phase 27 complete (notification tone). ~22,900 LOC TypeScript. 62 plans total across 27 phases.
+- **Current state:** v1.4 complete. All 31 phases shipped across 5 milestones. 66 plans total. ~24,000 LOC TypeScript.
 - **Tech stack:** Node.js 22, TypeScript (ESM), grammY, better-sqlite3/Drizzle, Anthropic SDK, Pino, Express, React+Vite (Mini App SPA), @telegram-apps SDK
 - **Primary user:** Home cook who loves cooking, time-constrained on weekdays, more flexible weekends
 - **Household:** Partner + 9-month-old. Partner now has access via invite system (v1.2).
@@ -92,18 +94,20 @@ The LLM is the product. It reasons, decides what to look up, and acts on what it
 - **Mini App model:** Hybrid — bot stays primary, Mini Apps open from chat buttons for visual tasks
 - **Frontend:** React+Vite SPA inside Telegram Web Apps, served by existing Express server at /app/*
 - **Known issues:** None current
-- **Next step:** Phase 28 (Recipe URL Import)
+- **Next step:** Complete v1.4 milestone, create PR to main
 
-## Current Milestone: v1.4 Backlog Sweep
+## Current Milestone: v1.4 Backlog Sweep — COMPLETE
 
 **Goal:** Clear the accumulated todo backlog — fix knowledge duplication bugs, add recipe import (URL + photo), improve notification personality, add update notifications, and establish a data migration framework.
 
-**Target features:**
-- Knowledge dedup fix (save_knowledge returns match, update_knowledge validation)
-- Notification tone overhaul (Sous personality in all automated messages)
-- Bot update notification system (version-based announcements)
-- Data migration framework (numbered scripts, idempotent, tracked)
-- Recipe import from URL and photo (web fetch + Claude vision)
+**Shipped features (7 phases, 7 plans):**
+- Data migration framework with PRAGMA user_version (Phase 25)
+- Knowledge dedup with FTS5+BM25 threshold (Phase 26)
+- Notification tone overhaul with Sous personality (Phase 27)
+- Recipe URL import via JSON-LD/Microdata/Claude fallback (Phase 28)
+- Recipe photo import via Claude vision (Phase 29)
+- Lazy-delivery update notifications per household (Phase 30)
+- Audit defect fixes: migration guard, source_url retrieval, BM25 threshold (Phase 31)
 
 ## Constraints
 
@@ -157,5 +161,7 @@ The LLM is the product. It reasons, decides what to look up, and acts on what it
 | Tool-level dedup with skip_dedup bypass | Dedup happens in tool handler (not Claude reasoning), returns match info for Claude to present conversationally, skip_dedup param for explicit override | ✓ Good -- keeps dedup deterministic, UX flexible |
 | Centralized message module with pickRandom variants | All bot-initiated messages in src/bot/messages.ts, each with 3-5 Sous-personality variants, random selection at runtime | ✓ Good -- single source of truth, natural variation, easy to extend |
 
+| Migration 001 sqlite_master guard for fresh installs | Migrations targeting tables created by init functions must check table existence first -- skip if table doesn't exist, init function handles fresh DBs | ✓ Good -- pattern reusable for future migrations that ALTER init-created tables |
+
 ---
-*Last updated: 2026-02-20 after Phase 27*
+*Last updated: 2026-02-21 after Phase 31 (v1.4 complete)*

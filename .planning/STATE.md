@@ -50,7 +50,7 @@ All decisions documented in PROJECT.md Key Decisions table.
 
 ### Pending Todos
 
-8 pending todos in `.planning/todos/pending/`.
+9 pending todos in `.planning/todos/pending/`.
 
 ### Blockers/Concerns
 

@@ -83,8 +83,8 @@ None -- all requirements for v1.0-v1.4 validated.
 
 ## Context
 
-- **Current state:** v1.4 complete. All 31 phases shipped across 5 milestones. 66 plans total. ~24,000 LOC TypeScript.
-- **Tech stack:** Node.js 22, TypeScript (ESM), grammY, better-sqlite3/Drizzle, Anthropic SDK, Pino, Express, React+Vite (Mini App SPA), @telegram-apps SDK
+- **Current state:** v1.4 shipped. All 31 phases across 5 milestones. 66 plans total. ~13,177 LOC TypeScript.
+- **Tech stack:** Node.js 22, TypeScript (ESM), grammY, better-sqlite3/Drizzle, Anthropic SDK, Pino, Express, React+Vite (Mini App SPA), @telegram-apps SDK, cheerio (URL import)
 - **Primary user:** Home cook who loves cooking, time-constrained on weekdays, more flexible weekends
 - **Household:** Partner + 9-month-old. Partner now has access via invite system (v1.2).
 - **Dinner target:** 6pm daily
@@ -94,20 +94,13 @@ None -- all requirements for v1.0-v1.4 validated.
 - **Mini App model:** Hybrid — bot stays primary, Mini Apps open from chat buttons for visual tasks
 - **Frontend:** React+Vite SPA inside Telegram Web Apps, served by existing Express server at /app/*
 - **Known issues:** None current
-- **Next step:** Complete v1.4 milestone, create PR to main
+- **Next step:** Create PR to main, deploy
 
-## Current Milestone: v1.4 Backlog Sweep — COMPLETE
+## Latest Milestone: v1.4 Backlog Sweep — SHIPPED 2026-02-21
 
-**Goal:** Clear the accumulated todo backlog — fix knowledge duplication bugs, add recipe import (URL + photo), improve notification personality, add update notifications, and establish a data migration framework.
+**Delivered:** Recipe import (URL + photo), knowledge dedup, Sous-personality notifications, update notifications, migration framework.
 
-**Shipped features (7 phases, 7 plans):**
-- Data migration framework with PRAGMA user_version (Phase 25)
-- Knowledge dedup with FTS5+BM25 threshold (Phase 26)
-- Notification tone overhaul with Sous personality (Phase 27)
-- Recipe URL import via JSON-LD/Microdata/Claude fallback (Phase 28)
-- Recipe photo import via Claude vision (Phase 29)
-- Lazy-delivery update notifications per household (Phase 30)
-- Audit defect fixes: migration guard, source_url retrieval, BM25 threshold (Phase 31)
+See .planning/MILESTONES.md for full history of all 5 milestones.
 
 ## Constraints
 

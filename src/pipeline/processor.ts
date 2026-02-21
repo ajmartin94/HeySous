@@ -126,7 +126,7 @@ export function createProcessor(deps: ProcessorDeps) {
 
       // c2. Check for pending update notifications (lazy delivery)
       if (!config.isDev) {
-        const notification = checkPendingNotification(deps.sqlite, householdId);
+        const notification = checkPendingNotification(deps.sqlite, userId);
         if (notification) {
           try {
             await sendFormattedMessage(ctx, notification);

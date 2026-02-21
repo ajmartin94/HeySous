@@ -50,6 +50,31 @@ export const migrations: Migration[] = [
       `);
     },
   },
+  {
+    version: 3,
+    name: "notification-deliveries-per-user",
+    up: (sqlite) => {
+      sqlite.exec(`
+        CREATE TABLE notification_deliveries_new (
+          notification_id INTEGER NOT NULL REFERENCES notifications(id),
+          user_id TEXT NOT NULL,
+          delivered_at INTEGER NOT NULL DEFAULT (unixepoch()),
+          PRIMARY KEY (notification_id, user_id)
+        )
+      `);
+      // Migrate: mark all users in already-delivered households as delivered
+      sqlite.exec(`
+        INSERT INTO notification_deliveries_new (notification_id, user_id, delivered_at)
+        SELECT nd.notification_id, u.telegram_id, nd.delivered_at
+        FROM notification_deliveries nd
+        JOIN users u ON u.household_id = nd.household_id
+      `);
+      sqlite.exec("DROP TABLE notification_deliveries");
+      sqlite.exec(
+        "ALTER TABLE notification_deliveries_new RENAME TO notification_deliveries",
+      );
+    },
+  },
 ];
 
 export function runMigrations(sqlite: BetterSqlite3.Database): void {

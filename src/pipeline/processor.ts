@@ -43,7 +43,8 @@ import { buildGroceryKeyboard } from "../grocery/buttons.js";
 import { getPreferenceSummaries } from "../knowledge/preferences.js";
 import { checkPendingNotification } from "../notifications/update-notifier.js";
 import { config } from "../config.js";
-import { buildSystemPrompt } from "../ai/system-prompt.js";
+import { buildStaticPrompt, buildDynamicContext } from "../ai/system-prompt.js";
+import type { SystemPromptInput } from "../ai/claude-client.js";
 import { extractOnboardingMarker, getNextOnboardingState } from "../onboarding/state.js";
 import { buildOnboardingPrompt } from "../onboarding/prompt.js";
 import { updateOnboardingState } from "../users/repository.js";
@@ -58,13 +59,13 @@ const TIMEOUT_WARNING_MS = 30_000;
 const CONVERSATION_TOKEN_BUDGET = 2000;
 
 interface ClaudeClient {
-  sendMessage(userMessages: string[], systemPrompt?: string): Promise<ClaudeResponse>;
+  sendMessage(userMessages: string[], systemPrompt?: SystemPromptInput): Promise<ClaudeResponse>;
   sendMessageWithTools(
     messages: Anthropic.MessageParam[],
     tools: Anthropic.Tool[],
     onToolCall: (name: string, input: Record<string, unknown>) => string | Promise<string>,
     maxIterations?: number,
-    systemPrompt?: string,
+    systemPrompt?: SystemPromptInput,
   ): Promise<ClaudeResponse>;
 }
 
@@ -271,7 +272,19 @@ export function createProcessor(deps: ProcessorDeps) {
         }
       }
 
-      const systemPrompt = buildSystemPrompt(preferences, planContext, groceryContext, reminderContext, feedbackContext, userName, onboardingContext, appFeedbackContext, dateContext, config.miniAppUrl);
+      const staticPrompt = buildStaticPrompt(config.miniAppUrl);
+      const dynamicContext = buildDynamicContext({
+        preferences,
+        planContext,
+        groceryContext,
+        reminderContext,
+        feedbackContext,
+        userName,
+        onboardingContext,
+        appFeedbackContext,
+        dateContext,
+      });
+      const systemPrompt: SystemPromptInput = { static: staticPrompt, dynamic: dynamicContext };
 
       // i. 30-second timeout warning timer
       let timeoutFired = false;

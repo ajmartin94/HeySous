@@ -4,6 +4,45 @@ import type { ClaudeResponse, TokenUsage } from "./types.js";
 import { MODEL_PRICING } from "./types.js";
 
 /**
+ * System prompt input -- either a single string (backward compatible) or
+ * a static/dynamic split for two-block prompt caching.
+ *
+ * When an object is provided:
+ * - static: Stable instruction content, cached via cache_control
+ * - dynamic: Per-request context (preferences, plans, etc.), NOT cached
+ */
+export type SystemPromptInput = string | { static: string; dynamic: string };
+
+/**
+ * Build Anthropic system content blocks from a SystemPromptInput.
+ *
+ * - String input: single block with cache_control (backward compatible)
+ * - Object input: two blocks -- static with cache_control, dynamic without
+ */
+function buildSystemBlocks(input: SystemPromptInput): Anthropic.TextBlockParam[] {
+  if (typeof input === "string") {
+    return [
+      {
+        type: "text" as const,
+        text: input,
+        cache_control: { type: "ephemeral" as const },
+      },
+    ];
+  }
+  return [
+    {
+      type: "text" as const,
+      text: input.static,
+      cache_control: { type: "ephemeral" as const },
+    },
+    {
+      type: "text" as const,
+      text: input.dynamic,
+    },
+  ];
+}
+
+/**
  * Calculate estimated USD cost from token usage and model pricing.
  * Returns 0 for unknown models.
  */
@@ -48,21 +87,16 @@ export function createClaudeClient(apiKey: string, model: string) {
      */
     async sendMessage(
       userMessages: string[],
-      systemPrompt?: string,
+      systemPrompt?: SystemPromptInput,
     ): Promise<ClaudeResponse> {
       const prompt = systemPrompt ?? buildSystemPrompt();
+      const systemBlocks = buildSystemBlocks(prompt);
       const combinedUserText = userMessages.join("\n\n");
 
       const response = await client.messages.create({
         model,
         max_tokens: 2048,
-        system: [
-          {
-            type: "text" as const,
-            text: prompt,
-            cache_control: { type: "ephemeral" as const },
-          },
-        ],
+        system: systemBlocks,
         messages: [{ role: "user" as const, content: combinedUserText }],
       });
 
@@ -111,16 +145,10 @@ export function createClaudeClient(apiKey: string, model: string) {
       tools: Anthropic.Tool[],
       onToolCall: (name: string, input: Record<string, unknown>) => string | Promise<string>,
       maxIterations: number = DEFAULT_MAX_ITERATIONS,
-      systemPrompt?: string,
+      systemPrompt?: SystemPromptInput,
     ): Promise<ClaudeResponse> {
       const prompt = systemPrompt ?? buildSystemPrompt();
-      const systemBlock = [
-        {
-          type: "text" as const,
-          text: prompt,
-          cache_control: { type: "ephemeral" as const },
-        },
-      ];
+      const systemBlock = buildSystemBlocks(prompt);
 
       // Aggregate token usage across all iterations
       const totalUsage: TokenUsage = {

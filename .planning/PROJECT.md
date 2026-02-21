@@ -61,28 +61,30 @@ The LLM is the product. It reasons, decides what to look up, and acts on what it
 - ✓ Onboarding pushes users to add existing recipes first — v1.3 Phase 24
 - ✓ Fix intermittent date bugs in meal plans (timezone-aware date pipeline) — v1.3 Phase 20
 - ✓ Fix start_cooking reminder to account for prep time — v1.3 Phase 20
+- ✓ Data migration framework: lightweight numbered migration runner with PRAGMA user_version — v1.4 Phase 25
+- ✓ Knowledge dedup: save_knowledge returns existing match instead of creating duplicates; update_knowledge rejects no-op calls — v1.4 Phase 26
+- ✓ Notification tone: centralized message module with Sous personality variants for all bot-initiated messages — v1.4 Phase 27
+- ✓ Recipe import from URL: fetch and parse recipe from a link (JSON-LD/Microdata/Claude fallback) — v1.4 Phase 28
+- ✓ Recipe import from photo: use Claude vision to extract recipe from images — v1.4 Phase 29
+- ✓ Bot update notifications: lazy-delivery "what's new" per household — v1.4 Phase 30
+- ✓ Audit defect fixes: migration fresh-install guard, source_url end-to-end, BM25 threshold — v1.4 Phase 31
 
 ### Active
 
-(No active requirements -- planning next milestone)
+None -- all requirements for v1.0-v1.4 validated.
 
 ### Out of Scope
 
-- URL recipe import -- conversational entry sufficient for now
-- Photo/image recipe capture -- requires vision pipeline, defer
 - Voice interaction / cooking mode -- future capability
 - Monetization / paid features -- personal dogfooding first
 - Nutritional tracking / calorie counting -- changes product from cooking partner to diet app
 - Recipe catalog / discovery database -- this is YOUR recipes, not a browsable catalog
 - Grocery delivery integration -- user shops in-person at Kroger/Costco
-- Bot update notification system -- deferred to future milestone
-- Data migration framework -- deferred to future milestone
-- Web search + picture analysis for byo-recipe -- deferred to future milestone
 
 ## Context
 
-- **Current state:** v1.3 shipped. All 24 phases across 4 milestones complete. ~22,650 LOC TypeScript (18,685 server + 3,966 Mini App). 59 plans total across 24 phases.
-- **Tech stack:** Node.js 22, TypeScript (ESM), grammY, better-sqlite3/Drizzle, Anthropic SDK, Pino, Express, React+Vite (Mini App SPA), @telegram-apps SDK
+- **Current state:** v1.4 shipped. All 31 phases across 5 milestones. 66 plans total. ~13,177 LOC TypeScript.
+- **Tech stack:** Node.js 22, TypeScript (ESM), grammY, better-sqlite3/Drizzle, Anthropic SDK, Pino, Express, React+Vite (Mini App SPA), @telegram-apps SDK, cheerio (URL import)
 - **Primary user:** Home cook who loves cooking, time-constrained on weekdays, more flexible weekends
 - **Household:** Partner + 9-month-old. Partner now has access via invite system (v1.2).
 - **Dinner target:** 6pm daily
@@ -91,14 +93,14 @@ The LLM is the product. It reasons, decides what to look up, and acts on what it
 - **First-run flow:** Onboarding guides new users through preferences → tour → seed 3-5 go-to recipes (v1.3 refinement)
 - **Mini App model:** Hybrid — bot stays primary, Mini Apps open from chat buttons for visual tasks
 - **Frontend:** React+Vite SPA inside Telegram Web Apps, served by existing Express server at /app/*
-- **Known issues:** save_knowledge duplicate prevention needs design decision (auto-upsert vs title uniqueness)
-- **Next step:** Plan next milestone (/gsd:new-milestone)
+- **Known issues:** None current
+- **Next step:** Create PR to main, deploy
 
-## Latest Milestone: v1.3 AI Polish & UX (Shipped 2026-02-19)
+## Latest Milestone: v1.4 Backlog Sweep — SHIPPED 2026-02-21
 
-**Delivered:** Smarter implicit AI behaviors, recipe variation handling, grocery store preferences, Mini App recipe deletion, bug fixes, and directive onboarding recipe seeding.
+**Delivered:** Recipe import (URL + photo), knowledge dedup, Sous-personality notifications, update notifications, migration framework.
 
-**Next milestone:** Not yet planned. Run `/gsd:new-milestone` to start.
+See .planning/MILESTONES.md for full history of all 5 milestones.
 
 ## Constraints
 
@@ -148,6 +150,11 @@ The LLM is the product. It reasons, decides what to look up, and acts on what it
 | Optional onDelete prop for shared detail components | RecipeDetail used by both Recipes and MealPlan pages; onDelete optional so delete only appears where appropriate | ✓ Good -- avoids breaking MealPlan page, clean conditional rendering |
 | Cascading delete with manual cooking_history cleanup | cooking_history has no ON DELETE CASCADE FK; delete manually before knowledge_items (which cascades tags + FTS5) | ✓ Good -- ensures complete cleanup without orphaned records |
 | Directive onboarding recipe prompting with soft target | Ask for 3-5 go-to meals with concrete questions and first meal plan motivation, gentle encouragement but no hard gate | ✓ Good -- balances directiveness with user comfort |
+| PRAGMA user_version for migration tracking | Single integer stored in SQLite header, no migrations table needed, inspectable via CLI | ✓ Good -- ~50 LOC runner, simpler than table-based approaches |
+| Tool-level dedup with skip_dedup bypass | Dedup happens in tool handler (not Claude reasoning), returns match info for Claude to present conversationally, skip_dedup param for explicit override | ✓ Good -- keeps dedup deterministic, UX flexible |
+| Centralized message module with pickRandom variants | All bot-initiated messages in src/bot/messages.ts, each with 3-5 Sous-personality variants, random selection at runtime | ✓ Good -- single source of truth, natural variation, easy to extend |
+
+| Migration 001 sqlite_master guard for fresh installs | Migrations targeting tables created by init functions must check table existence first -- skip if table doesn't exist, init function handles fresh DBs | ✓ Good -- pattern reusable for future migrations that ALTER init-created tables |
 
 ---
-*Last updated: 2026-02-19 after v1.3 milestone*
+*Last updated: 2026-02-21 after Phase 31 (v1.4 complete)*

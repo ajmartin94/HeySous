@@ -102,14 +102,14 @@ export function createClaudeClient(apiKey: string, model: string) {
      *
      * @param messages - Full message array including conversation history
      * @param tools - Anthropic tool definitions
-     * @param onToolCall - Synchronous callback to handle tool calls
+     * @param onToolCall - Callback to handle tool calls (sync or async)
      * @param maxIterations - Maximum tool use iterations (default 5)
      * @returns ClaudeResponse with aggregated usage from all iterations
      */
     async sendMessageWithTools(
       messages: Anthropic.MessageParam[],
       tools: Anthropic.Tool[],
-      onToolCall: (name: string, input: Record<string, unknown>) => string,
+      onToolCall: (name: string, input: Record<string, unknown>) => string | Promise<string>,
       maxIterations: number = DEFAULT_MAX_ITERATIONS,
       systemPrompt?: string,
     ): Promise<ClaudeResponse> {
@@ -196,9 +196,9 @@ export function createClaudeClient(apiKey: string, model: string) {
 
         // Handle tool calls (with error resilience -- catch exceptions and return is_error)
         const toolResults: Anthropic.ToolResultBlockParam[] =
-          toolUseBlocks.map((block) => {
+          await Promise.all(toolUseBlocks.map(async (block) => {
             try {
-              const result = onToolCall(
+              const result = await onToolCall(
                 block.name,
                 block.input as Record<string, unknown>,
               );
@@ -217,7 +217,7 @@ export function createClaudeClient(apiKey: string, model: string) {
                 is_error: true,
               };
             }
-          });
+          }));
 
         // Append assistant response + all tool results in ONE user message
         // (per research pitfall 3: all tool_results immediately after assistant)

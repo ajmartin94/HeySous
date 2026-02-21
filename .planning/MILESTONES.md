@@ -102,3 +102,30 @@
 
 ---
 
+
+## v1.4 Backlog Sweep (Shipped: 2026-02-21)
+
+**Delivered:** Recipe import capabilities (URL + photo), knowledge dedup, Sous-personality notification tone, update notifications, and a data migration framework — clearing the accumulated backlog.
+
+**Phases completed:** 25-31 (7 plans total)
+
+**Key accomplishments:**
+- Data migration framework with PRAGMA user_version — forward-only runner integrated into database init
+- Knowledge dedup with FTS5+BM25 duplicate detection, user-driven resolution (never auto-merges)
+- Sous personality everywhere — centralized message module with randomized variants replaces all inline strings
+- Recipe URL import via 3-strategy extraction pipeline (JSON-LD → Microdata → Claude fallback) with confirmation
+- Recipe photo import via Claude vision through the message pipeline — snap a cookbook page and Sous extracts it
+- Lazy-delivery "what's new" update notifications tracked per household
+
+**Stats:**
+- 36 files modified
+- 2,752 insertions, 101 deletions (~13,177 total LOC)
+- 7 phases, 7 plans
+- 2 days execution (2026-02-19 → 2026-02-20), ~19 minutes total
+
+**Git range:** `8d6cb49` (feat(25-01)) → `1473405` (fix(31-01))
+
+**What's next:** Planning next milestone
+
+---
+

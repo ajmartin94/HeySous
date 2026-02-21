@@ -7,6 +7,7 @@ export const knowledgeItems = sqliteTable("knowledge_items", {
   summary: text("summary").notNull(),
   content: text("content").notNull(),
   source: text("source"),
+  sourceUrl: text("source_url"),
   createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()
     .$defaultFn(() => new Date()),

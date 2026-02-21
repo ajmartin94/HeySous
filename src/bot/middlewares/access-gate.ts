@@ -12,6 +12,7 @@ import type { BotContext } from "../context.js";
 import { getUserByTelegramId } from "../../users/repository.js";
 import type { User } from "../../users/types.js";
 import { logger } from "../../logger.js";
+import { getAccessGateMessage } from "../messages.js";
 
 interface AccessGateDeps {
   sqlite: BetterSqlite3.Database;
@@ -52,9 +53,7 @@ export function createAccessGate(deps: AccessGateDeps): AccessGateResult {
 
     if (!user) {
       logger.debug({ telegramId }, "Access gate: unregistered user blocked");
-      return ctx.reply(
-        "Hey! I'm an invite-only bot. Ask the person who told you about me for an invite link!",
-      );
+      return ctx.reply(getAccessGateMessage());
     }
 
     // Inject identity into context for downstream handlers

@@ -1,743 +1,500 @@
-# Architecture Research
+# Architecture Patterns
 
-**Domain:** Multi-user Telegram bot with household sharing, invite system, onboarding, and feedback
-**Researched:** 2026-02-10
-**Confidence:** HIGH (based on thorough codebase analysis + well-established Telegram Bot API and grammY patterns)
+**Domain:** v1.4 Backlog Sweep -- Recipe import (URL + photo), knowledge dedup, migration framework, update notifications, notification tone
+**Researched:** 2026-02-19
+**Confidence:** HIGH (based on thorough codebase analysis + official Anthropic docs + grammY docs)
 
 ## System Overview
 
-### Current Architecture (v1.1)
+v1.4 introduces six features that touch three distinct layers of the existing architecture:
+
+1. **AI Layer** (src/ai/) -- New tools, vision support, system prompt additions
+2. **Bot Layer** (src/bot/) -- Photo message handling, notification delivery
+3. **Infrastructure Layer** (src/db/) -- Migration framework
 
 ```
-Telegram User  --->  Telegram Bot API
-                          |
-                    [grammY webhook/poll]
-                          |
-                    [Middleware Pipeline]
-                    1. hydrateReply
-                    2. autoChatAction
-                    3. db injection
-                    4. callback handlers (grocery, feedback)
-                    5. command handlers (/start, /costs, etc.)
-                    6. feedbackTextHandler
-                    7. messageHandler (catch-all -> debounce queue)
-                          |
-                    [Pipeline Processor]
-                    messages -> context build -> Claude call w/ tools -> response
-                          |
-              +-----------+-----------+
-              |           |           |
-         Knowledge    Planning    Grocery    Reminders    Feedback
-         (FTS5)       (Plans)    (Lists)    (Poller)     (Check-ins)
-              |           |           |           |           |
-              +-----+-----+-----+-----+-----+-----+-----+---+
-                          |
-                    [SQLite via better-sqlite3]
-                    (single file, WAL mode)
-                          |
-                    [Express Server]
-                    /webhook, /api, /app (Mini App SPA)
+                     Telegram
+                        |
+                   [grammY Bot]
+                   /    |     \
+           [text]  [photo]  [callback]
+              |       |
+        [MessageQueue + Debounce]
+              |       |
+        [Pipeline Processor] ---- assembles user content (text + images)
+              |
+        [Claude API] ---- tools + vision
+         /    |    \
+   [save_knowledge]  [import_from_url]  [import_from_photo]
+         \    |    /
+     [Knowledge Repository] ---- dedup search-before-save
+              |
+         [SQLite DB] ---- managed by migration framework (PRAGMA user_version)
+              |
+     [Startup Routine] ---- version check + update notifications
 ```
 
-**Key observation:** All data is currently keyed by `chatId` (which equals `ctx.chat.id` as a string). In a private Telegram chat, `chat.id == user.id`, so chatId and userId are interchangeable today. The codebase already captures `userId` from `ctx.from?.id` in the message handler but only uses `chatId` for data queries.
+### New Components (to be created)
 
-### Target Architecture (v1.2)
+| Component | Location | Type |
+|-----------|----------|------|
+| Recipe URL fetcher | `src/knowledge/url-import.ts` | Utility module |
+| Photo message handler | `src/bot/handlers/message.ts` | Extension of existing handler |
+| Migration runner | `src/db/migrations.ts` | Infrastructure module (~50 LOC) |
+| Migration scripts | `src/db/migrations/` | Numbered TS files |
+| Update notifier | `src/notifications/update-notifier.ts` | Startup routine |
 
-```
-Telegram User  --->  t.me/HeySousBot?start=INVITE_TOKEN
-                          |
-                    [grammY webhook/poll]
-                          |
-                    [Middleware Pipeline]
-                    1. hydrateReply
-                    2. autoChatAction
-                    3. db injection
-                    4. ACCESS GATE (new) -- verify user registered, else redirect to /start
-                    5. HOUSEHOLD RESOLVER (new) -- resolve userId -> householdId, inject ctx
-                    6. callback handlers (grocery, feedback)
-                    7. ONBOARDING ROUTER (new) -- intercept if onboarding in progress
-                    8. command handlers (/start w/ invite, /feedback, etc.)
-                    9. feedbackTextHandler
-                    10. messageHandler (catch-all)
-                          |
-                    [Pipeline Processor]
-                    (now uses householdId for shared data, userId for personal data)
-                          |
-              +-----------+--+--------+-----------+-----------+
-              |              |        |           |           |
-         Knowledge      Planning  Grocery    Reminders    Feedback    Users (new)
-         (FTS5)         (Plans)   (Lists)    (Poller)     (App-level) Households (new)
-              |              |        |           |           |        Invites (new)
-              +--------------+--------+-----------+-----------+--------+
-                          |
-                    [SQLite via better-sqlite3]
-                          |
-                    [Express Server]
-                    /webhook, /api, /app, /admin (new)
-```
+### New Dependency
+
+| Package | Purpose |
+|---------|---------|
+| cheerio ^1.2.0 | HTML parsing for JSON-LD + Microdata extraction from recipe pages |
+
+### Modified Components (existing files that change)
+
+| Component | File | Changes |
+|-----------|------|---------|
+| Tool definitions | `src/ai/tools.ts` | Add `import_from_url` tool |
+| Tool handler | `src/ai/tool-handler.ts` | Add URL import case (async), modify `save_knowledge` for dedup, fix `update_knowledge` validation |
+| System prompt | `src/ai/system-prompt.ts` | Recipe import instructions, notification tone overhaul |
+| Message handler | `src/bot/handlers/message.ts` | Handle `message:photo` in addition to `message:text` |
+| Message queue | `src/pipeline/message-queue.ts` | Support image attachments in batch messages |
+| Pipeline processor | `src/pipeline/processor.ts` | Build multimodal content blocks (image + text) for Claude |
+| Database init | `src/db/index.ts` | Call migration runner before init functions |
+| Main entry | `src/main.ts` | Run update notifications on startup |
 
 ## Component Responsibilities
 
-### New Components
+### 1. Recipe URL Import (`src/knowledge/url-import.ts`)
 
-| Component | Responsibility | Location |
-|-----------|---------------|----------|
-| **users table + repository** | Store registered users with Telegram user ID, display name, household assignment, onboarding state | `src/users/` |
-| **households table + repository** | Group users into households, manage shared data ownership | `src/users/` (same module -- 1:N relationship) |
-| **invites table + repository** | Single-use invite tokens, deep link generation, redemption tracking | `src/invites/` |
-| **access gate middleware** | Block unregistered users from all handlers except /start | `src/bot/middlewares/access-gate.ts` |
-| **household resolver middleware** | Look up user's household from DB, inject `householdId` into context | `src/bot/middlewares/household-resolver.ts` |
-| **onboarding state machine** | Track user through preference Q&A, capability tour, seed recipe flow | `src/onboarding/` |
-| **app feedback system** | /feedback command, silent sentiment detection, admin dashboard | `src/app-feedback/` (distinct from existing meal feedback) |
-| **admin API routes** | Feedback dashboard data endpoints | `src/mini-app/routes/admin.ts` |
+**Responsibility:** Fetch a URL, extract recipe structured data via cheerio, return normalized recipe content.
 
-### Modified Components
+**Why a separate module (not inline in tool handler):** URL fetching involves HTTP, HTML parsing, and JSON-LD/Microdata extraction -- too much logic for the tool handler switch case. The tool handler calls this module and gets back a clean result.
 
-| Component | What Changes | Why |
-|-----------|-------------|-----|
-| **BotContext** (`src/bot/context.ts`) | Add `userId`, `householdId`, `user` fields to context type | Every handler needs resolved identity |
-| **startHandler** (`src/bot/handlers/start.ts`) | Handle invite token from `ctx.match`, create user, join household | Deep link entry point |
-| **Pipeline Processor** (`src/pipeline/processor.ts`) | Use `householdId` instead of `chatId` for shared data queries | Household sharing |
-| **Tool Handler** (`src/ai/tool-handler.ts`) | Pass `householdId` to repositories for shared data | Knowledge, plans, grocery are household-scoped |
-| **Knowledge Repository** | Query by `householdId` instead of `chatId` | Recipes shared across household |
-| **Plan Repository** | Query by `householdId` instead of `chatId` | Meal plans shared |
-| **Grocery Repository** | Query by `householdId` instead of `chatId` | Grocery lists shared |
-| **Reminder Repository** | Keep per-user (not household) for notification preferences | Different users want different reminder times |
-| **FTS5 search** (`src/knowledge/fts.ts`) | Filter by `householdId` instead of `chatId` | Shared recipe search |
-| **Mini App auth** (`src/mini-app/auth-middleware.ts`) | Resolve `householdId` from authenticated user | API needs household scope |
-| **All existing init.ts files** | Migration logic to add `household_id` columns | Schema evolution |
-| **System prompt** (`src/ai/system-prompt.ts`) | Add household context (who's in household, member names) | Claude needs to know about multi-user |
+**Approach:** Three-strategy extraction pipeline using cheerio:
+1. **Strategy A (preferred):** Parse HTML with cheerio, extract JSON-LD `<script type="application/ld+json">` with `@type: "Recipe"` (schema.org). Handle `@graph` nesting, arrays, and multiple script blocks. Most major recipe sites include this.
+2. **Strategy B (fallback 1):** Extract Microdata via cheerio (`itemprop="recipeIngredient"`, `itemprop="recipeInstructions"`, etc.). Handles older recipe sites that use Microdata instead of JSON-LD.
+3. **Strategy C (fallback 2):** Return truncated page text for Claude to parse. Handles sites without any structured data.
 
-### Unchanged Components
-
-| Component | Why Unchanged |
-|-----------|--------------|
-| **Claude client** (`src/ai/claude-client.ts`) | AI interface stays the same |
-| **Message queue** (`src/pipeline/message-queue.ts`) | Debounce keyed by chatId still correct (private chats) |
-| **Telegram sender/formatter** | Output formatting unchanged |
-| **Express server structure** (`src/server.ts`) | Just adds routes |
-| **Mini App SPA** (`mini-app/`) | Existing views work with household data transparently via API |
-
-## Recommended Project Structure
-
+**Data flow:**
 ```
-src/
-  users/                      # NEW
-    schema.ts                 # users, households Drizzle schema
-    init.ts                   # CREATE TABLE for users, households
-    repository.ts             # CRUD for users and households
-    types.ts                  # User, Household interfaces
-  invites/                    # NEW
-    init.ts                   # CREATE TABLE for invite_tokens
-    repository.ts             # Create, redeem, validate tokens
-    deep-link.ts              # Generate t.me/BotName?start=TOKEN URLs
-    types.ts                  # InviteToken interface
-  onboarding/                 # NEW
-    state-machine.ts          # Onboarding state transitions
-    preference-questions.ts   # Q&A flow definition (deterministic questions)
-    tour.ts                   # Capability tour message sequence
-    seed-recipes.ts           # Starter recipe suggestions
-    handler.ts                # grammY Composer for onboarding flow
-    types.ts                  # OnboardingState, OnboardingStep enums
-  app-feedback/               # NEW (distinct from existing meal feedback/)
-    init.ts                   # CREATE TABLE for app_feedback
-    repository.ts             # App feedback CRUD
-    handler.ts                # /feedback command handler
-    detector.ts               # Silent sentiment extraction from messages
-    admin-routes.ts           # Express routes for dashboard
-    types.ts                  # AppFeedback interface
-  bot/
-    context.ts                # MODIFIED -- add userId, householdId, user
-    middlewares/
-      access-gate.ts          # NEW -- block unregistered users
-      household-resolver.ts   # NEW -- resolve user -> household
-      error-handler.ts        # unchanged
-    handlers/
-      start.ts                # MODIFIED -- handle invite deep links
-      ...                     # other handlers unchanged
-  ...                         # existing modules unchanged
+User sends URL message -> Claude calls import_from_url tool
+  -> fetchAndParseRecipe(url)
+    -> HTTP fetch with 10s timeout + browser-like User-Agent
+    -> Parse HTML with cheerio
+    -> Try JSON-LD extraction (find Recipe in @graph or top-level)
+    -> If not found: try Microdata extraction
+    -> If neither found: return truncated text for Claude to parse
+    -> Normalize result: parse ISO 8601 durations, strip HTML from text fields
+  -> Tool returns extracted recipe data to Claude
+  -> Claude formats and presents to user for confirmation
+  -> User approves -> Claude calls save_knowledge (with dedup check)
 ```
 
-### Structure Rationale
+**Key decisions:**
+- Use Node.js built-in `fetch()` (Node 22) -- no axios/node-fetch needed
+- Use cheerio for robust HTML parsing (handles malformed HTML, multiple script blocks, Microdata)
+- Set `AbortSignal.timeout(10_000)` and 2MB response size limit
+- Set browser-like User-Agent and Accept headers to avoid anti-scraping blocks
 
-**Why separate `users/` from `invites/`:** Users and invites have different lifecycles. Invites are transient (created, redeemed, expired). Users are permanent. Keeping them in separate modules follows the existing pattern where each domain has its own directory (grocery/, planning/, reminders/, feedback/).
+**Tool handler async concern:** The current `handleToolCall` returns `string` (synchronous). URL import requires async `fetch()`. Two options:
 
-**Why `app-feedback/` not extending existing `feedback/`:** The existing `feedback/` module handles meal-level feedback (how was dinner?). App feedback is a different domain (how is the app itself?). Conflating them would create confusion. The naming `app-feedback` makes the distinction clear.
-
-**Why `onboarding/` as a separate module:** Onboarding is a temporary state machine that runs once per user. It has its own flow, messages, and completion criteria. After completion, it is dormant. This is architecturally distinct from persistent handlers.
-
-## Architectural Patterns
-
-### Pattern 1: The chatId -> householdId Migration
-
-**What:** Systematically replace `chatId` with `householdId` for shared data, keep `chatId`/`userId` for personal data.
-
-**When:** All shared data access (knowledge, plans, grocery lists).
-
-**The key insight:** In the current system, `chatId = ctx.chat.id`, and in private chats `chat.id == from.id`. After the migration, the data ownership model splits into two scopes:
-
-```
-HOUSEHOLD-SCOPED (shared between household members):
-  knowledge_items.chat_id -> household_id
-  meal_plans.chat_id -> household_id
-  grocery_lists.chat_id -> household_id
-  cooking_history.chat_id -> household_id
-  feedback_checkins.chat_id -> household_id
-  knowledge_changelog.chat_id -> household_id
-
-USER-SCOPED (personal, per individual):
-  reminder_settings.chat_id (stays per-user -- each person wants their own times)
-  messages.chat_id (per-chat conversation history)
-  token_usage.chat_id (cost tracking per person)
-  user_preferences tagged 'subject:self' (personal dietary restrictions)
-
-NOTE on preferences:
-  Preferences tagged 'subject:household' (household size, shared store prefs)
-  are stored in knowledge_items (household-scoped), so they are shared.
-  Preferences tagged 'subject:self' are also in knowledge_items but
-  conceptually belong to the user. The agent handles this distinction
-  through the existing tag system -- no schema change needed.
-```
-
-**Migration approach:** Add a `household_id` column to shared tables. For existing single-user data, the migration sets `household_id = chat_id` (since the solo user forms a household of one). New data uses the resolved household ID. The `chat_id` column is retained for backward compatibility and can be dropped later.
-
-**Implementation pattern:**
-
+**Option A (preferred): Make handleToolCall async.**
+Change return type to `string | Promise<string>`. Update `claude-client.ts` to `await` the result:
 ```typescript
-// Before (current -- every repository method):
-const plan = planRepository.getPlan(chatId, weekStartDate);
-
-// After (v1.2):
-const plan = planRepository.getPlan(householdId, weekStartDate);
-// householdId comes from ctx.householdId, resolved by middleware
+const result = await onToolCall(block.name, block.input as Record<string, unknown>);
 ```
+This is a small type change that propagates cleanly.
 
-### Pattern 2: Invite-Gated Access via Telegram Deep Links
+**Option B: Pre-fetch URL before the Claude tool loop.**
+Detect URLs in the user message, fetch and parse before entering the pipeline. Inject parsed data as additional context. Claude sees the parsed recipe alongside the user's message. Downside: the bot pre-fetches every URL, even non-recipe links.
 
-**What:** Users can only access the bot through an invite link. The /start command with a payload registers the user.
+**Recommendation: Option A.** Making the handler async is a cleaner architectural change. Only the URL import case is actually async; all other cases return synchronously and the `await` is a no-op.
 
-**How it works in Telegram/grammY:**
+### 2. Photo Import (Vision Pipeline Extension)
 
-1. Admin generates invite token (stored in DB)
-2. Deep link URL: `https://t.me/HeySousBot?start=INVITE_abc123`
-3. User clicks link, Telegram opens chat and sends `/start INVITE_abc123`
-4. grammY's `bot.command('start')` handler receives the payload in `ctx.match`
-5. Bot validates token, creates user record, assigns to household
-6. Token is marked as redeemed (single-use)
+**Responsibility:** Allow users to send photos of recipes (from cookbooks, handwritten notes, screenshots) and have Claude extract the recipe using vision.
 
-**grammY deep link verification (from node_modules/grammy/out/composer.d.ts):**
-> "You can use deep linking to let users start your bot with a custom payload.
-> starts your bot, you will receive `custom-payload` in the `ctx.match` property."
+**Why extend the existing pipeline (not a separate tool):** Photo import is fundamentally different from URL import. The user sends a photo message -- there is no tool call involved. The photo goes directly to Claude as a multimodal message content block. Claude sees the image and naturally extracts the recipe from it, then offers to save it -- all within one conversation turn with full access to tools.
 
+**Architecture changes required:**
+
+**a) Message handler (`src/bot/handlers/message.ts`):**
 ```typescript
-// In start handler:
-startHandler.command("start", async (ctx) => {
-  const inviteToken = ctx.match; // deep link payload, e.g. "INVITE_abc123"
+// Current: only handles message:text
+messageHandler.on("message:text", (ctx) => { ... });
 
-  if (!inviteToken) {
-    // No token -- check if user is already registered
-    const user = userRepository.getByTelegramId(String(ctx.from.id));
-    if (user) {
-      await ctx.reply("Welcome back!");
-      return;
-    }
-    await ctx.reply(
-      "You need an invite link to use HeySous. Ask the household admin for one!"
-    );
+// New: also handle message:photo
+messageHandler.on("message:photo", async (ctx) => {
+  const photo = ctx.message.photo!;
+  const largest = photo[photo.length - 1]; // Telegram sends array, last = largest
+
+  // Check file size before download (5MB Anthropic API limit)
+  if (largest.file_size && largest.file_size > 5 * 1024 * 1024) {
+    await ctx.reply("That photo is a bit large for me. Try cropping or sending a smaller version.");
     return;
   }
 
-  // Validate and redeem token
-  const invite = inviteRepository.redeem(inviteToken, String(ctx.from.id));
-  if (!invite) {
-    await ctx.reply("That invite link is invalid or has already been used.");
-    return;
-  }
+  const file = await ctx.getFile();
+  const fileUrl = `https://api.telegram.org/file/bot${token}/${file.file_path}`;
+  const response = await fetch(fileUrl);
+  const buffer = Buffer.from(await response.arrayBuffer());
+  const base64 = buffer.toString("base64");
+  const caption = ctx.message.caption || "";
 
-  // Create user and assign to household
-  const user = userRepository.create({
-    telegramId: String(ctx.from.id),
-    displayName: ctx.from.first_name,
-    householdId: invite.householdId,
-  });
-
-  // Start onboarding
-  await onboardingHandler.start(ctx, user);
+  queue.enqueue(chatId, userId, caption, ctx, processBatch, [{ base64, mediaType: "image/jpeg" }]);
 });
 ```
 
-**Token format:** Use `crypto.randomUUID()` prefixed with `INV_` for readability. Tokens expire after 7 days. Single-use only.
-
-**Deep link URL format:** `https://t.me/HeySousBot?start=INV_xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`
-Note: Telegram allows 64 characters in the start parameter, base64 encoded. A UUID is 36 chars + 4 prefix = 40 chars, well within limits.
-
-### Pattern 3: Access Gate Middleware
-
-**What:** A middleware that intercepts all updates and blocks unregistered users.
-
-**When:** Every update except /start (which is the registration entry point).
-
-**Why needed:** Without the gate, unregistered users could trigger Claude API calls, access data, or interact with the bot. The gate ensures only invited users proceed past registration.
-
+**b) Message queue (`src/pipeline/message-queue.ts`):**
 ```typescript
-// src/bot/middlewares/access-gate.ts
-export function createAccessGate(userRepository: UserRepository) {
-  return async (ctx: BotContext, next: () => Promise<void>) => {
-    // Always allow /start command (registration entry point)
-    if (ctx.message?.text?.startsWith("/start")) {
-      return next();
-    }
-
-    // Always allow callback queries from registered users
-    // (grocery buttons, feedback buttons still need to work)
-
-    const telegramId = String(ctx.from?.id);
-    if (!telegramId || telegramId === "undefined") return;
-
-    const user = userRepository.getByTelegramId(telegramId);
-    if (!user) {
-      await ctx.reply(
-        "You need an invite link to use HeySous. "
-        + "Ask the household admin for one!"
-      );
-      return; // Block -- do not call next()
-    }
-
-    // Inject user info into context for downstream handlers
-    ctx.userId = user.telegramId;
-    ctx.householdId = user.householdId;
-    ctx.user = user;
-
-    return next();
-  };
+// Extend PendingBatch to support image attachments
+export interface PendingBatch {
+  chatId: string;
+  userId: string;
+  messages: Array<{ text: string; timestamp: Date }>;
+  images: Array<{ base64: string; mediaType: string }>; // NEW, default: []
+  ctx: unknown;
 }
 ```
 
-**Middleware order matters:** Access gate MUST run AFTER db injection but BEFORE all feature handlers. The updated middleware order becomes:
-
-```
-1. hydrateReply
-2. autoChatAction
-3. db injection
-4. ACCESS GATE          <-- new
-5. callback handlers (grocery, feedback)
-6. ONBOARDING ROUTER    <-- new
-7. command handlers
-8. feedbackTextHandler
-9. messageHandler
-```
-
-### Pattern 4: Onboarding State Machine
-
-**What:** A stateful flow that guides new users through setup.
-
-**When:** After invite redemption, until onboarding is complete.
-
-**State transitions:**
-
-```
-REGISTERED -> PREFERENCES_QA -> TOUR -> SEED_RECIPES -> COMPLETE
-
-States:
-  registered:      User just created, onboarding not started
-  preferences_qa:  Asking dietary restrictions, household size, dinner time, stores
-  tour:            Showing capability overview messages
-  seed_recipes:    Offering to save starter recipes
-  complete:        Onboarding finished, normal bot operation
-```
-
-**Why a state machine, not free-form conversation:** Onboarding needs deterministic progression. If Claude handles onboarding conversationally, it might skip steps, ask questions in random order, or fail to capture required preferences. A state machine guarantees all steps complete. The questions during `preferences_qa` ARE processed by Claude (to handle natural language answers like "I'm allergic to shellfish"), but the flow control (which question comes next) is deterministic.
-
-**Storage:** The onboarding state is stored in the `users` table as an `onboarding_state` column (text enum). This is simpler than a separate table since it is a 1:1 relationship with the user. An additional `onboarding_step` integer tracks progress within a state (e.g., which preference question they are on).
-
-**Interception pattern:** An onboarding middleware checks `ctx.user.onboardingState`. If not "complete", it routes messages to the onboarding handler instead of the normal pipeline.
-
+**c) Pipeline processor (`src/pipeline/processor.ts`):**
 ```typescript
-// Onboarding router middleware (inserted before normal handlers)
-export function createOnboardingRouter(onboardingHandler: OnboardingHandler) {
-  return async (ctx: BotContext, next: () => Promise<void>) => {
-    if (!ctx.user || ctx.user.onboardingState === "complete") {
-      return next(); // Normal flow
-    }
-    // Route to onboarding handler -- this consumes the update
-    return onboardingHandler.handle(ctx);
-  };
+// When building the user message, check for images in the batch
+if (batch.images && batch.images.length > 0) {
+  // Build multimodal content array
+  const content: Anthropic.ContentBlockParam[] = [];
+  for (const img of batch.images) {
+    content.push({
+      type: "image",
+      source: { type: "base64", media_type: img.mediaType, data: img.base64 },
+    });
+  }
+  if (userText) {
+    content.push({ type: "text", text: userText });
+  }
+  fullMessages.push({ role: "user", content });
+} else {
+  // Existing text-only path -- UNCHANGED
+  fullMessages.push({ role: "user", content: userText });
 }
 ```
 
-### Pattern 5: Extended BotContext
+**d) Claude client (`src/ai/claude-client.ts`):**
+The `sendMessageWithTools` method already accepts `Anthropic.MessageParam[]` which supports multimodal content blocks. No changes needed to the Claude client itself.
 
-**What:** The grammY context object is extended with user and household identity.
+**Data flow:**
+```
+User sends photo (with optional caption) to Telegram
+  -> grammY delivers message:photo event
+  -> Handler checks file size, downloads via Telegram Bot API
+  -> Converts to base64
+  -> Enqueues with image attachment (images array on PendingBatch)
+  -> Debounce timer fires
+  -> Processor builds multimodal content block (image before text)
+  -> Claude sees image + caption + system prompt + all tools
+  -> Claude responds: "I see a recipe for X! Here's what I got: [recipe]"
+  -> Claude offers to save -> user confirms -> save_knowledge (with dedup)
+```
+
+**Image limits:** Telegram delivers photos as JPEG, typically ~1280px on long edge. Claude accepts up to 5MB per image via API. At ~1280px, images are well within all Anthropic limits (~2,200 tokens per photo).
+
+### 3. Knowledge Dedup Fix (save_knowledge + update_knowledge)
+
+**Responsibility:** Prevent duplicate recipe cards. Fix the `update_knowledge` silent no-op bug.
+
+**Design philosophy:** Claude-driven dedup, not automatic. The tool provides data (similar items found), Claude reasons about it, and the user makes the final decision. This avoids the v1.3 auto-upsert problem where distinct recipes were wrongly merged.
+
+**Changes to `src/ai/tool-handler.ts`:**
+
+**a) save_knowledge dedup (search-before-save):**
+```typescript
+case "save_knowledge": {
+  const title = input.title as string;
+  // Search for existing items with similar title (recipe dedup)
+  const { results } = retrievalService.search(householdId, title, 3);
+
+  // Check for exact title match (case-insensitive) -- strongest dedup signal
+  const exactMatch = results.find(r =>
+    r.title.toLowerCase() === title.toLowerCase()
+  );
+
+  if (exactMatch) {
+    return JSON.stringify({
+      warning: "duplicate_detected",
+      message: `Found existing item "${exactMatch.title}" (ID: ${exactMatch.id}). Use update_knowledge to modify it, or save with a different title if this is a distinct recipe.`,
+      existingItem: { id: exactMatch.id, title: exactMatch.title, summary: exactMatch.summary },
+    });
+  }
+
+  // Check for similar matches (weaker signal -- inform Claude but don't block)
+  const similarItems = results.filter(r => r.tags.includes("recipe")).slice(0, 2);
+  // ... proceed with normal save, include similar items in response for Claude's awareness
+}
+```
+
+**b) update_knowledge validation:**
+```typescript
+case "update_knowledge": {
+  // Validate at least one content field is provided
+  if (title === undefined && summary === undefined && content === undefined && tags === undefined) {
+    return JSON.stringify({
+      error: "No update fields provided. Include at least one of: title, summary, content, tags.",
+    });
+  }
+  // ... rest of existing handler
+}
+```
+
+**c) System prompt update:**
+Add to `<recipe_management>` section:
+```
+DEDUP BEHAVIOR:
+- save_knowledge checks for duplicates before saving
+- If it returns a "duplicate_detected" warning with an existing item, evaluate whether they are truly the same recipe
+- Same recipe, different source: use update_knowledge on the existing item
+- Different recipe, similar name: save with a more specific title to differentiate
+- Ask the user if you are unsure
+```
+
+### 4. Data Migration Framework (`src/db/migrations.ts`)
+
+**Responsibility:** Run numbered, idempotent migration scripts on startup. Track which have run via `PRAGMA user_version`.
+
+**Why `PRAGMA user_version`:** It is a single integer built into SQLite -- zero schema overhead, reads/writes atomically, no extra table needed. Sufficient for sequential migrations (no cherry-picking needed in this project).
+
+**Why build our own:** ~50 LOC. The project already has ad-hoc migrations. A dedicated runner is simple and avoids adding a dependency for trivial functionality.
+
+**Design:**
 
 ```typescript
-// src/bot/context.ts (modified)
-import type { User } from "../users/types.js";
+// src/db/migrations.ts
+import type BetterSqlite3 from "better-sqlite3";
+import type { Logger } from "pino";
 
-export type BotContext = ParseModeFlavor<Context & AutoChatActionFlavor> & {
-  db: DrizzleDatabase;
-  userId?: string;        // Telegram user ID (string)
-  householdId?: string;   // Resolved household ID
-  user?: User;            // Full user record from DB
+export interface Migration {
+  version: number;
+  description: string;
+  up: (sqlite: BetterSqlite3.Database) => void;
+}
+
+export function runMigrations(
+  sqlite: BetterSqlite3.Database,
+  migrations: Migration[],
+  logger: Logger,
+): void {
+  const current = sqlite.pragma("user_version", { simple: true }) as number;
+  const sorted = [...migrations].sort((a, b) => a.version - b.version);
+  const pending = sorted.filter(m => m.version > current);
+
+  for (const migration of pending) {
+    logger.info({ version: migration.version, description: migration.description }, "Running migration");
+    sqlite.transaction(() => {
+      migration.up(sqlite);
+      sqlite.pragma(`user_version = ${migration.version}`);
+    })();
+  }
+
+  if (pending.length > 0) {
+    logger.info({ from: current, to: pending[pending.length - 1].version, count: pending.length }, "Migrations complete");
+  }
+}
+```
+
+**Baseline migration (handles existing databases):**
+```typescript
+// src/db/migrations/001-baseline.ts
+// Detects current database state and establishes version 1.
+// On a fresh database: no-op (tables created by init functions).
+// On existing database: just sets the version marker.
+export const migration: Migration = {
+  version: 1,
+  description: "Baseline -- establish migration versioning",
+  up(sqlite) {
+    // Nothing to do. The existing database is already at the correct state.
+    // This migration exists solely to set user_version = 1 so future
+    // migrations know the starting point.
+  },
 };
 ```
 
-**Why optional fields:** The access gate middleware sets these. Handlers that run before the gate (like the /start command) will not have them set. Making them optional prevents type errors in those cases.
+**Integration with `src/db/index.ts`:**
+```typescript
+// Run migrations FIRST, before any init functions
+runMigrations(sqlite, allMigrations, logger);
 
-## Data Flow
-
-### Request Flow (After v1.2)
-
-```
-1. Telegram update arrives
-2. grammY parses update
-3. hydrateReply middleware
-4. autoChatAction middleware
-5. db injection middleware
-6. ACCESS GATE:
-   - Is this /start? -> PASS THROUGH (allow registration)
-   - Is user registered? Look up by ctx.from.id
-     - NO -> reply "need invite link", STOP
-     - YES -> inject userId, householdId, user into ctx, CONTINUE
-7. ONBOARDING ROUTER:
-   - Is onboarding complete? Check ctx.user.onboardingState
-     - NO -> route to onboarding handler, STOP
-     - YES -> CONTINUE
-8. Normal handler pipeline (unchanged from v1.1)
-   - callback handlers, command handlers, message handler
-9. Pipeline processor uses ctx.householdId for shared data queries
+// Then existing init functions (which use CREATE TABLE IF NOT EXISTS)
+initializeCoreTables(sqlite);
+initializeFts(sqlite);
+// ... etc
 ```
 
-### Invite Redemption Flow
+**Why migrations run BEFORE init functions:** If a migration adds a column that an init function's trigger references, the init function must see the updated schema. Running migrations first ensures the database is at the expected state before any init code executes.
 
-```
-1. Admin calls /invite command in their chat
-2. Bot generates token: "INV_" + crypto.randomUUID()
-3. Token stored in invite_tokens table with admin's household_id
-4. Bot replies with deep link: t.me/HeySousBot?start=INV_xxxx
-5. Admin shares link with invitee (via any messaging channel)
-6. Invitee clicks link -> Telegram opens chat -> /start INV_xxxx
-7. Start handler validates token (exists, not redeemed, not expired)
-8. User record created with household assignment
-9. Token marked redeemed (redeemed_by, redeemed_at set)
-10. Onboarding begins
-```
+### 5. Bot Update Notification System (`src/notifications/`)
 
-### Onboarding Flow
+**Responsibility:** When the bot version changes, notify users about new features.
 
-```
-1. User registered (onboarding_state = 'registered')
-2. Bot sends welcome + first preference question
-3. State -> 'preferences_qa', step 0
-4. Q&A loop (deterministic questions, Claude processes answers):
-   a. Dietary restrictions?     -> save as preference knowledge item
-   b. Household size?           -> save as preference
-   c. Usual dinner time?        -> save as preference + update reminder_settings
-   d. Preferred grocery stores? -> save as preference
-   e. (any additional Qs)
-5. State -> 'tour', step 0
-6. Bot sends 3-4 capability overview messages:
-   a. "I can remember your recipes..."
-   b. "I plan weekly meals..."
-   c. "I generate grocery lists..."
-   d. "I send reminders..."
-7. State -> 'seed_recipes', step 0
-8. Bot offers starter recipe suggestions based on stated preferences
-9. User can save some, skip, or add their own
-10. User signals done (or bot detects 5+ recipes saved)
-11. State -> 'complete'
-12. Normal bot operation begins
-```
+**Architecture decision: Startup proactive notification with rate limiting.**
 
-### Data Ownership Model
+Rationale: On-demand (check version each message) adds latency to every message. A startup-based approach runs once per deploy. The bot already has startup routines (reminder regeneration, feedback expiration).
 
-```
-                    +------------------+
-                    |   Household      |
-                    |   id: "h_abc"    |
-                    +--------+---------+
-                             |
-              +--------------+--------------+
-              |                             |
-      +-------+-------+            +-------+-------+
-      | User A (admin)|            | User B        |
-      | telegram: 111 |            | telegram: 222 |
-      | household: h_abc           | household: h_abc
-      +-------+-------+            +-------+-------+
-              |                             |
-   PERSONAL DATA:                PERSONAL DATA:
-   - messages (chat_id=111)      - messages (chat_id=222)
-   - reminder_settings           - reminder_settings
-   - token_usage                 - token_usage
-   - onboarding_state            - onboarding_state
-
-              SHARED DATA (household_id = h_abc):
-              - knowledge_items (recipes, shared preferences)
-              - meal_plans
-              - grocery_lists
-              - cooking_history
-              - feedback_checkins (meal feedback)
-```
-
-## New Database Schema
-
-### users table
-
-```sql
-CREATE TABLE IF NOT EXISTS users (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  telegram_id TEXT NOT NULL UNIQUE,
-  display_name TEXT NOT NULL,
-  household_id TEXT NOT NULL,
-  role TEXT NOT NULL DEFAULT 'member' CHECK(role IN ('admin', 'member')),
-  onboarding_state TEXT NOT NULL DEFAULT 'registered'
-    CHECK(onboarding_state IN (
-      'registered', 'preferences_qa', 'tour', 'seed_recipes', 'complete'
-    )),
-  onboarding_step INTEGER NOT NULL DEFAULT 0,
-  created_at INTEGER NOT NULL DEFAULT (unixepoch()),
-  updated_at INTEGER NOT NULL DEFAULT (unixepoch())
-);
-```
-
-### households table
-
-```sql
-CREATE TABLE IF NOT EXISTS households (
-  id TEXT PRIMARY KEY,           -- UUID string for non-enumerable IDs
-  name TEXT NOT NULL DEFAULT 'My Household',
-  created_by TEXT NOT NULL,      -- telegram_id of creator
-  created_at INTEGER NOT NULL DEFAULT (unixepoch())
-);
-```
-
-### invite_tokens table
-
-```sql
-CREATE TABLE IF NOT EXISTS invite_tokens (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  token TEXT NOT NULL UNIQUE,
-  household_id TEXT NOT NULL,
-  created_by TEXT NOT NULL,      -- telegram_id of admin who created it
-  redeemed_by TEXT,              -- telegram_id of user who used it (NULL if unused)
-  redeemed_at INTEGER,
-  expires_at INTEGER NOT NULL,   -- unix timestamp, default 7 days from creation
-  created_at INTEGER NOT NULL DEFAULT (unixepoch())
-);
-```
-
-### app_feedback table (distinct from meal feedback_checkins)
-
-```sql
-CREATE TABLE IF NOT EXISTS app_feedback (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  user_telegram_id TEXT NOT NULL,
-  household_id TEXT NOT NULL,
-  source TEXT NOT NULL CHECK(source IN ('command', 'button', 'detected', 'checkin')),
-  sentiment TEXT CHECK(sentiment IN ('positive', 'neutral', 'negative')),
-  content TEXT,                  -- free-text feedback
-  context_json TEXT,             -- conversation context when auto-detected
-  created_at INTEGER NOT NULL DEFAULT (unixepoch())
-);
-```
-
-### Migration columns for existing tables
-
-```sql
--- Add household_id to all shared tables
-ALTER TABLE knowledge_items ADD COLUMN household_id TEXT;
-ALTER TABLE meal_plans ADD COLUMN household_id TEXT;
-ALTER TABLE grocery_lists ADD COLUMN household_id TEXT;
-ALTER TABLE cooking_history ADD COLUMN household_id TEXT;
-ALTER TABLE feedback_checkins ADD COLUMN household_id TEXT;
-ALTER TABLE knowledge_changelog ADD COLUMN household_id TEXT;
-
--- Backfill: for existing single-user data, household_id = chat_id
--- (solo user's Telegram chat_id IS their user ID IS their household)
-UPDATE knowledge_items SET household_id = chat_id WHERE household_id IS NULL;
-UPDATE meal_plans SET household_id = chat_id WHERE household_id IS NULL;
-UPDATE grocery_lists SET household_id = chat_id WHERE household_id IS NULL;
-UPDATE cooking_history SET household_id = chat_id WHERE household_id IS NULL;
-UPDATE feedback_checkins SET household_id = chat_id WHERE household_id IS NULL;
-UPDATE knowledge_changelog SET household_id = chat_id WHERE household_id IS NULL;
-```
-
-**Migration strategy:** Follow the existing init.ts pattern (CREATE TABLE IF NOT EXISTS + ALTER TABLE wrapped in try/catch for idempotency). Each domain's init.ts adds the `household_id` column if missing. SQLite's ALTER TABLE ADD COLUMN is safe because it defaults to NULL and the backfill UPDATE sets the value for existing rows.
-
-### FTS5 Impact
-
-The FTS5 virtual table (`knowledge_fts`) uses `content='knowledge_items'` (external content mode). It does NOT store `chat_id` or `household_id` -- it only stores `title`, `summary`, `content`. The filtering happens in the JOIN clause:
-
-```sql
--- Before:
-WHERE knowledge_fts MATCH ? AND ki.chat_id = ?
-
--- After:
-WHERE knowledge_fts MATCH ? AND ki.household_id = ?
-```
-
-This is a clean migration -- FTS5 structure is unchanged, only WHERE clauses in queries change.
-
-## Scaling Considerations
-
-| Concern | 1 household | 10 households | 100 households |
-|---------|-------------|---------------|----------------|
-| SQLite file size | < 10 MB | < 100 MB | < 1 GB, still fine |
-| FTS5 search speed | Instant | Instant (per-household filter) | Still fast (BM25 + WHERE) |
-| Concurrent writes | No issue (WAL mode) | Minimal contention | May need write queue |
-| Claude API costs | $1-5/month | $10-50/month | Consider Haiku for onboarding |
-| Reminder poller | Iterates all settings | Still fine | Add index on due_at |
-| Invite token lookups | Trivial | Trivial | UNIQUE index on token |
-| Onboarding load | None after completion | Negligible | Negligible |
-
-**Key insight:** At the scale this project targets (personal use + a few households), SQLite with WAL mode handles everything. The architecture does not need to optimize for thousands of concurrent users.
-
-## Anti-Patterns
-
-### Anti-Pattern 1: Group Chat for Household Sharing
-
-**What:** Using a Telegram group chat to share data between household members.
-
-**Why bad:** Group chats have different Telegram Bot API semantics (different update types, message permissions, admin controls, bot privacy mode). The bot would need to handle group-specific edge cases (members joining/leaving, admin privileges, message visibility). The entire existing per-private-chat architecture would need rewriting.
-
-**Instead:** Each household member uses the bot in their own private chat. Data sharing happens through the `household_id` in the database. Both users see the same recipes, plans, and grocery lists, each in their own private conversation with Sous.
-
-### Anti-Pattern 2: Using grammY Sessions for Onboarding State
-
-**What:** Storing onboarding state in grammY's session middleware (in-memory or external storage adapter).
-
-**Why bad:** grammY sessions are designed for ephemeral per-update state. Onboarding state must survive bot restarts. The codebase already uses SQLite for all persistence. Adding a second persistence layer via grammY sessions creates unnecessary complexity. Sessions would need a storage adapter backed by SQLite anyway, duplicating what a simple column in the users table achieves.
-
-**Instead:** Store `onboarding_state` and `onboarding_step` as columns in the `users` table. The access gate middleware already loads the user record on every request, so onboarding state is available without an additional query.
-
-### Anti-Pattern 3: Big-Bang chatId Rename
-
-**What:** Renaming all `chat_id` columns to `household_id` in one migration.
-
-**Why bad:** This breaks the existing single-user setup during development. If the migration has a bug, all existing data becomes inaccessible. The codebase has many raw SQL queries (not just Drizzle) that reference `chat_id`. A rename requires updating every query simultaneously.
-
-**Instead:** Add `household_id` as a NEW column alongside `chat_id`. Backfill from `chat_id`. Update queries incrementally to use `household_id`. Keep `chat_id` columns until fully migrated and tested. This allows incremental migration and easy rollback.
-
-### Anti-Pattern 4: Making Onboarding Claude-Driven
-
-**What:** Sending the entire onboarding conversation through the normal Claude pipeline and hoping it asks the right questions.
-
-**Why bad:** Claude might skip questions, ask them in random order, go off on tangents ("oh you like Italian food, let me tell you about..."), or fail to extract and save the specific preferences needed. Onboarding needs deterministic completion of all required steps.
-
-**Instead:** Use a state machine for flow control (which question, what order, when to advance). Use Claude only for processing natural language answers within each step (e.g., extracting "shellfish allergy" from "I can't eat shellfish"). The state machine guarantees progress; Claude handles language understanding.
-
-### Anti-Pattern 5: Separate Admin Web App for Feedback Dashboard
-
-**What:** Building a full separate web application for the admin feedback dashboard.
-
-**Why bad:** Overkill for the current scope. The admin is one person. A full web app needs its own auth system, deployment, and maintenance.
-
-**Instead:** Start with a `/feedback-report` bot command for admin users (identified by existing `ADMIN_USER_IDS` config) that sends aggregated feedback stats inline in the chat. If a richer UI is needed later, add a simple Express route at `/admin/feedback` with basic auth, or a Mini App page accessible only to admin users.
-
-## Integration Points
-
-### External Services
-
-| Service | Integration | Notes |
-|---------|------------|-------|
-| **Telegram Bot API** | Deep links via `t.me/BotName?start=TOKEN` | Well-documented, payload in ctx.match. 64 char limit on start param. |
-| **Telegram Bot API** | `ctx.from.id` for user identity | Available on every update in private chats |
-| **Anthropic Claude API** | Unchanged | Used in onboarding for answer processing, otherwise same as v1.1 |
-| **crypto.randomUUID()** | Invite token generation | Node.js built-in, no external dependency |
-
-### Internal Boundaries
-
-| Boundary | From | To | Interface |
-|----------|------|-----|-----------|
-| Access gate -> All handlers | middleware | handlers | ctx.user, ctx.householdId set; unregistered users blocked |
-| Onboarding router -> Normal flow | middleware | handlers | Intercepts when `onboarding_state !== 'complete'` |
-| Start handler -> Invite repo | handler | repository | `redeem(token, telegramId)` -> Invite or null |
-| Start handler -> User repo | handler | repository | `create({ telegramId, displayName, householdId })` |
-| Start handler -> Onboarding | handler | state machine | `start(ctx, user)` triggers first onboarding message |
-| Household resolver -> All repos | middleware/processor | repositories | `householdId` replaces `chatId` in shared data queries |
-| Pipeline processor -> Tool handler | processor | tool-handler | `householdId` passed for shared data; `userId` for personal |
-| /invite command -> Invite repo | handler | repository | `create(householdId, createdBy)` -> token string |
-| /feedback command -> App feedback repo | handler | repository | `create({ userId, householdId, source, content })` |
-| Admin routes -> App feedback repo | Express route | repository | `getAll()`, `getStats()` |
-| Reminder poller -> User repo | poller | repository | May need household context for shared plan data |
-| Mini App auth -> User repo | middleware | repository | Resolve `householdId` from authenticated Telegram user ID |
-
-### Config Changes Needed
+**Design:**
 
 ```typescript
-// No new env vars required for core functionality.
-// ADMIN_USER_IDS already exists for admin commands.
-// Invite system uses existing BOT_TOKEN for deep link URL construction.
+// src/notifications/update-notifier.ts
+export function createUpdateNotifier(deps: {
+  sqlite: BetterSqlite3.Database;
+  bot: BotApi;
+  logger: Logger;
+  currentVersion: string;
+  isDev: boolean;
+}) {
+  return {
+    async notifyAll(): Promise<void> {
+      // Skip in dev mode (avoid spam during tsx watch restarts)
+      if (deps.isDev) return;
 
-// The bot username is needed for deep link URLs:
-// t.me/{BOT_USERNAME}?start=TOKEN
-// This can be fetched via bot.api.getMe() at startup.
+      // Get users with stale version
+      const users = deps.sqlite.prepare(
+        "SELECT telegram_id FROM users WHERE last_seen_version < ? OR last_seen_version IS NULL"
+      ).all(deps.currentVersion) as Array<{ telegram_id: string }>;
+
+      if (users.length === 0) return;
+
+      const notes = RELEASE_NOTES[deps.currentVersion];
+      if (!notes) return;
+
+      for (const user of users) {
+        try {
+          await deps.bot.api.sendMessage(user.telegram_id, notes, { parse_mode: "HTML" });
+          deps.sqlite.prepare("UPDATE users SET last_seen_version = ? WHERE telegram_id = ?")
+            .run(deps.currentVersion, user.telegram_id);
+          // Rate limit: 100ms between sends
+          await new Promise(resolve => setTimeout(resolve, 100));
+        } catch (error: unknown) {
+          const err = error as { error_code?: number };
+          if (err.error_code === 403) {
+            // User blocked the bot -- skip, do NOT update their version
+            deps.logger.warn({ telegramId: user.telegram_id }, "Bot blocked, skipping notification");
+          }
+        }
+      }
+    }
+  };
+}
 ```
 
-## Build Order (Dependency-Driven)
+**Version tracking:** Add `last_seen_version TEXT` column to users table via migration 002. Store current version in `package.json` (update to `"1.4.0"`).
 
-The features have hard dependencies that constrain build order:
-
-```
-Phase 1: Users + Households + Invites + Access Gate
-  (everything else depends on user identity existing)
-  |
-Phase 2: chatId -> householdId Migration
-  (repositories, tool handler, pipeline processor, FTS5 queries, Mini App auth)
-  |
-Phase 3: Onboarding State Machine
-  (requires user table, preference tools working with household scope)
-  |
-Phase 4: App Feedback System
-  (requires user identity, independent of onboarding)
+**Release notes:** Simple TypeScript map in `src/notifications/release-notes.ts`:
+```typescript
+export const RELEASE_NOTES: Record<string, string> = {
+  "1.4.0": `<b>What's new!</b>\n\n- Send me a recipe link and I'll save it for you\n- Snap a photo of a recipe and I'll read it\n- Smarter recipe saving with duplicate detection`,
+};
 ```
 
-**Phase 1** is foundational: without user identity and household resolution, nothing else works. It includes the access gate and household resolver middleware because they are needed immediately.
+### 6. Notification Tone Overhaul
 
-**Phase 2** is the largest but most mechanical phase: systematically updating every repository and query to use `householdId` instead of `chatId` for shared data. It is mostly search-and-replace with careful testing.
+**Purely a content change, not an architecture change.** Files to modify:
 
-**Phase 3** (onboarding) depends on the preference-saving pipeline working with household scope, so it follows Phase 2.
+| File | What Changes |
+|------|-------------|
+| `src/reminders/sender.ts` | `REMINDER_SYSTEM_PROMPT`, `PREP_ALERT_SYSTEM_PROMPT`, `getFallbackText()` |
+| `src/feedback/sender.ts` | Check-in message templates |
+| `src/ai/system-prompt.ts` | Audit prompt sections for consistency with Sous persona |
 
-**Phase 4** (app feedback) is the most independent feature. It only needs user identity (Phase 1), not household data migration. It could theoretically be built before Phase 2 or 3, but placing it last avoids context-switching and lets the team focus on the core multi-user flow first.
+**No new modules needed.**
 
-## Key Design Decisions
+## Patterns to Follow
 
-### Decision 1: householdId as string (not integer)
+### Pattern 1: Tool Handler Delegation
+**What:** Tool handlers delegate complex logic to dedicated modules.
+**When:** Any tool handler case exceeding ~20 lines of logic.
+**Example:** URL import: `tool-handler.ts` calls `fetchAndParseRecipe()` from `url-import.ts`.
 
-Use a string ID (UUID or nanoid) for households. This allows generating household IDs before database insertion (needed for the invite token flow where the household might be created simultaneously). It also prevents enumeration.
+### Pattern 2: Graceful Degradation for External Fetches
+**What:** URL import and photo download fail gracefully with user-friendly messages.
+**When:** Any operation hitting an external service.
+**Example:**
+```typescript
+try {
+  const result = await fetchAndParseRecipe(url);
+  return JSON.stringify(result);
+} catch (error) {
+  return JSON.stringify({
+    error: "Could not fetch that URL. The site might be down or blocking bots.",
+    suggestion: "Try copy-pasting the recipe text directly instead."
+  });
+}
+```
 
-### Decision 2: First user auto-migrated, not onboarded
+### Pattern 3: Migration Idempotency
+**What:** Every migration must be safe to run on a database where it has partially completed.
+**When:** Writing any migration.
+**Example:** The transaction wrapper in `runMigrations` ensures atomicity. Use defensive SQL (`ALTER TABLE ... ADD COLUMN` with a pre-check via `PRAGMA table_info()` for older SQLite versions).
 
-The current admin user (who has been using the bot since v1.0) should NOT go through onboarding. They already have recipes, preferences, and plans. During migration, the system creates a household using the admin's existing chat_id, creates a user record with `onboarding_state = 'complete'`, and backfills `household_id` on all their existing data. Zero disruption.
+### Pattern 4: Claude as Reasoning Engine
+**What:** Tools provide data, Claude makes decisions. Dedup, format validation, extraction quality -- all Claude's job.
+**When:** Any feature where the "right" action depends on context.
+**Example:** Dedup returns similar items to Claude. Claude evaluates whether they're duplicates. Claude asks user if uncertain.
 
-### Decision 3: Invites always join an existing household
+## Anti-Patterns to Avoid
 
-Invites are tied to a specific household. There is no "create a new household" flow for invitees. The admin creates the household (implicitly, by being the first user), then invites others to join it. This significantly simplifies the model.
+### Anti-Pattern 1: Separate Claude Call for Photo Processing
+**What:** Creating a dedicated Claude API call just for image analysis, separate from the main pipeline.
+**Why bad:** Doubles API costs, breaks conversation context, loses access to tools.
+**Instead:** Extend the existing pipeline to support multimodal messages. Photo becomes part of the user's message content block.
 
-### Decision 4: Keep both userId and householdId in context
+### Anti-Pattern 2: Eager URL Fetching in Message Handler
+**What:** Detecting URLs in the message handler and pre-fetching them before passing to Claude.
+**Why bad:** The bot can't know if a URL is a recipe link. Claude should decide whether to call the import tool.
+**Instead:** Let Claude see the URL, decide it's a recipe link, and call `import_from_url`.
 
-Even after migration, some operations genuinely need the per-user chat ID (messages, token usage, reminder settings). The context carries both `userId` and `householdId`. Repository methods explicitly declare which scope they operate in.
+### Anti-Pattern 3: Hard Dedup (Rejecting Saves)
+**What:** Making `save_knowledge` refuse to save when a duplicate is detected.
+**Why bad:** Users might genuinely want separate copies. The v1.3 auto-upsert was reverted for this reason.
+**Instead:** Return a warning with existing item details. Let Claude and user decide.
 
-### Decision 5: Preferences stay in knowledge_items
+### Anti-Pattern 4: Over-engineered Migration Framework
+**What:** Building rollback support, dry-run mode, CLI tool, version branches.
+**Why bad:** HeySous has ~12 tables and will add 2-3 more. Enterprise-grade framework for a single-developer project.
+**Instead:** ~50 LOC runner, `PRAGMA user_version`, forward-only migrations, run on startup.
 
-User preferences are currently stored as knowledge_items tagged with "preference". This pattern works for household sharing because:
-- Shared preferences (store prefs, household size) are tagged `subject:household` and scoped to `household_id`
-- Personal preferences (dietary restrictions) are tagged `subject:self` and the agent knows they belong to a specific person
-- No schema change needed for preferences -- the existing tag taxonomy handles the distinction
+## Build Order (Dependency-Aware)
 
-### Decision 6: Admin dashboard starts as a bot command
+```
+Phase 1: Migration Framework          (no dependencies, enables everything else)
+Phase 2: Knowledge Dedup Fix          (no schema changes needed, pure logic fix)
+Phase 3: Notification Tone Overhaul   (no dependencies, pure content)
+Phase 4: Recipe URL Import            (depends on: dedup fix, cheerio installed)
+Phase 5: Recipe Photo Import          (depends on: URL import patterns established)
+Phase 6: Update Notification System   (depends on: migration framework for schema)
+```
 
-Rather than building a web UI for the feedback dashboard immediately, start with a `/feedback-report` command that admin users can run in their chat. This leverages existing infrastructure (bot commands, admin user ID check) and avoids building auth for a web dashboard. A Mini App or web page can be added later if needed.
+**Rationale:**
+- Migration framework first because update notifications need a schema change (`last_seen_version` column).
+- Dedup fix before URL/photo import because imported recipes should go through dedup check.
+- URL import before photo import because they share the save-to-knowledge flow, and URL is simpler.
+- Update notifications last because they depend on migration framework and are least time-sensitive.
+- Notification tone is independent and slots early to establish voice before new notification types.
+
+## Integration Points Summary
+
+| Feature | Touches | Integration Complexity |
+|---------|---------|----------------------|
+| Migration framework | `src/db/index.ts`, new `src/db/migrations.ts`, new `src/db/migrations/` | LOW -- isolated infrastructure |
+| Knowledge dedup | `src/ai/tool-handler.ts`, `src/ai/tools.ts`, `src/ai/system-prompt.ts` | LOW -- modifying existing switch cases |
+| Notification tone | `src/reminders/sender.ts`, `src/feedback/sender.ts` | LOW -- text changes only |
+| URL import | New `src/knowledge/url-import.ts`, `src/ai/tools.ts`, `src/ai/tool-handler.ts`, `src/ai/system-prompt.ts`, `src/pipeline/processor.ts` | MEDIUM -- new tool + module + async handler change |
+| Photo import | `src/bot/handlers/message.ts`, `src/pipeline/message-queue.ts`, `src/pipeline/processor.ts` | MEDIUM -- pipeline extension (highest regression risk) |
+| Update notifications | New `src/notifications/`, `src/main.ts`, migration for schema | MEDIUM -- new subsystem + startup hook |
 
 ## Sources
 
-- grammY deep linking: verified in `node_modules/grammy/out/composer.d.ts` lines 228-237 -- `ctx.match` receives the deep link payload from `/start` commands
-- grammY session middleware: verified in `node_modules/grammy/out/convenience/session.d.ts` -- `getSessionKey` defaults to `ctx.chatId`, supports custom key functions
-- grammY middleware pipeline: verified in existing `src/bot/index.ts` -- middleware order is explicit and deterministic
-- Existing codebase patterns: all factory functions, init.ts migration patterns, repository patterns verified by reading all source files
-- SQLite ALTER TABLE ADD COLUMN: standard SQLite feature, safe for incremental migration (new column defaults to NULL)
-- Telegram deep link format: `t.me/BotName?start=PAYLOAD` with 64-character limit -- well-established stable API (MEDIUM confidence, from training data, not verified against current docs but unchanged for 5+ years)
-- Telegram `ctx.from.id` availability: standard in private chats, verified by existing usage in `src/bot/handlers/message.ts` line 28
-
----
-*Architecture research for: Multi-user Telegram bot with household sharing, invite system, onboarding, and feedback*
-*Researched: 2026-02-10*
+- [Anthropic Vision Documentation](https://platform.claude.com/docs/en/build-with-claude/vision) -- image content block format, size limits, supported types (HIGH confidence)
+- [grammY File Handling](https://grammy.dev/guide/files) -- photo download via bot API (HIGH confidence)
+- [Schema.org Recipe type](https://schema.org/Recipe) -- JSON-LD recipe structured data format (HIGH confidence)
+- [cheerio documentation](https://cheerio.js.org/) -- HTML parsing API (HIGH confidence)
+- SQLite `PRAGMA user_version` -- built-in migration tracking (HIGH confidence)
+- Codebase analysis of all files in src/ (HIGH confidence)

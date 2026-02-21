@@ -5,6 +5,7 @@ export interface KnowledgeItem {
   summary: string;
   content: string;
   source: string | null;
+  sourceUrl: string | null;
   tags: string[];
   createdAt: Date;
   updatedAt: Date;

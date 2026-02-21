@@ -19,6 +19,7 @@ export function initializeFts(sqlite: BetterSqlite3.Database): void {
       summary TEXT NOT NULL,
       content TEXT NOT NULL,
       source TEXT,
+      source_url TEXT,
       created_at INTEGER NOT NULL DEFAULT (unixepoch()),
       updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
       last_accessed_at INTEGER NOT NULL DEFAULT (unixepoch())
@@ -244,7 +245,7 @@ export function getFullItem(
   // Fetch the item
   const row = sqlite
     .prepare(
-      `SELECT id, household_id, title, summary, content, source, created_at, updated_at, last_accessed_at
+      `SELECT id, household_id, title, summary, content, source, source_url, created_at, updated_at, last_accessed_at
        FROM knowledge_items WHERE id = ? AND household_id = ?`
     )
     .get(id, householdId) as
@@ -255,6 +256,7 @@ export function getFullItem(
         summary: string;
         content: string;
         source: string | null;
+        source_url: string | null;
         created_at: number;
         updated_at: number;
         last_accessed_at: number;
@@ -277,6 +279,7 @@ export function getFullItem(
     summary: row.summary,
     content: row.content,
     source: row.source,
+    sourceUrl: row.source_url ?? null,
     tags,
     createdAt: new Date(row.created_at * 1000),
     updatedAt: new Date(row.updated_at * 1000),

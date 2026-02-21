@@ -14,7 +14,12 @@
 export interface PendingBatch {
   chatId: string;
   userId: string;
-  messages: Array<{ text: string; timestamp: Date }>;
+  messages: Array<{
+    text: string;
+    timestamp: Date;
+    imageBase64?: string;
+    imageMimeType?: string;
+  }>;
   ctx: unknown;
 }
 
@@ -38,18 +43,20 @@ export class MessageQueue {
     text: string,
     ctx: unknown,
     processFn: ProcessFn,
+    imageBase64?: string,
+    imageMimeType?: string,
   ): void {
     const existing = this.pending.get(chatId);
 
     if (existing) {
       clearTimeout(existing.timer);
-      existing.messages.push({ text, timestamp: new Date() });
+      existing.messages.push({ text, timestamp: new Date(), imageBase64, imageMimeType });
       existing.ctx = ctx;
     } else {
       this.pending.set(chatId, {
         chatId,
         userId,
-        messages: [{ text, timestamp: new Date() }],
+        messages: [{ text, timestamp: new Date(), imageBase64, imageMimeType }],
         ctx,
         // Timer is assigned immediately below; placeholder satisfies the type.
         timer: null as unknown as ReturnType<typeof setTimeout>,

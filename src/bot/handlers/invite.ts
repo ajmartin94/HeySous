@@ -18,6 +18,7 @@ import { generateToken, generateDeepLink } from "../../invites/deep-link.js";
 import { createHousehold, getHouseholdById } from "../../users/repository.js";
 import type { CreateInviteParams } from "../../invites/types.js";
 import { logger } from "../../logger.js";
+import { getInviteUsageMessage, getHouseholdNotFoundMessage, getInviteLinkMessage } from "../messages.js";
 
 interface InviteHandlerDeps {
   sqlite: BetterSqlite3.Database;
@@ -55,15 +56,13 @@ export function createInviteHandler(deps: InviteHandlerDeps): Composer<BotContex
       const householdId = args.slice("household:".length).trim();
       const household = getHouseholdById(deps.sqlite, householdId);
       if (!household) {
-        await ctx.reply("Household not found.");
+        await ctx.reply(getHouseholdNotFoundMessage());
         return;
       }
       targetHouseholdId = householdId;
     } else {
       // Unknown flag -- show usage
-      await ctx.reply(
-        "Usage: /invite, /invite independent, or /invite household:ID",
-      );
+      await ctx.reply(getInviteUsageMessage());
       return;
     }
 
@@ -82,9 +81,7 @@ export function createInviteHandler(deps: InviteHandlerDeps): Composer<BotContex
     // Build deep link URL
     const url = generateDeepLink(deps.botUsername, token);
 
-    await ctx.reply(
-      `Invite link (expires in 7 days, single use):\n\n${url}\n\nShare this with the person you want to invite.`,
-    );
+    await ctx.reply(getInviteLinkMessage(url));
 
     logger.info(
       { householdId: targetHouseholdId, inviteType },

@@ -17,6 +17,7 @@ import { getUserByTelegramId, createUser, updateHouseholdName, getAdmin, getHous
 import { getAndRedeemToken } from "../../invites/repository.js";
 import { messages } from "../../db/schema.js";
 import { logger } from "../../logger.js";
+import { getWelcomeBackMessage, getInvalidTokenMessage, getNoTokenMessage, getAdminJoinNotification } from "../messages.js";
 
 interface StartHandlerDeps {
   sqlite: BetterSqlite3.Database;
@@ -40,7 +41,7 @@ export function createStartHandler(deps: StartHandlerDeps): Composer<BotContext>
 
     if (existingUser) {
       // Branch 1 & 2: Existing user (with or without token) -> Welcome back
-      await ctx.reply("Welcome back! What can I help you with?");
+      await ctx.reply(getWelcomeBackMessage());
       return;
     }
 
@@ -97,7 +98,7 @@ export function createStartHandler(deps: StartHandlerDeps): Composer<BotContext>
           if (admin && admin.telegramId !== telegramId) {
             await ctx.api.sendMessage(
               Number(admin.telegramId),
-              `${displayName} just joined your household!`,
+              getAdminJoinNotification(displayName),
               { parse_mode: undefined },
             );
           }
@@ -114,14 +115,10 @@ export function createStartHandler(deps: StartHandlerDeps): Composer<BotContext>
     // Branch 4: New user, no token or invalid token
     if (token) {
       // Had a token but it was invalid
-      await ctx.reply(
-        "This invite link is no longer valid. Ask for a new one!",
-      );
+      await ctx.reply(getInvalidTokenMessage());
     } else {
       // No token at all
-      await ctx.reply(
-        "Hey! I'm an invite-only bot. Ask the person who told you about me for an invite link!",
-      );
+      await ctx.reply(getNoTokenMessage());
     }
   });
 

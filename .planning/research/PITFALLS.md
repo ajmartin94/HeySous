@@ -1,291 +1,405 @@
-# Pitfalls Research
+# Domain Pitfalls
 
-**Domain:** Adding multi-user support, household sharing, invite systems, onboarding flows, and feedback mechanisms to an existing single-user Telegram bot (HeySous v1.2)
-**Researched:** 2026-02-10
-**Confidence:** HIGH (based on thorough codebase audit of 12,726 LOC -- all 47 files with chatId/chat_id usage reviewed, Telegram Bot API deep linking mechanics, SQLite migration patterns, and multi-tenant data isolation best practices)
+**Domain:** Adding URL recipe import, photo recipe import, knowledge dedup, data migrations framework, update notifications, and notification tone changes to an existing Telegram meal planning bot (HeySous v1.4)
+**Researched:** 2026-02-19
+**Confidence:** HIGH (based on codebase audit of ~22,650 LOC, Anthropic Vision API official documentation, Telegram Bot API rate limit documentation, SQLite ALTER TABLE documentation, and existing knowledge/FTS5 system review)
 
-**Context:** HeySous is a conversational AI meal planning bot. Currently single-user with `chatId` (derived from `ctx.chat.id`) as the sole data isolation key across all 11 tables. Moving to multi-user with per-user identity, household sharing, invite-gated access, guided onboarding, and an app feedback system. The migration must preserve existing data for the original user and not break any existing functionality.
+**Existing system context:**
+- `save_knowledge` currently does blind INSERT via `knowledgeRepository.create()` -- no dedup check
+- Dedup auto-upsert attempted in v1.3 and reverted (too aggressive -- merged distinct recipes)
+- Claude is the reasoning engine; tools return structured data, Claude decides what to do
+- FTS5 full-text search with porter/unicode61 tokenizer, BM25 ranking, already operational
+- Single-process Node.js, better-sqlite3 (synchronous), WAL mode enabled
+- No formal migration runner -- ad-hoc `PRAGMA table_info` checks and `CREATE TABLE IF NOT EXISTS`
+- Telegram HTML parse mode, 4096-char message limit, 300ms chunk delay
+- Existing reminder sender already handles 403 (bot blocked by user) gracefully
 
 ---
 
 ## Critical Pitfalls
 
-Mistakes that cause data leaks, data loss, broken production systems, or require rewrites.
+Mistakes that cause data loss, wasted API costs, broken features, or require rewrites.
 
-### Pitfall 1: chatId-to-userId Migration Breaks Every Query in the System
+### Pitfall 1: Recipe URL Fetch Hangs the Single-Process Server
 
 **What goes wrong:**
-The entire codebase uses `chatId` (from `ctx.chat.id`) as the data isolation key. In private Telegram chats, `chat.id === from.id` (user ID), so this works for single-user. When you add multi-user support, you need `userId` (the person) separate from `chatId` (the conversation). Currently, 339 occurrences of `chatId`/`chat_id`/`ctx.chat.id` span 47 source files. Every repository function, every SQL query, every tool handler, the message queue, the processor pipeline, the FTS5 search, the mini-app auth middleware, and the reminder poller all use `chatId` as the identity key. A partial migration -- where some queries use the new `userId` and others still use `chatId` -- creates a split-brain where data written by the new system is invisible to old queries, and vice versa.
+A user sends a URL like `https://www.nytimes.com/cooking/recipe/...` and the bot attempts to fetch it. The fetch hangs for 30+ seconds (DNS timeout, slow server, infinite redirect, or response streaming that never ends). Because HeySous is a single-process Node.js server with synchronous better-sqlite3, the event loop is not blocked by the DB, but the HTTP fetch promise holds the pipeline processor hostage. The 30-second timeout warning fires, but the Claude API call cannot even start because the tool handler is still waiting on the fetch. Other users' messages queue up behind it.
 
 **Why it happens:**
-The `chatId === userId` assumption was correct for single-user and was never abstracted. It is baked into every layer: schema columns, repository function signatures, tool handler closures, context builders, and the mini-app auth middleware (`res.locals.chatId = String(userId)`). Developers start migrating one repository at a time ("I'll update knowledge first, then planning"), and during the transition, half the system looks up data by `userId` and the other half by `chatId`. Since the existing user's data has `chatId` values that happen to equal their `userId`, it appears to work -- until a second user joins a household and their `userId` differs from the household's data scope.
+Node.js `fetch()` (or `undici`) has no default timeout. Without an explicit `AbortSignal.timeout()`, a request to a misbehaving server can hang indefinitely. Recipe sites are particularly prone to slow responses because they are ad-heavy, may serve through CDNs with edge-case failures, and some use anti-bot measures that deliberately slow-drip responses to non-browser clients.
 
-**How to avoid:**
-- Introduce a `userId` column on ALL tables that need per-user attribution (messages, token_usage, cooking_history, feedback_checkins). Do NOT rename `chatId` -- it remains as the household/scope key.
-- Introduce a `householdId` concept. For the existing single-user, `householdId` equals their current `chatId`. All data queries that currently filter by `chatId` should filter by `householdId` instead.
-- Migrate ALL repositories in a SINGLE phase, not spread across multiple phases. The "half-migrated" state is the dangerous state.
-- Create a `resolveScope(ctx)` helper that extracts both `userId` and `householdId` from context, and use it everywhere instead of raw `String(ctx.chat.id)`.
-- Write the data migration as a single SQLite transaction: add columns, populate defaults, add indexes. Run it before any code changes go live.
+**Consequences:**
+- Pipeline processor stuck waiting, 30s timeout message fires, user sees "taking longer than usual"
+- If multiple users hit bad URLs simultaneously, the entire bot becomes unresponsive
+- Anthropic API call never happens, so Claude never responds
+
+**Prevention:**
+- Set a hard 10-second timeout on ALL outbound HTTP requests: `fetch(url, { signal: AbortSignal.timeout(10_000) })`
+- Implement the URL fetch OUTSIDE the Claude tool loop. The tool call flow should be: user sends URL -> bot acknowledges receipt -> fetch URL in background -> parse result -> feed to Claude for structuring -> present to user. Do NOT make the fetch happen inside a `handleToolCall` synchronous return
+- Add a URL validation step before fetching: reject obviously bad URLs (no protocol, local IPs, non-HTTP schemes, known-bad TLDs)
+- Set `Content-Length` response size limit (e.g., 2MB max). Stream the response and abort if it exceeds the limit. Recipe pages should never be larger than 500KB of HTML
 
 **Warning signs:**
-- A user's recipes are visible to one feature (search works) but not another (plan generation can not find them)
-- New user joins household but sees empty knowledge base
-- FTS5 search returns results from wrong household
-- Mini-app shows different data than the bot for the same user
+- Bot stops responding to all users for 30+ seconds after a URL import is attempted
+- Logs show fetch promises that never resolve
+- Multiple "taking longer than usual" timeout messages in short succession
 
-**Phase to address:** Phase 1 (Data Model Migration). This is the foundation -- nothing else works correctly until this is done.
+**Detection:** Monitor `requestDurationMs` in token_usage table. If a pipeline batch takes >30s and involved a URL fetch tool, the fetch is the bottleneck.
 
-**Severity:** DATA LEAK if households share incorrectly scoped data. DATA LOSS if queries silently return empty results for migrated users.
+**Phase to address:** URL Recipe Import phase. This is architectural -- must be designed correctly from the start.
 
 ---
 
-### Pitfall 2: Existing User's Data Orphaned by Migration
+### Pitfall 2: Recipe Schema.org Parsing Produces Garbage Data Silently
 
 **What goes wrong:**
-The existing production user has real data: recipes, meal plans, grocery lists, preferences, cooking history, reminders, feedback check-ins. When you add `userId` and `householdId` columns, you must populate them correctly for ALL existing rows. If the migration script sets `householdId = NULL` as a default (or any value that does not match the new lookup logic), the existing user logs in after the migration and sees an empty bot. All their recipes, plans, and preferences are gone -- not deleted, but invisible because queries now filter by a `householdId` that does not match the value stored in old rows.
+The scraper fetches a URL, finds JSON-LD with `@type: "Recipe"`, extracts data, and saves it as a knowledge item. But the extracted data is garbage: ingredients are a single concatenated string instead of an array, cooking time is an ISO 8601 duration that is not parsed (`PT1H30M` stored as-is), the recipe name includes SEO keywords ("Best Ever Amazing Chicken Parmesan Recipe 2025"), and the instructions contain HTML entities and inline ads. The recipe is saved to the knowledge base as-is, and when Claude tries to use it for meal planning, it produces nonsensical grocery lists and instructions.
 
 **Why it happens:**
-The migration adds new columns but does not backfill them. Or backfills them with a generated UUID/household ID that the user's session does not resolve to. Or the migration runs but the code deploying alongside it has a bug in the `resolveScope()` function, so the looked-up `householdId` for the existing user does not match what was written to the database.
+Recipe sites implement schema.org markup inconsistently:
+- `recipeIngredient` can be a single string, an array of strings, or an array of objects with quantity/name properties
+- `recipeInstructions` can be a string, an array of strings, an array of `HowToStep` objects, or an array of `HowToSection` objects containing nested steps
+- JSON-LD can appear as a single object, an array, or nested inside a `@graph` array
+- Some sites put the Recipe schema in microdata format instead of JSON-LD
+- Duration fields use ISO 8601 (`PT45M`, `PT1H30M`) which requires explicit parsing
+- Many sites include "life story" preamble text in the description or instructions
+- Some sites wrap JSON-LD in CDATA sections or serve it dynamically via JavaScript
 
-**How to avoid:**
-- For the existing single-user, their `householdId` MUST equal their current `chatId` value. This is the simplest, safest migration: `UPDATE knowledge_items SET household_id = chat_id WHERE household_id IS NULL`.
-- Create a `users` table and a `households` table. Insert the existing user into both with IDs derived from their current `chatId`.
-- Test the migration on a COPY of the production database before deploying. Run the migration, then verify: `SELECT COUNT(*) FROM knowledge_items WHERE household_id IS NULL` must be 0. Run the same for ALL 11 tables.
-- Add a NOT NULL constraint on `householdId` AFTER backfilling, not during column creation. SQLite does not allow adding NOT NULL columns without a default, and the default must be meaningful.
-- Deploy the migration and the new code atomically. If the code goes live before the migration runs, queries fail. If the migration runs but old code is still serving, old code ignores the new columns (safe, but confusing).
+**Consequences:**
+- Knowledge base polluted with unparseable recipe content
+- Claude generates bad grocery lists from garbled ingredients
+- User loses trust in URL import feature after 2-3 bad imports
+
+**Prevention:**
+- Use a library like `scrape-recipe-schema` for initial extraction, but add a normalization layer on top
+- After extraction, validate required fields: `name` (string, non-empty), `recipeIngredient` (array of strings), `recipeInstructions` (array of strings)
+- Parse ISO 8601 durations into human-readable strings (`PT1H30M` -> `1 hour 30 minutes`)
+- Strip HTML tags from all text fields. Strip common SEO patterns from titles (trailing "Recipe", "Best Ever", year numbers)
+- If JSON-LD extraction fails, fall back to passing the raw HTML to Claude with a structured extraction prompt. Claude is better at messy HTML than any regex-based parser
+- ALWAYS show the parsed recipe to the user for confirmation before saving. Never auto-save a URL import
+- Store the source URL in the `source` field of the knowledge item for attribution and re-fetch
 
 **Warning signs:**
-- After migration, existing user sees "No recipes yet" or "No meal plan for this week"
-- `SELECT COUNT(*) FROM knowledge_items WHERE household_id IS NULL` returns any rows
-- Existing user's preferences (dietary restrictions, store names) are not loaded into the system prompt
+- Recipe content contains raw HTML tags or `&amp;` entities
+- Ingredients listed as a single long string instead of individual items
+- Cooking times showing as `PT45M` instead of human-readable format
+- Recipe titles are excessively long (>80 characters)
 
-**Phase to address:** Phase 1 (Data Model Migration). Write migration script, test on copy of production data, verify with count queries.
-
-**Severity:** DATA LOSS (perceived). The data exists but is invisible. Recovery requires a manual SQL fix, but the user may have already re-entered recipes, creating duplicates.
+**Phase to address:** URL Recipe Import phase. Build the normalization layer alongside the scraper, not after.
 
 ---
 
-### Pitfall 3: FTS5 Virtual Table Not Updated After Schema Migration
+### Pitfall 3: Photo Import Costs Spiral Due to Image Token Usage
 
 **What goes wrong:**
-The FTS5 virtual table (`knowledge_fts`) uses external content mode, synced via triggers on `knowledge_items`. When you add a `household_id` column to `knowledge_items`, the FTS5 table itself does not change (it only indexes `title`, `summary`, `content`). However, the search query in `fts.ts` joins `knowledge_fts` with `knowledge_items` and filters by `ki.chat_id = ?`. If you rename the column or change the filter to `ki.household_id = ?`, you must verify the join still works. More dangerously: if the migration alters the `knowledge_items` table structure in a way that requires a table rebuild (SQLite's `ALTER TABLE` limitations), the FTS5 triggers may break because they reference the old table structure.
+A user sends a photo of a recipe from a cookbook or a screenshot from a website. Telegram compresses the image, but the bot downloads the highest-resolution version available. The image is sent to Claude's Vision API for extraction. At ~1,334 tokens per 1000x1000px image (official Anthropic documentation), each photo import costs roughly $0.004 in input tokens alone -- plus the output tokens for the structured extraction. If the image is unclear and Claude asks for a re-send, or if the user sends multiple photos for one recipe (one for ingredients, one for steps), costs multiply. Worse: the image tokens are counted in ADDITION to the system prompt tokens (~4,000-6,000 tokens for HeySous's full system prompt), making each photo import call significantly more expensive than a normal chat message.
 
 **Why it happens:**
-SQLite `ALTER TABLE` only supports `ADD COLUMN` and `RENAME COLUMN` for simple changes. If the migration does a table rebuild (create new table, copy data, drop old, rename new -- which Drizzle Kit does for complex changes), the FTS5 external-content triggers reference the OLD table. After the rebuild, the triggers point to a table that no longer exists. All inserts, updates, and deletes to `knowledge_items` silently fail to update the FTS5 index. Search returns stale or no results.
+Anthropic's Vision API charges based on image resolution: `tokens = (width * height) / 750`. A typical phone photo is 3000x4000 pixels, which would be scaled down to ~1568px on the long edge (1568x1176 = ~2,459 tokens). Telegram's `getFile` downloads up to 20MB. Users may send unoptimized screenshots or high-res photos without thinking about cost implications.
 
-**How to avoid:**
-- Use `ALTER TABLE knowledge_items ADD COLUMN household_id TEXT` for the new column. This is a simple add that does NOT trigger a table rebuild. The FTS5 triggers survive.
-- Do NOT use Drizzle Kit `drizzle-kit push` for this migration. Write raw SQL migration scripts. Drizzle Kit may decide to rebuild the table for schema changes it deems incompatible with ALTER TABLE.
-- After the migration, manually verify triggers exist: `SELECT * FROM sqlite_master WHERE type='trigger' AND tbl_name='knowledge_items'`. Must show 3 triggers (insert, delete, update).
-- If triggers are lost, re-run `initializeFts()` from `src/knowledge/fts.ts`. The function uses `DROP TRIGGER IF EXISTS` + `CREATE TRIGGER`, so it is idempotent and safe to re-run.
-- After migration, run `INSERT INTO knowledge_fts(knowledge_fts) VALUES('rebuild')` to rebuild the FTS5 index from scratch. This ensures the index matches the table.
+**Consequences:**
+- Token costs per photo import are 3-5x a normal chat message
+- Users who import many photos can burn through API budget quickly
+- No visibility into cost difference between text chat and photo import
+
+**Prevention:**
+- Resize images to max 1568px on the long edge BEFORE sending to Claude (matches Anthropic's internal downscaling, avoids latency penalty for oversized images)
+- Use a MINIMAL system prompt for the extraction call -- do NOT send the full Sous persona + all preferences + plan context. Send only: "Extract the recipe from this image. Return structured JSON with: name, ingredients (array), steps (array), prep_time, cook_time, servings, notes."
+- Log image-specific token usage separately (add a `conversationType: "photo_import"` to the token_usage table)
+- Set a per-user daily limit on photo imports (e.g., 5 per day) to prevent cost spirals
+- Show the user the extracted recipe for confirmation, just like URL imports. Never auto-save
+- Accept JPEG format only (smaller than PNG). If Telegram sends a WebP, convert to JPEG before sending to Claude
 
 **Warning signs:**
-- Recipe search returns no results after migration (but recipes exist in the table)
-- `SELECT * FROM sqlite_master WHERE type='trigger' AND tbl_name='knowledge_items'` returns fewer than 3 rows
-- New recipes saved after migration are not found by search, but old recipes are (FTS5 index is stale, not updating)
+- `estimatedCost` in token_usage spikes on days with photo imports
+- `inputTokens` for photo import calls are 3,000+ vs normal ~2,000
+- Users sending 10+ photos in a day
 
-**Phase to address:** Phase 1 (Data Model Migration). Verify FTS5 triggers survive the migration. Include `rebuild` command in migration script.
-
-**Severity:** FEATURE BROKEN. FTS5 search is the core retrieval mechanism -- the AI assistant cannot find recipes without it, making the bot useless.
+**Phase to address:** Photo Recipe Import phase. Token cost management must be designed in from the start.
 
 ---
 
-### Pitfall 4: Deep Link Invite Tokens Leaking or Being Replayable
+### Pitfall 4: Knowledge Dedup Search-Before-Save Matches Wrong Items
 
 **What goes wrong:**
-Telegram deep links use the format `https://t.me/BotName?start=PAYLOAD` where PAYLOAD is a base64-safe string up to 64 characters. When a user clicks this link, Telegram sends `/start PAYLOAD` to the bot. If the invite token is a simple household ID or a predictable pattern (e.g., `invite_12345`), anyone who guesses or brute-forces the token can join any household. If tokens do not expire, a leaked invite link (shared in a group chat, posted on social media) allows unlimited new users to join the household forever.
+The dedup system searches existing knowledge before saving a new recipe. User says "save my chicken parmesan recipe." The FTS5 search for "chicken parmesan" returns an existing item: "Chicken Parmigiana" (different spelling, different recipe from a different source). The dedup system decides these are duplicates and either (a) silently overwrites the existing recipe with the new one, or (b) asks the user "Did you mean to update Chicken Parmigiana?" when they wanted to save a completely new recipe. The v1.3 auto-upsert was reverted for exactly this reason -- it was too aggressive.
 
 **Why it happens:**
-Developers use the household ID directly as the invite payload because it is simple. Or they generate a UUID token but do not set an expiration or use limit. Telegram deep links are URLs -- they are shared, bookmarked, and indexed. Unlike a private message, a deep link is a public invitation.
+FTS5 with porter stemming treats "parmesan" and "parmigiana" as distinct tokens (no fuzzy match). But other cases DO produce false positives:
+- "Chicken Stir Fry" matches "Chicken and Vegetable Stir Fry" (high BM25 score due to overlapping terms)
+- "Pasta Bolognese" matches "Bolognese Sauce" (the sauce recipe, not the pasta dish)
+- "Mom's Chocolate Cake" matches "Chocolate Cake" (different recipe, same search terms)
+- Title matching alone is insufficient; content matching produces too many false positives (every chicken recipe mentions "chicken" in ingredients)
 
-**How to avoid:**
-- Generate cryptographically random invite tokens (e.g., `crypto.randomBytes(24).toString('base64url')`). Store them in an `invites` table with `token`, `householdId`, `createdBy`, `expiresAt`, `maxUses`, `currentUses`.
-- Set a reasonable default expiration (7 days) and max uses (5). Allow the inviter to configure these.
-- When `/start INVITE_TOKEN` is received, validate: token exists, not expired, not exhausted. On success, create the user-household association. On failure, reply with a friendly "This invite link has expired. Ask your household member for a new one."
-- After validation, DELETE or mark the token as used (for single-use tokens) or increment `currentUses` (for multi-use tokens).
-- Do NOT include the household ID in the token itself (e.g., do not use `household_5_abc123`). The token is an opaque lookup key.
-- Rate-limit `/start` with invalid tokens to prevent brute-force enumeration.
+The fundamental problem: recipe similarity is SEMANTIC, not lexical. Two recipes with identical titles can be completely different dishes (regional variations), and two recipes with different titles can be the same dish.
+
+**Consequences:**
+- False positive: user asked to "update existing recipe?" when they want a new one. Annoying but recoverable
+- True silent overwrite: existing recipe content destroyed, changelog has previous content but user may not know to look
+- False negative: dedup misses actual duplicates, knowledge base accumulates copies
+
+**Prevention:**
+- Do NOT auto-upsert. The v1.3 revert was correct. Instead, implement "search-then-suggest":
+  1. When `save_knowledge` is called, first search FTS5 for the title
+  2. Return search results to Claude as part of the tool response: `"Similar items found: [id:42 'Chicken Parmigiana', id:67 'Chicken Parmesan (Grandma's)']"`
+  3. Let Claude decide whether to create new or update existing, and let Claude ask the user if uncertain
+  4. This is the agent pattern: Claude is the reasoning engine, tools provide data, Claude makes decisions
+- Set a RELEVANCE THRESHOLD for dedup suggestions. BM25 scores below a threshold (e.g., relevance < 5.0) should not be surfaced as potential duplicates
+- Match on title similarity PLUS tag overlap. If both items have tags `recipe`, `cuisine:italian`, `protein:chicken`, the dedup confidence is higher
+- Add instructions to the system prompt: "When save_knowledge returns similar items, evaluate whether they are truly the same recipe or just similar. Ask the user if you are unsure. Different recipes can have similar names."
 
 **Warning signs:**
-- Invite tokens are sequential numbers or obvious patterns
-- Tokens never expire (no `expiresAt` column)
-- No `maxUses` limit -- a single link can add unlimited users
-- The invite payload contains the household ID in plaintext
+- Users complaining "why did you overwrite my recipe?"
+- Knowledge changelog showing updates the user did not request
+- Duplicate recipes accumulating despite dedup being "enabled"
+- Claude always choosing to update instead of create (system prompt instructions too aggressive)
 
-**Phase to address:** Phase 2 (Invite System). Design the invite table and token generation before implementing the `/start` handler changes.
-
-**Severity:** SECURITY BREACH. Unauthorized users join households and access private recipe collections, dietary restrictions, and meal plans.
+**Phase to address:** Knowledge Dedup phase. This is a Claude tool + system prompt design issue, not just a DB query issue.
 
 ---
 
-### Pitfall 5: /start Handler Regression Breaks Existing Single-User Flow
+### Pitfall 5: Migration Runner Breaks Existing Ad-Hoc Migrations
 
 **What goes wrong:**
-The current `/start` handler is a simple greeting. The new system gates access behind invite tokens: `/start INVITE_TOKEN` creates the user and joins a household, while bare `/start` (no token) must be rejected for new users. But the existing user already uses the bot -- they never went through an invite flow. If the new `/start` handler requires a token for ALL users, the existing user gets locked out after a bot restart or session clear. If it allows bare `/start` for existing users but blocks new users, there is a branching logic path that is easy to get wrong.
+HeySous currently has NO formal migration runner. Tables are created via `CREATE TABLE IF NOT EXISTS` in init functions, and the one real migration (`migrateToHouseholdId`) uses `PRAGMA table_info()` to detect if it has already run. A new migration framework introduces a `migrations` table and `PRAGMA user_version` tracking. But the EXISTING database has no version number set (`user_version` defaults to 0). The migration runner sees version 0 and tries to run ALL migrations from scratch, including ones that recreate tables that already exist. The `CREATE TABLE IF NOT EXISTS` statements are safe, but `ALTER TABLE ADD COLUMN` statements will fail with "duplicate column name" if the column was already added by the ad-hoc `migrateToHouseholdId` function.
 
 **Why it happens:**
-The `/start` command is the entry point for both Telegram deep links (with payload) and the normal "user opens bot for the first time" flow. Telegram sends `/start` every time a user taps the "Start" button or clicks a deep link. The handler must distinguish between: (a) existing user saying hi, (b) new user with valid invite, (c) new user without invite (should be blocked), (d) existing user clicking an invite link (should join new household or be told they are already a member).
+Bootstrapping a migration framework on an existing database with ad-hoc migrations is a chicken-and-egg problem. The existing database is in a state that no migration version describes. Version 0 does not mean "empty database" -- it means "database created before versioning existed."
 
-**How to avoid:**
-- In the `/start` handler, first check if the user exists in the `users` table. If yes, they are an existing user -- greet them normally (or handle the invite-to-new-household case if a payload is present).
-- If the user does NOT exist AND there is no invite payload, show a gated message: "HeySous is invite-only. Ask a friend for an invite link!"
-- If the user does NOT exist AND there IS an invite payload, validate the token and create the user + household association.
-- Seed the existing user into the `users` table during the data migration (Phase 1), so they are always recognized as "existing."
-- Write explicit test cases for all 4 scenarios above. The `/start` handler is the most branching-heavy handler in the system.
+**Consequences:**
+- Migration runner crashes on startup, bot fails to start
+- If crash is not caught, database could be in a half-migrated state (some ALTER TABLEs ran, others did not)
+- Rolling back is difficult because there is no previous version to roll back to
+
+**Prevention:**
+- The migration runner's FIRST migration must be a "baseline" migration that detects the current database state and sets the version accordingly:
+  ```sql
+  -- Migration 001: Baseline
+  -- If knowledge_items has household_id column, we are at baseline v1.3
+  -- Set user_version = 1 and skip all prior setup
+  ```
+- Use `PRAGMA user_version` as the version tracker. It is a single integer, atomic, and survives crashes
+- Each migration must be idempotent: use `ALTER TABLE ... ADD COLUMN ... IF NOT EXISTS` (available in SQLite 3.35.0+, which is bundled with better-sqlite3 on Node 22). Alternatively, check `PRAGMA table_info()` before each ALTER
+- Run migrations in a transaction. If any step fails, the entire migration rolls back and `user_version` is not incremented
+- Remove the ad-hoc `migrateToHouseholdId` function and replace it with a numbered migration that does the same thing idempotently. The numbered migration checks for `chat_id` column existence before renaming, just like the current code does
+- Keep existing `CREATE TABLE IF NOT EXISTS` init functions for now. They are safe to run alongside the migration framework. Eventually, all schema creation should move into migrations, but that is a larger refactor
 
 **Warning signs:**
-- Existing user sees "HeySous is invite-only" after bot restart
-- New user with valid invite token sees the old greeting instead of onboarding
-- Clicking an invite link while already a member creates a duplicate user record
-- `/start` with an expired token shows a generic error instead of a helpful message
+- Bot fails to start after deploy with "duplicate column name" error
+- `PRAGMA user_version` returns 0 on a database that has been through multiple releases
+- Migration runner log shows "running migration 1" on a database that already has all tables
 
-**Phase to address:** Phase 2 (Invite System), but requires Phase 1 (users table + migration) to be complete first. This is a hard dependency.
-
-**Severity:** LOCKOUT for existing user. Complete system unusability if the single existing user cannot access the bot.
+**Phase to address:** Data Migration Framework phase. This is foundational infrastructure -- must be implemented before any new schema changes.
 
 ---
 
-### Pitfall 6: Household Data Sharing Without Permission Granularity
+## Moderate Pitfalls
+
+Issues that cause degraded UX or increased maintenance burden, but not data loss.
+
+### Pitfall 6: URL Fetch Blocked by Recipe Sites (Anti-Scraping)
 
 **What goes wrong:**
-All household members get full read/write access to everything: recipes, meal plans, grocery lists, preferences, reminders. User A saves a private dietary restriction ("allergic to shellfish, severity: allergy"). User B joins the household. User B can now read, modify, and delete User A's allergy preferences. User B changes the grocery list while User A is shopping. User B modifies a meal plan that User A carefully curated. There is no concept of "my recipes" vs "household recipes" or "my preferences" vs "shared preferences."
+Major recipe sites (NYT Cooking, Bon Appetit, Food Network, AllRecipes) employ anti-scraping measures. A bare `fetch()` from a Node.js server gets blocked with 403 Forbidden, a CAPTCHA page, or a Cloudflare challenge. The user sees "Sorry, I couldn't access that recipe." for most URLs they try.
 
 **Why it happens:**
-The simplest household model is "everything is shared." It avoids the complexity of per-item ownership and permission checks. But dietary restrictions, allergies, and personal preferences are inherently per-person. And meal plans often need to account for all household members' restrictions -- but should only be editable by the person who created them (or by explicit permission).
+Recipe sites detect non-browser requests via:
+- Missing or generic User-Agent header (`node-fetch/1.0` or `undici`)
+- Missing browser headers (Accept, Accept-Language, Accept-Encoding, Sec-Fetch-* headers)
+- Missing cookies/JavaScript execution (Cloudflare challenge requires JS)
+- IP reputation (cloud server IPs are flagged more than residential IPs)
+- Rate limiting (multiple fetches from the same IP in short succession)
 
-**How to avoid:**
-- Add an `ownerId` (userId) column to tables where individual ownership matters: `knowledge_items`, `meal_plans`, `reminder_settings`.
-- Recipes and cooking notes are household-shared (anyone can see and edit). Preferences with `severity:allergy` or `severity:restriction` tags are household-visible but only editable by the owner.
-- Grocery lists are inherently shared (the household shops together). Meal plans could be per-user or per-household -- decide this early and document the decision.
-- Reminders are per-user (User A wants morning reminders at 7am, User B at 9am). The `reminder_settings` table already has per-`chatId` settings; in the new model, these become per-`userId`.
-- Start with a simple model: everything shared, preferences per-user. Add granular permissions later if needed. But design the schema to ALLOW future permission columns without another migration.
+**Prevention:**
+- Set a realistic User-Agent header (e.g., `Mozilla/5.0 ... Chrome/120.0`) and include standard browser headers. This resolves ~60% of blocks
+- For Cloudflare-protected sites, consider a headless browser fallback (Puppeteer), but this is heavy and should be a LAST RESORT for a single-process bot. Better to catch the 403 and tell the user to paste the recipe text instead
+- Implement graceful degradation: if URL fetch fails, ask the user to copy-paste the recipe text or send a photo instead. Do not just say "failed"
+- Cache successful fetches by URL (with a 24-hour TTL) so re-importing the same URL does not hit the site again
+- Respect `robots.txt` -- do not fetch URLs where robots.txt disallows scraping. Recipe sites' terms of service often prohibit scraping
+- Add the source URL to the saved knowledge item's `source` field so users can visit the original page
 
 **Warning signs:**
-- User B edits User A's allergy preference and the system no longer avoids shellfish in plans
-- User B deletes a recipe that User A added, and User A has no way to know who deleted it
-- Reminder settings for one user overwrite settings for another
+- >50% of URL import attempts fail
+- All failures are from the same domains (Cloudflare-protected sites)
+- Users stop trying URL import after 2-3 failures
 
-**Phase to address:** Phase 1 (Data Model). Decide the ownership model during schema design, even if enforcement is deferred to a later phase.
-
-**Severity:** DATA INTEGRITY. Wrong allergy information in meal plans is a health risk, not just a UX issue.
+**Phase to address:** URL Recipe Import phase. Graceful degradation (paste fallback) must ship alongside the URL fetch feature.
 
 ---
 
-### Pitfall 7: Onboarding Flow State Machine Corruption
+### Pitfall 7: JavaScript-Rendered Recipe Pages Return Empty JSON-LD
 
 **What goes wrong:**
-The onboarding flow is a multi-step Q&A: collect dietary preferences, cooking skill, household size, store preferences, then seed recipes and show a tour. If the user sends a message mid-onboarding (e.g., types "hello" instead of answering "What are your dietary restrictions?"), the pipeline processor routes the message to Claude, which responds conversationally instead of advancing the onboarding state. The user is now stuck: the bot thinks they are in normal conversation mode, the onboarding state machine thinks they are on step 2. Subsequent onboarding prompts arrive out of order or not at all.
+The scraper fetches the HTML but finds no JSON-LD or schema.org markup. The recipe content is rendered client-side by React/Vue/Angular, and the initial HTML response contains only a shell `<div id="root"></div>` and JavaScript bundles. This is increasingly common on modern recipe platforms.
 
 **Why it happens:**
-The current message handler is a catch-all: ALL `message:text` events go to the debounce queue and then to Claude. There is no middleware that intercepts messages during onboarding and routes them to the onboarding handler instead. The onboarding state is stored somewhere (database, in-memory map), but the message handler does not check it.
+Single-page applications (SPAs) load content via JavaScript after the initial HTML loads. A server-side `fetch()` gets the pre-rendered HTML, which has no recipe data. The JSON-LD that Google sees is either server-side rendered (SSR) or injected by the JavaScript at runtime.
 
-**How to avoid:**
-- Store onboarding state in the database: `onboarding_state` table with `userId`, `currentStep`, `answersJson`, `startedAt`.
-- Add an onboarding middleware that runs BEFORE the catch-all message handler. If the user has an active onboarding state, intercept the message and route it to the onboarding handler.
-- The onboarding handler should be tolerant of unexpected input: if the user says "hello" when asked about dietary restrictions, respond with "I'd love to chat, but let's finish setting you up first! What dietary restrictions should I know about?"
-- Implement a `/skip` command and a `/restart_onboarding` command for users who want to skip the onboarding or start over.
-- Set a timeout on onboarding state: if the user has not advanced in 24 hours, mark the onboarding as abandoned and let them use the bot normally (with defaults).
+**Prevention:**
+- Check for JSON-LD first (it is usually present even in SSR apps because Google requires it for rich results)
+- If no JSON-LD found, check for microdata format (`itemtype="https://schema.org/Recipe"`) in the HTML
+- If neither found, fall back to sending the raw HTML (truncated to 10KB) to Claude with an extraction prompt. Claude can often find recipe structure even in messy HTML
+- If the HTML is clearly a JavaScript shell (<1KB of meaningful content), inform the user: "This site loads recipes dynamically. Could you paste the recipe text instead?"
+- Do NOT add Puppeteer for a single-process bot. The memory and CPU overhead of headless Chrome is not justified for a side feature. If JS-rendered sites become the majority case, consider a separate microservice
 
 **Warning signs:**
-- User sends a message during onboarding and gets a Claude response about meal planning instead of the next onboarding question
-- Onboarding prompts appear twice or in wrong order
-- User completes onboarding but their preferences were not saved
-- User gets stuck in onboarding with no way to exit
+- JSON-LD extraction returns null but the URL is a valid recipe page
+- Fetched HTML is <5KB for a page that should have recipe content
+- Pattern of failures from specific domains (React-based recipe platforms)
 
-**Phase to address:** Phase 3 (Onboarding Flow). Must be implemented as middleware that runs before the catch-all message handler.
-
-**Severity:** UX BROKEN. A first-time user who gets stuck in onboarding will abandon the bot. First impressions matter most.
+**Phase to address:** URL Recipe Import phase. Multiple fallback strategies in priority order.
 
 ---
 
-### Pitfall 8: Message Queue Keyed by chatId Loses Messages in Multi-User Households
+### Pitfall 8: Telegram Photo Quality Too Low for Recipe Extraction
 
 **What goes wrong:**
-The `MessageQueue` debounce batching is keyed by `chatId`. In the current single-user model, one user per chat means one debounce timer per user. In a multi-user household, if both User A and User B are messaging the bot simultaneously (in their own private chats with the bot), they have separate `chatId` values, so no conflict. BUT -- if the system ever supports group chats (same `chatId` for multiple users), or if the debounce key changes to `householdId`, messages from User A and User B get batched together. Claude receives "What's for dinner?" from User A concatenated with "Add milk to the list" from User B as a single batch, producing a confused response.
+User photographs a recipe from a cookbook. Telegram compresses the photo before delivery. The bot downloads it via `getFile`, sends it to Claude Vision, and Claude returns garbled ingredients: "1/2 cup fluor" (flour), "2 tblsp" (tablespoons), "baking sod" (soda). Quantities are wrong because small text was not readable at the compressed resolution.
 
 **Why it happens:**
-The `MessageQueue.enqueue()` takes `chatId` as the key. In the current code, `chatId = String(ctx.chat.id)` and `userId = String(ctx.from?.id ?? "unknown")`. For private chats, each user has their own chat with the bot, so chatId is unique per user. The pitfall emerges if: (1) group chat support is added (multiple users, one chatId), (2) the debounce key is changed to householdId, or (3) the processor does not correctly attribute messages to users within a batch.
+Telegram applies lossy JPEG compression to photos. The resolution depends on how the image was sent:
+- Sent as "Photo": Telegram compresses to ~1280px on the long edge, JPEG quality ~85%. Small cookbook text becomes blurry
+- Sent as "Document/File": Original resolution preserved, up to 20MB via getFile
+- Screenshots: Usually fine resolution but may have low contrast or small text
 
-**How to avoid:**
-- Keep the debounce queue keyed by the user's private chat ID, NOT by householdId. Each user talks to the bot in their own private chat.
-- If group chat support is added later, the debounce key must be `chatId + userId` (composite key), and the processor must handle multi-user batches.
-- In the processor, resolve the `householdId` from the `userId` AFTER debounce, not before. The debounce is about message timing; the household scope is about data access.
-- Do NOT change the MessageQueue's keying strategy unless group chats are explicitly required.
+Claude Vision limitations (per official Anthropic docs):
+- Images under 200px on any edge may degrade performance
+- Claude may hallucinate or make mistakes with low-quality, rotated, or very small images
+- Spatial reasoning is limited -- tabular recipe layouts may be misread
+- Precise numeric extraction (quantities) is not Claude's strongest capability
+
+**Prevention:**
+- Instruct users to send photos as DOCUMENTS (not compressed photos) for best quality. Add this to the help text
+- In the extraction prompt, tell Claude to flag low-confidence extractions: "If any ingredient quantity is unclear, mark it with [?] so the user can verify"
+- After extraction, ALWAYS show the parsed recipe to the user for review. Never auto-save photo imports
+- For photos with multiple recipe sections (e.g., a double-page spread), ask the user to crop to one recipe at a time
+- Resize to max 1568px before sending to Claude (matches their internal scaling, avoids latency penalty for oversized images but ensures quality is not degraded further)
+- Add a minimum quality check: if the image is below 400x400px after Telegram compression, warn the user that the quality may be too low
 
 **Warning signs:**
-- Two users' messages appear concatenated in Claude's context
-- Response addresses the wrong user's question
-- Debounce timer for one user is reset by another user's message
+- Extracted recipes have `[?]` markers on many quantities
+- User corrects 3+ ingredients after extraction
+- Small fractions (1/4, 1/8) are consistently misread
+- Handwritten recipe photos produce unusable results
 
-**Phase to address:** Phase 1 (Data Model). Decide early: private-chat-only or group-chat support. If private-chat-only, the message queue needs no changes.
-
-**Severity:** DATA CORRUPTION in Claude context. Wrong responses to wrong users. Potentially reveals one user's private questions to another.
+**Phase to address:** Photo Recipe Import phase. Quality guidance in help text + extraction confidence flagging.
 
 ---
 
-### Pitfall 9: System Prompt Injection With Wrong User's Preferences
+### Pitfall 9: Update Notifications Trigger Mass 403 Blocks
 
 **What goes wrong:**
-The processor builds the system prompt by loading preferences, active plans, grocery context, reminder context, and feedback context -- ALL filtered by `chatId`. In the new multi-user model, these contexts must reflect the CURRENT USER's preferences within the household's shared data. If User A is allergic to shellfish and User B is not, and the system prompt loads household-level preferences without distinguishing who is asking, Claude might suggest shrimp for User A's dinner because User B has no shellfish restriction.
+On deploy, the bot sends a "What's new in v1.4" message to all registered users. Some users have not interacted with the bot in weeks. Some have blocked the bot. Some have muted it. Telegram returns 403 for blocked users, and if too many 403s occur in quick succession, Telegram may rate-limit the bot's token entirely (429 with a long `retry_after`). If the bot has 50+ users and sends all notifications at once, it hits the 30 messages/second global limit.
 
 **Why it happens:**
-The `buildSystemPrompt()` function receives preference summaries and plan context, all queried by a single `chatId`. In the new model, `chatId` becomes `householdId` (shared data), but preferences are per-user. The system prompt must include BOTH: "Household preferences: prefers Mediterranean cuisine" AND "Current user (User A) preferences: shellfish allergy, vegetarian on Mondays." If the system prompt only includes household-level preferences, per-user restrictions are invisible to Claude.
+Telegram's rate limits are strict: 30 messages per second per bot token, with per-chat limits of ~1 message per second. A broadcast to 50 users at full speed completes in ~2 seconds but risks rate limiting. More importantly, 403 errors from blocked users are PERMANENT -- retrying is pointless. And broadcasting to users who have not interacted recently increases the chance of spam reports, which can lead to Telegram shadow-banning the bot.
 
-**How to avoid:**
-- When building the system prompt, load two sets of preferences: (1) household-level preferences (shared by all members), (2) current user's personal preferences (allergies, dietary restrictions, schedule).
-- Clearly label them in the system prompt: "Household preferences: ..." and "Your preferences: ...". This helps Claude distinguish.
-- For meal planning, load ALL household members' restrictions (everyone's allergies matter for a shared meal). For recipe suggestions for a specific user, load only that user's preferences.
-- Add a `scope` tag to preferences: `scope:personal` vs `scope:household`. The system prompt builder uses this to partition.
+**Consequences:**
+- Bot rate-limited by Telegram for hours after a deploy
+- Regular chat messages delayed or dropped while rate limit is active
+- Users who blocked the bot generate noise in error logs
+- Spam reports could get the bot flagged by Telegram
+
+**Prevention:**
+- Track `last_seen_version` per user in the database. Only send update notifications for NEW versions the user has not seen
+- Send notifications LAZILY: instead of broadcasting on deploy, send the "what's new" message when the user next messages the bot. This ensures they are active and have not blocked the bot
+- If broadcasting is required, stagger messages: 1 message per second with jitter, respecting the 30 msg/s global limit
+- Handle 403 gracefully (already done in `reminders/sender.ts`). Mark users who return 403 as `blocked: true` and stop sending them ANY proactive messages (reminders, notifications, feedback check-ins)
+- Track blocked status in the users table. Check it before any outbound message
+- Never send update notifications to users who have been inactive for >30 days
 
 **Warning signs:**
-- Claude suggests a meal containing an allergen that one household member is allergic to
-- User A asks for recipe suggestions and gets recommendations based on User B's preferences
-- Preferences saved by User A appear in User B's `/preferences` output
+- Error logs flooded with 403 errors during deploy
+- Regular users experience delayed responses after a deploy
+- Telegram returns 429 with `retry_after > 60` seconds
+- `retry_after > 300` seconds indicates a shadow-ban -- back off for hours
 
-**Phase to address:** Phase 1 (Data Model) for schema support, Phase 3 (Onboarding) for collecting per-user preferences, Phase 4 for updating the system prompt builder.
-
-**Severity:** HEALTH RISK. Wrong allergy information in meal suggestions is not just a bug -- it is a safety issue.
+**Phase to address:** Update Notifications phase. Lazy delivery (on next user interaction) is strongly preferred over broadcast.
 
 ---
 
-### Pitfall 10: Mini-App Auth Middleware Identity Mismatch After Multi-User Migration
+### Pitfall 10: Notification Tone Rewrite Breaks Telegram HTML Formatting
 
 **What goes wrong:**
-The current mini-app auth middleware (`src/mini-app/auth-middleware.ts`) extracts `userId` from initData and sets `res.locals.chatId = String(userId)`. All mini-app API routes then use `res.locals.chatId` to query repositories. After the multi-user migration, mini-app routes need BOTH `userId` (who is making the request) and `householdId` (what data scope to query). If `res.locals.chatId` is still set to the user's Telegram ID but repositories now filter by `householdId`, the mini-app returns empty data because the user's Telegram ID does not match any `householdId`.
+The notification tone is changed from formal/generic to the conversational Sous persona style. The developer rewrites reminder templates and hardcoded fallback messages with new tone, but introduces Markdown syntax (`**bold**`, `*italic*`) instead of HTML (`<b>bold</b>`, `<i>italic</i>`). Or introduces unsupported HTML tags (`<br>`, `<p>`, `<ul>`, `<li>`). Telegram silently strips unsupported tags or returns "can't parse entities" errors. The `sendFormattedMessage` function catches the error and falls back to plain text, but the message looks ugly without any formatting.
 
 **Why it happens:**
-The identity mapping `userId === chatId` was a convenient shortcut for single-user private chats. The auth middleware set `chatId` to the user's ID because they were the same thing. After migration, the middleware must resolve the user's household membership and provide the correct `householdId` for data queries.
+Telegram's HTML parse mode supports ONLY: `<b>`, `<i>`, `<u>`, `<s>`, `<tg-spoiler>`, `<a>`, `<code>`, `<pre>`, and `<blockquote>`. No `<br>`, `<p>`, `<div>`, `<span>`, `<ul>`, `<li>`, `<h1>`-`<h6>`. Developers accustomed to web HTML or Markdown introduce unsupported tags. The Claude-generated reminder text is particularly risky because Claude's system prompt says "use HTML" but Claude may still generate unsupported tags.
 
-**How to avoid:**
-- Update the auth middleware to: (1) extract `userId` from initData, (2) look up the user's household in the database, (3) set BOTH `res.locals.userId` and `res.locals.householdId`.
-- Update ALL mini-app API routes to use `res.locals.householdId` for data queries (grocery lists, recipes, plans) and `res.locals.userId` for user-specific data (preferences, reminder settings).
-- If the user has no household (not yet invited), return a 403 with a clear error message, not an empty dataset.
-- Add a test that: creates a new user via invite, opens the mini-app, and verifies data is visible.
+**Prevention:**
+- Add a `sanitizeTelegramHtml()` function that strips unsupported HTML tags before sending. Run ALL outbound messages through it
+- In the reminder system prompt and the main Sous system prompt, explicitly list ONLY the supported tags
+- Write tests that verify template outputs contain only supported HTML tags
+- When testing tone changes, send actual messages to a Telegram test chat and visually verify formatting
+- Keep a test matrix: each template, each reminder type, each edge case (empty meal plan, no recipes, etc.)
 
 **Warning signs:**
-- Mini-app shows empty grocery list after migration, but bot `/grocery` command shows items
-- Mini-app recipe browser shows no recipes for new household members
-- `res.locals.chatId` is still being used in API routes after migration
+- Reminder messages arriving as plain text (fallback triggered)
+- HTML entity errors in logs: "can't parse entities"
+- Messages with literal `<br>` or `<p>` tags visible to users
+- Claude-generated reminder text using `**bold**` Markdown instead of `<b>bold</b>` HTML
 
-**Phase to address:** Phase 1 (Data Model Migration) for the auth middleware update, Phase 2 (Invite System) for the "no household" error case.
-
-**Severity:** FEATURE BROKEN. All three mini-apps (grocery, recipes, meal plan) return empty data for all users after migration.
+**Phase to address:** Notification Tone phase. Formatting sanitization should be implemented BEFORE the tone rewrite.
 
 ---
 
-## Technical Debt Patterns
+## Minor Pitfalls
 
-Shortcuts that seem reasonable but create long-term problems.
+Issues that cause minor inconvenience or technical debt.
 
-| Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
-|----------|-------------------|----------------|-----------------|
-| Using `chatId` as `householdId` for existing user instead of generating a proper household ID | Zero-risk migration -- existing data needs no column value change | Household IDs are Telegram user IDs, which are opaque numbers. If the original user leaves the household, their personal Telegram ID remains as the household identifier forever. Confusing for debugging and auditing | Acceptable for v1.2 launch. The existing user IS the household founder. Generate proper IDs in a future version if needed |
-| Skipping row-level ownership on knowledge_items ("everything is shared in household") | Simpler queries, fewer authorization checks, faster to implement | Cannot distinguish "my recipe" from "household recipe." Cannot implement per-user recipe collections or "recently added by me" views. No audit trail for who changed what | Acceptable for v1.2 if the household is small (2-3 people). Add ownership tracking in the migration schema even if enforcement is deferred |
-| Storing onboarding state in memory instead of database | Faster reads, simpler code | Lost on bot restart. User restarts onboarding from scratch if the bot redeploys during their setup. On Railway, deploys happen frequently | Never. Always use the database for onboarding state. Restarts should resume where the user left off |
-| Single invite link per household (no multi-token management) | Simpler UI, one command to generate invite | Cannot revoke individual invites, cannot set per-invite permissions, cannot track which invite each member used | Acceptable for v1.2. Most households will use one invite link. Add revocation in a future version |
-| Hardcoding onboarding questions instead of making them data-driven | Faster to implement, no admin UI needed | Changing onboarding requires a code change and deploy. Cannot A/B test different onboarding flows | Acceptable for v1.2. Onboarding questions are unlikely to change frequently |
-| Using the bot's private chat for all interaction (no group chat support) | Avoids the massive complexity of multi-user-in-one-chat, debounce conflicts, message attribution | Cannot use the bot in a family group chat. Each user must have a separate private chat | Acceptable and RECOMMENDED for v1.2. Group chat support is a separate, much larger feature |
+### Pitfall 11: URL Import Creates Orphaned Knowledge Items on Parse Failure
+
+**What goes wrong:**
+The URL is fetched successfully, HTML is downloaded, but parsing fails midway. The tool handler has already created a placeholder knowledge item (with the URL as source) before attempting to parse. The parse failure leaves an empty or partially filled knowledge item in the database. The user does not know it exists, and it pollutes search results.
+
+**Prevention:**
+- Do NOT create the knowledge item until parsing is complete and the user has confirmed the recipe. The flow should be: fetch -> parse -> present to user -> user confirms -> save. No database writes until the final step
+- If using a two-step flow (save draft, then finalize), mark drafts with a tag (`status:draft`) and clean up drafts older than 24 hours
+
+---
+
+### Pitfall 12: Dedup Search Adds Latency to Every Save Operation
+
+**What goes wrong:**
+Every `save_knowledge` tool call now runs an FTS5 search before the INSERT. For most saves, the search returns 0 results and adds 5-10ms of latency. But if the knowledge base is large (500+ items), the search takes longer. The tool handler is synchronous (better-sqlite3), so this blocks the event loop during the search.
+
+**Prevention:**
+- FTS5 searches on better-sqlite3 are fast (sub-millisecond for <1000 items). This is unlikely to be a real problem at HeySous's scale
+- If it becomes an issue, limit the dedup search to title-only matching (not full content search): `WHERE knowledge_fts MATCH '"chicken parmesan"' AND ki.household_id = ?`
+- Monitor search latency via `queryTimeMs` in the retrieval metrics
+
+---
+
+### Pitfall 13: Migration Framework Over-Engineering
+
+**What goes wrong:**
+The developer builds a sophisticated migration framework with rollback support, dry-run mode, version branches, and a CLI tool. The framework takes longer to build than the actual migrations it needs to run. HeySous has ~12 tables and will add 2-3 more in v1.4. The migration framework is enterprise-grade for a hobby project.
+
+**Prevention:**
+- Keep it simple: a numbered array of migration functions, `PRAGMA user_version` for tracking, run-at-startup execution
+- Each migration is a function that takes `sqlite: BetterSqlite3.Database` and runs SQL in a transaction
+- No rollback support needed -- SQLite migrations are forward-only. If a migration is wrong, write a new migration to fix it
+- No CLI tool needed -- migrations run automatically on startup, matching the existing `createDatabase()` pattern
+- Total implementation: ~50-80 lines of code. A `runMigrations(sqlite, migrations[])` function that checks `PRAGMA user_version`, runs pending migrations in order, and increments the version
+
+---
+
+## Phase-Specific Warnings
+
+| Phase Topic | Likely Pitfall | Mitigation |
+|-------------|---------------|------------|
+| URL Recipe Import | Fetch hangs server (Pitfall 1) | 10s timeout, async fetch outside tool loop |
+| URL Recipe Import | Anti-scraping blocks (Pitfall 6) | Browser-like headers, graceful degradation to paste |
+| URL Recipe Import | Bad schema.org parsing (Pitfall 2) | Normalization layer, Claude fallback for messy HTML |
+| URL Recipe Import | JS-rendered pages empty (Pitfall 7) | JSON-LD first, microdata second, Claude extraction third |
+| Photo Recipe Import | Cost spirals (Pitfall 3) | Minimal system prompt, resize images, daily limits |
+| Photo Recipe Import | Low quality extraction (Pitfall 8) | Confidence flagging, user review, document upload guidance |
+| Knowledge Dedup | False positive matches (Pitfall 4) | Claude-driven dedup decisions, relevance threshold, no auto-upsert |
+| Knowledge Dedup | Race with concurrent saves | better-sqlite3 is synchronous -- no actual race condition in this codebase. The "race" would only occur if dedup were async, which it should not be |
+| Data Migration Framework | Conflicts with ad-hoc migrations (Pitfall 5) | Baseline migration that detects current state, idempotent ALTERs |
+| Data Migration Framework | Breaking FTS5 triggers | Same as v1.2 Pitfall 3 -- use ALTER TABLE ADD COLUMN, not table rebuild. Verify triggers after migration |
+| Update Notifications | Mass 403 blocks (Pitfall 9) | Lazy delivery on next interaction, staggered broadcast, blocked user tracking |
+| Notification Tone | Broken HTML formatting (Pitfall 10) | Sanitization function, supported-tags-only in prompts, visual testing |
 
 ---
 
@@ -293,57 +407,15 @@ Shortcuts that seem reasonable but create long-term problems.
 
 Common mistakes when connecting these new features to the existing system.
 
-| Integration | Common Mistake | Correct Approach |
-|-------------|----------------|------------------|
-| **userId vs chatId in tool handler** | Passing `householdId` as `chatId` to `createToolHandler`, which then passes it to all tool operations. Tools that should be user-scoped (feedback, preferences) incorrectly operate at household scope | Create separate parameters: `createToolHandler({ userId, householdId, ... })`. Tools that read shared data (recipes, plans, grocery) use `householdId`. Tools that write personal data (preferences, feedback) use `userId`. Tools that need both (meal planning that respects allergies) receive both |
-| **Message history mixing users** | Loading conversation history by `householdId` instead of by the user's private chat. User A sees User B's conversation with the bot in their context window | Conversation history MUST remain per private chat (keyed by the user's chat ID with the bot). Never load another user's conversation turns into Claude's context. Shared data (recipes, plans) is loaded via the system prompt, not via conversation history |
-| **Reminder sender targeting wrong chat** | Reminder poller iterates over `reminder_settings` rows. Currently, `chatId` in reminders is used to `bot.api.sendMessage(chatId, ...)`. After migration, if `chatId` was changed to `householdId`, reminders are sent to a non-existent chat (householdId is not a valid Telegram chat ID) | Store BOTH `userId` (for targeting: `bot.api.sendMessage(userId, ...)`) and `householdId` (for data context) in reminder_settings. Or keep `chatId` as the user's private chat ID and add `householdId` as a separate column |
-| **Onboarding middleware vs feedback text handler** | Both onboarding middleware and feedback text handler (`feedbackTextHandler`) intercept messages before the catch-all. If onboarding middleware runs first and swallows all messages during onboarding, feedback replies during onboarding are lost. If feedback handler runs first, it may intercept onboarding answers as feedback | Onboarding middleware MUST be the first interceptor. During onboarding, all messages go to onboarding handler. Feedback text handler should check onboarding state and skip if active. Middleware order in `createBot()` is critical |
-| **Invite deep link vs existing /start** | The `/start` command handler is currently a simple `Composer`. Deep link payloads arrive as `/start PAYLOAD`. If the new invite handler is a separate Composer that only matches `/start` with a payload, the bare `/start` falls through to the old handler (or to the catch-all message handler, causing a Claude call for "/start") | Replace the existing `startHandler` with a unified handler that checks for payload, checks user existence, and routes to the appropriate flow. Do not have two separate `/start` handlers |
-| **Grocery list toggle without ownership check** | The mini-app grocery toggle endpoint (`POST /api/grocery/toggle`) currently does not verify that the item belongs to the requesting user's household. Any authenticated user could toggle any item by ID | Add a check: look up the item's list, verify the list's householdId matches the requesting user's householdId. This is the same pattern already partially implemented in the existing `toggleItem` route (it checks `getListIdForItem` then `getActiveList`) but needs the householdId comparison |
-| **Knowledge changelog missing userId** | The `knowledge_changelog` table has `chatId` but no `userId`. After multi-user, you cannot tell which household member made a change. "Who deleted my recipe?" is unanswerable | Add `userId` column to `knowledge_changelog` during migration. Populate existing rows with the original user's ID |
-
----
-
-## Performance Traps
-
-Patterns that work for a single user but degrade with multiple users and shared data.
-
-| Trap | Symptoms | Prevention | When It Breaks |
-|------|----------|------------|----------------|
-| Loading ALL household members' preferences into system prompt | System prompt grows linearly with household size. At 5 members with 10 preferences each, that is 50 preference summaries injected into every Claude call. Token cost increases significantly | Load current user's preferences fully. Load only allergy/restriction preferences (tagged `severity:allergy` or `severity:restriction`) from other household members. Cap total preference count | At 3+ household members with many preferences. Each Claude call costs more tokens |
-| FTS5 search across household returns too many results | With multiple users adding recipes, the knowledge base grows. FTS5 search for "chicken" returns 30 results instead of 5, overwhelming the two-pass retrieval token budget | Keep the search `LIMIT` at 5-10. Add tag-based filtering (e.g., search only `recipe`-tagged items, not preferences). Consider adding a `household_id` column to the FTS5 join query for scoping |
-| Reminder poller iterates over all users | Currently iterates over `getAllActiveSettings()`. With multiple users per household, the poller processes more settings. Each setting may trigger a Claude call for generating reminder text | The poller is already designed for multiple settings. But ensure `generateReminders` does not make a Claude API call for each user -- it should be plan-based, not user-based. Cache generated text and share across household members with the same plan |
-| Mini-app polling from multiple household members simultaneously | 3 household members with the grocery mini-app open = 3x the polling load. Each polls every 8 seconds = ~22 requests/minute to SQLite | This is fine for SQLite with WAL mode and better-sqlite3's synchronous reads. Only a concern at 10+ concurrent mini-app users, which is unlikely for a household bot |
-
----
-
-## Security Mistakes
-
-Multi-user-specific security issues beyond the existing single-user security model.
-
-| Mistake | Risk | Prevention |
-|---------|------|------------|
-| Household ID enumeration via invite tokens | If invite tokens contain or are derived from household IDs, an attacker can enumerate households by trying sequential IDs | Use cryptographically random tokens with no relationship to household IDs. Tokens are opaque lookup keys only |
-| Cross-household data access via direct item ID | A user in Household A guesses an item ID (e.g., knowledge item #42) that belongs to Household B. If the API does not check household membership, they can read or modify it | EVERY data access must verify `householdId` matches. Never trust item IDs from the client without scoping them to the household. This is already done for `chatId` in the knowledge repository (`getById(id, chatId)`) -- just ensure it is updated to `householdId` |
-| Invite link shared publicly allows unlimited household growth | A user shares their invite link on social media. 100 strangers join the household and access all recipes, plans, and preferences | Set `maxUses` on invite tokens (default: 5). Add a household member cap (e.g., 10 members). Allow the household owner to remove members |
-| No way to revoke access after household member is removed | User B is removed from the household but has cached mini-app data. Or their ongoing Claude conversation still has system prompt context from the household | When a user is removed from a household: (1) their `householdId` association is deleted, (2) their next bot interaction resolves to "no household" and shows a gated message, (3) their mini-app API calls return 403. Cached data in the mini-app is stale but read-only -- acceptable |
-| Admin commands accessible to non-admin household members | Currently, `/costs` is presumably admin-only. In a multi-user household, who is the admin? If all members can see API costs, that may be acceptable. But if admin commands include "delete all data" or "remove member," access control matters | Define a `role` column in the users-households association table: `owner`, `member`. Gate admin commands behind `role === 'owner'`. For v1.2, the person who creates the household is the owner |
-
----
-
-## UX Pitfalls
-
-User experience issues specific to these new features.
-
-| Pitfall | User Impact | Better Approach |
-|---------|-------------|-----------------|
-| Onboarding asks too many questions upfront | User abandons onboarding at question 4 of 8. They wanted to try the bot, not fill out a survey | Ask 3 essential questions max: (1) dietary restrictions/allergies, (2) household size, (3) store preference. Make everything else discoverable through conversation. "You can always tell me more preferences as we go!" |
-| No way to skip onboarding | User knows what they want and does not need guided setup. But the bot forces 5 minutes of Q&A before they can say "plan my meals" | Add a "Skip setup" option at the start of onboarding. Seed with safe defaults (no restrictions, 2 servings, generic store). Add a `/preferences` reminder after first plan generation |
-| Invite flow is confusing for non-technical users | User receives a `https://t.me/HeySousBot?start=abc123...` link. They do not know what to do with it. They paste it into the bot chat instead of opening it in a browser | When generating an invite link, also send a short explanation: "Share this link with your household member. When they tap it, they'll be added to your household automatically." On the receiving end, confirm clearly: "You've been invited to join [Inviter Name]'s household. Welcome!" |
-| No feedback that household data is shared | User A saves a recipe. User B asks the bot about recipes and sees User A's recipe. User B is confused about where it came from | When displaying shared data, attribute it: "Chicken Parmesan (added by User A)". When saving new items, confirm: "Saved to your household's recipes (visible to all members)." |
-| Feedback system overwhelms new users | New user completes onboarding, cooks their first meal, and gets hit with a feedback check-in prompt. They do not yet have the context to give meaningful feedback | Delay feedback check-ins until the user has completed at least 2-3 meal plans. Set a `firstFeedbackAfter` timestamp during onboarding. Feedback for new users should be opt-in via conversation, not proactive via reminders |
-| Onboarding preferences not reflected immediately | User tells onboarding they are vegetarian. Their first meal plan includes chicken. Preferences were saved to the knowledge store but the system prompt did not load them for the plan generation call | After onboarding completes, explicitly verify that preferences are saved AND retrievable. Run a test query: load preferences for this user, confirm the allergy/restriction is present. Log a warning if preferences are empty after onboarding |
+| Integration Point | Common Mistake | Correct Approach |
+|-------------------|----------------|------------------|
+| **URL import + Claude tool loop** | Making the HTTP fetch happen inside `handleToolCall` return value. The tool handler is synchronous, and `fetch()` is async. Either the handler becomes async (breaking the interface) or the developer uses a sync HTTP library (blocking the event loop) | Implement URL import as a two-phase flow: (1) Bot handler detects URL in user message, fetches and parses BEFORE entering the Claude pipeline. (2) Parsed recipe data is injected into the user message or a special tool context. Claude receives structured data, not a URL |
+| **Photo import + message pipeline** | Sending the image to Claude inside the normal `sendMessageWithTools` call, which includes the full system prompt (4,000+ tokens). The image adds ~1,500 tokens on top. Total input is 6,000+ tokens for what should be a simple extraction | Use a separate, lightweight Claude call for image extraction with a minimal system prompt (~200 tokens). Parse the extraction result, THEN feed the structured recipe into the normal pipeline for Claude to present and confirm with the user |
+| **Dedup + save_knowledge tool** | Modifying `save_knowledge` in `tool-handler.ts` to do dedup search before insert. This changes the tool's behavior for ALL saves, including preferences and cooking notes, not just recipes | Option A: Add dedup search only for items tagged `recipe`. Option B (preferred): Return similar items in the save response and let Claude handle the decision. The tool remains simple; the intelligence is in the system prompt |
+| **Migration framework + createDatabase()** | Running migrations AFTER `initializeFts()` and other init functions. If a migration adds a new table that an init function references, the init function sees the old schema. Or worse: a migration alters a table that `initializeFts` just created triggers for | Run migrations FIRST, before any init functions. Migration order in `createDatabase()` should be: (1) basic PRAGMA settings, (2) migration runner, (3) init functions (which now only handle IF NOT EXISTS and triggers) |
+| **Update notifications + users table** | Broadcasting to all rows in the `users` table without checking if the user has a valid Telegram chat. The users table may have entries for users who joined via invite but never actually sent a message (their Telegram ID is valid but the bot has no chat with them) | Only send notifications to users who have at least one row in the `messages` table (they have actually chatted with the bot). Or use the `last_active` timestamp from user sessions |
+| **Notification tone + Claude-generated reminders** | Changing the REMINDER_SYSTEM_PROMPT in `reminders/sender.ts` but not updating the fallback text in `getFallbackText()`. When Claude API fails, users get the old formal tone from the fallback, creating an inconsistent experience | Update BOTH the Claude system prompt AND all hardcoded fallback text strings. Add a test that compares fallback messages against the expected tone |
+| **Dedup search + FTS5 edge cases** | Searching for a recipe title that contains FTS5 special characters: "Bob's Amazing Mac & Cheese" breaks FTS5 MATCH because `&` is an operator. The existing `escapeForFts5()` function strips most operators but may miss edge cases | Verify `escapeForFts5()` handles: apostrophes, ampersands, parentheses, colons, and Unicode characters. Add test cases for recipe titles with special characters |
 
 ---
 
@@ -351,102 +423,62 @@ User experience issues specific to these new features.
 
 Things that appear complete but are missing critical pieces.
 
-- [ ] **Users table exists** -- but does the existing user have a row? If the migration did not seed the existing user, they are treated as a new user and blocked by the invite gate
-- [ ] **Household sharing works** -- but can User B see recipes that User A added BEFORE User B joined? If the join date is checked against recipe creation date, pre-existing recipes may be invisible
-- [ ] **Invite link generates** -- but does it work when the recipient has never interacted with the bot before? Telegram's `/start` with payload only works if the user has not blocked the bot
-- [ ] **Onboarding saves preferences** -- but does the system prompt builder load them? Check that `getPreferenceSummaries()` is called with the correct userId/householdId, not the old chatId
-- [ ] **Multi-user data isolation works** -- but does the FTS5 search respect household boundaries? The FTS5 query joins on `knowledge_items.chat_id` -- verify this is updated to `household_id`
-- [ ] **Reminders work for multiple users** -- but do they send to the correct private chat? `bot.api.sendMessage()` needs the user's Telegram chat ID, not the household ID
-- [ ] **Mini-app shows household data** -- but does the auth middleware resolve householdId? If `res.locals.chatId` is still set to the user's Telegram ID, queries against `household_id`-scoped tables return empty
-- [ ] **Onboarding can be skipped** -- but are defaults actually set? A skipped onboarding with no defaults means the system prompt has no preferences, and Claude does not know about dietary restrictions
-- [ ] **Feedback system works** -- but is it per-user or per-household? If check-ins are per-household, User B gets asked about User A's dinner. If per-user, each user needs their own feedback schedule
-- [ ] **Knowledge changelog has userId** -- but does the existing data have the original user's ID backfilled? If existing changelog rows have NULL userId, audit trails are incomplete
-- [ ] **Invite tokens expire** -- but what happens when an expired token is used? Does the user get a helpful message, or a generic "invalid invite" error?
-- [ ] **Grocery list toggle verifies household** -- but what about the grocery callback handler in the bot? `createGroceryCallbackHandler` toggles items without any household check. A user could craft a callback with another household's item ID
+- [ ] **URL fetch works** -- but does it set a timeout? Without `AbortSignal.timeout()`, a slow server can hang the bot indefinitely
+- [ ] **JSON-LD extraction works** -- but does it handle `@graph` arrays? Many sites nest the Recipe inside `@graph: [{@type: "WebPage"}, {@type: "Recipe"}]`
+- [ ] **JSON-LD extraction works** -- but does it handle multiple `<script type="application/ld+json">` tags on the same page? Some sites have separate JSON-LD blocks for Recipe, BreadcrumbList, and Organization
+- [ ] **Photo extraction works** -- but was it tested with Telegram-compressed photos? Testing with high-res local files is not representative of real usage
+- [ ] **Photo extraction works** -- but does the system prompt for extraction include the supported recipe format? Without explicit format instructions, Claude returns free-form text instead of the structured Ingredients/Steps/Notes format HeySous uses
+- [ ] **Dedup search finds matches** -- but does it respect household boundaries? The search must filter by `householdId` to avoid cross-household false positives
+- [ ] **Dedup search finds matches** -- but does Claude know what to do with the results? If the save_knowledge tool response includes similar items but the system prompt has no instructions about dedup, Claude ignores them
+- [ ] **Migration runner works** -- but does it handle a FRESH database (no tables at all)? The baseline migration must handle both "existing database with tables" and "brand new empty database" cases
+- [ ] **Migration runner works** -- but does it run BEFORE FTS5 init? If `initializeFts()` runs before migrations, and a migration adds a column that triggers need, the trigger creation may reference stale schema
+- [ ] **Update notification sends** -- but does it check if the user has already seen this version? Without `last_seen_version` tracking, users get the same notification every time the bot restarts
+- [ ] **Update notification sends** -- but does it handle 403 (blocked) users? If not, the notification loop logs errors for every blocked user on every deploy
+- [ ] **Notification tone is updated** -- but are ALL message templates updated? Check: reminder fallback text, error messages (IN_CHARACTER_ERROR), timeout warning, access gate rejection, onboarding prompts, and feedback check-in text
+- [ ] **Notification tone is updated** -- but does the Claude system prompt match? If the system prompt still says "keep things casual" but the reminder system prompt says "be formal", the tone is inconsistent between chat and reminders
+- [ ] **URL source stored** -- but is it displayed when Claude references the recipe? If the `source` field is saved but never included in search results or get_knowledge_item responses, Claude cannot tell the user where the recipe came from
+- [ ] **Photo import handles errors** -- but what if Telegram's `getFile` fails? The 20MB limit applies, and if the file server is temporarily unavailable, the download fails silently
 
 ---
 
-## Recovery Strategies
+## HeySous-Specific Constraints
 
-When pitfalls occur despite prevention, how to recover.
+Constraints unique to this codebase that affect implementation decisions.
 
-| Pitfall | Recovery Cost | Recovery Steps |
-|---------|---------------|----------------|
-| chatId-to-householdId migration incomplete (some tables not updated) | MEDIUM | Write a remediation migration that backfills missing `household_id` values from the users-households mapping. Run `UPDATE table SET household_id = (SELECT household_id FROM user_households WHERE user_id = table.chat_id)` for each affected table. Rebuild FTS5 index |
-| Existing user's data orphaned | LOW | Single SQL statement: `UPDATE knowledge_items SET household_id = chat_id WHERE household_id IS NULL`. Same for all other tables. Run immediately upon detection |
-| FTS5 triggers lost after migration | LOW | Re-run `initializeFts(sqlite)` which re-creates all three triggers. Then run `INSERT INTO knowledge_fts(knowledge_fts) VALUES('rebuild')` to rebuild the index. No data loss |
-| Invite tokens leaked publicly | LOW | Add an `/admin revoke_invites` command that deletes all pending invite tokens for the household. Generate a new token. Existing members are not affected (they are already joined) |
-| /start handler locks out existing user | LOW | Manually insert the existing user into the `users` table: `INSERT INTO users (id, telegram_id, ...) VALUES (...)`. Or deploy a hotfix that adds a fallback: if user has data but no `users` row, create the row automatically |
-| Cross-household data leak via item ID | HIGH | Audit all data access paths for household scoping. Add `household_id` checks to every repository function that accepts an item ID. For any exposed data, notify affected users (GDPR/privacy concern). Run `SELECT * FROM knowledge_items ki WHERE NOT EXISTS (SELECT 1 FROM user_households uh WHERE uh.household_id = ki.household_id AND uh.user_id = ?)` to find any items accessed outside their household |
-| Onboarding state lost on restart | LOW | If state is in the database (as recommended), no recovery needed -- it persists. If state was in memory (pitfall occurred), the user restarts onboarding from step 1. Add a welcome-back message: "Looks like we got interrupted! Let's pick up where we left off" |
-| System prompt has wrong user's preferences | MEDIUM | Fix the system prompt builder to separate household vs personal preferences. No data migration needed. But any meals planned with wrong preferences should be flagged for review with the user |
-
----
-
-## Pitfall-to-Phase Mapping
-
-How roadmap phases should address these pitfalls.
-
-| Pitfall | Prevention Phase | Verification |
-|---------|------------------|--------------|
-| chatId-to-userId migration | Phase 1: Data Model | Run `SELECT COUNT(*) FROM knowledge_items WHERE household_id IS NULL` -- must be 0. Same for all tables |
-| Existing user data orphaned | Phase 1: Data Model | After migration, log in as existing user. Verify `/preferences` shows saved preferences. Verify recipe search returns existing recipes |
-| FTS5 triggers lost | Phase 1: Data Model | `SELECT * FROM sqlite_master WHERE type='trigger' AND tbl_name='knowledge_items'` -- must show 3 triggers. Search for an existing recipe -- must return results |
-| Deep link token security | Phase 2: Invite System | Generate 10 invite tokens -- verify none contain household ID or sequential patterns. Verify expired tokens are rejected with friendly message |
-| /start handler regression | Phase 2: Invite System | Test all 4 scenarios: existing user bare /start, existing user with invite payload, new user bare /start (should be gated), new user with valid invite (should onboard) |
-| Household permission model | Phase 1: Data Model (schema), Phase 2: Invite System (enforcement) | User A saves a recipe, User B queries recipes -- User B sees it. User A saves an allergy preference -- only User A can edit it |
-| Onboarding state machine | Phase 3: Onboarding | Start onboarding, send a non-answer message ("hello"), verify bot redirects to the current onboarding question. Restart bot mid-onboarding, verify state is preserved |
-| Message queue keying | Phase 1: Data Model (design decision) | Two users message the bot simultaneously in their private chats. Verify each gets their own response, not a mixed response |
-| System prompt injection | Phase 1: Data Model (schema), Phase 3-4 (implementation) | User A has shellfish allergy. User B has no allergy. Verify User A's meal plan avoids shellfish. Verify User B's plan may include shellfish |
-| Mini-app auth identity mismatch | Phase 1: Data Model | After migration, open grocery mini-app -- verify items are visible. Open recipe browser -- verify recipes are visible. New user joins household and opens mini-app -- verify they see household data |
-| Grocery toggle cross-household | Phase 2: Invite System | Manually call toggle API with an item ID from another household -- verify 403 response |
-| Invite link UX confusion | Phase 2: Invite System | Send invite link to a non-technical tester. Observe whether they can successfully join without help |
-| Onboarding preferences not reflected | Phase 3: Onboarding | Complete onboarding stating "vegetarian." Immediately ask for a meal plan. Verify plan contains no meat |
-| Feedback timing for new users | Phase 4: Feedback | New user completes onboarding. Cook one meal. Verify no proactive feedback check-in for the first week |
-
----
-
-## SQLite-Specific Migration Pitfalls
-
-Issues unique to adding columns and tables in SQLite (relevant because HeySous uses better-sqlite3).
-
-### SQLite Pitfall 1: ALTER TABLE Limitations
-
-**What happens:** SQLite only supports `ADD COLUMN` and `RENAME COLUMN` via ALTER TABLE. You cannot add NOT NULL columns without a default, add UNIQUE constraints, change column types, or drop columns (before SQLite 3.35.0). Adding `household_id TEXT NOT NULL` requires either: (a) a default value, or (b) a table rebuild (create new, copy, drop old, rename).
-
-**Prevention:** Add columns as nullable first: `ALTER TABLE knowledge_items ADD COLUMN household_id TEXT`. Backfill with `UPDATE`. Then enforce NOT NULL in application code (not schema). Or use a table rebuild wrapped in a transaction, but beware of FTS5 trigger breakage (see Pitfall 3).
-
-### SQLite Pitfall 2: No Concurrent Schema Changes
-
-**What happens:** While the migration is running (in a transaction), all other database operations are blocked. If the bot is running and processing messages during migration, those operations will get `SQLITE_BUSY` errors.
-
-**Prevention:** Run migrations at startup, BEFORE the bot starts accepting messages. The current `createDatabase()` function initializes tables on startup -- add migration logic to the same flow. Ensure the bot webhook is not set until after migration completes.
-
-### SQLite Pitfall 3: Foreign Key Checks During Migration
-
-**What happens:** The new `users` and `households` tables reference each other (or are referenced by other tables). If foreign keys are enabled (`PRAGMA foreign_keys = ON`, which they are in HeySous), inserting data in the wrong order causes constraint violations.
-
-**Prevention:** Temporarily disable foreign keys during migration: `PRAGMA foreign_keys = OFF`, run migration, `PRAGMA foreign_keys = ON`. Or carefully order inserts: create tables first, insert parent rows before child rows.
+| Constraint | Impact on v1.4 Features | How to Handle |
+|------------|------------------------|---------------|
+| **Single-process Node.js** | URL fetch and image processing must not block the event loop. No spawning worker threads for scraping | Use async fetch with timeouts. Keep image processing lightweight (resize only, no heavy image manipulation). If scraping becomes a bottleneck, add a simple job queue (in-memory, not Redis) |
+| **Synchronous better-sqlite3** | All database operations are synchronous and block the event loop. FTS5 dedup search adds blocking time to save operations | FTS5 queries are sub-millisecond for <1000 items. Not a real concern. But do NOT add async database operations (defeats the purpose of better-sqlite3's synchronous design) |
+| **Tool handler is synchronous** | `handleToolCall` returns a string, not a Promise. Cannot do async work (HTTP fetch, Claude vision call) inside a tool handler | URL fetch and photo extraction must happen BEFORE the tool loop, not inside it. Pre-process the data and make it available to Claude as context, not as a tool call result |
+| **Claude is the reasoning engine** | Dedup decisions, recipe format validation, extraction quality assessment -- all should be Claude's job, not hardcoded logic | Give Claude the data (similar items, extraction confidence, parse quality) and let Claude decide. Do not build complex decision trees in TypeScript |
+| **HTML parse mode only** | All outbound messages use Telegram HTML. No Markdown, no unsupported HTML tags | Sanitize all generated text. Test every template in a real Telegram chat |
+| **4096-char message limit** | Recipe imports can produce long content (full recipe with ingredients, steps, notes) | Use the existing `splitMessage()` function. But design the recipe confirmation message to fit in one chunk if possible |
+| **WAL mode + foreign keys enabled** | Migrations must respect foreign key constraints. WAL mode means readers do not block writers | Run migrations in transactions. Temporarily disable foreign keys for complex migrations (`PRAGMA foreign_keys = OFF`) |
+| **No PRAGMA user_version in use** | Fresh start for migration framework -- no legacy version numbers to worry about, but must handle the "already-migrated" existing database | Baseline migration detects current state via PRAGMA table_info |
 
 ---
 
 ## Sources
 
-- **Codebase audit:** All 47 source files with `chatId`/`chat_id` usage reviewed, including all schema definitions, repository functions, tool handler, pipeline processor, message queue, mini-app routes, and auth middleware
-- **Telegram Bot API deep linking:** Training data knowledge of `/start PAYLOAD` mechanism, 64-character base64url payload limit, deep link format `https://t.me/BotName?start=PAYLOAD`
-- **SQLite documentation:** ALTER TABLE limitations, WAL mode concurrent access, foreign key enforcement during migrations, FTS5 external content mode trigger behavior
-- **Drizzle ORM:** better-sqlite3 synchronous API, schema push behavior for complex changes (table rebuilds)
-- **Multi-tenant data isolation patterns:** Row-level security, scope-based query filtering, composite key strategies for shared-data systems
-- **Telegram user/chat ID relationship:** In private chats, `user.id === chat.id`. In groups, `chat.id` is the group ID, `from.id` is the user. Mini-app initData provides `user.id` only
-- **Previous research:** `.planning/research/PITFALLS.md` (v1.1 Mini Apps), `.planning/research/ARCHITECTURE.md` (v1.1 system architecture) -- existing patterns for auth middleware, repository reuse, and Express routing
+- **Codebase audit:** All knowledge, AI, pipeline, telegram, and reminder modules reviewed. Key files: `src/knowledge/repository.ts`, `src/knowledge/fts.ts`, `src/ai/tools.ts`, `src/ai/tool-handler.ts`, `src/pipeline/processor.ts`, `src/reminders/sender.ts`, `src/db/index.ts`, `src/db/migrate.ts`, `src/telegram/sender.ts`
+- **Anthropic Vision API documentation** (official, HIGH confidence): Image limits (5MB API, 8000x8000px max, 1568px optimal, ~1334 tokens per 1MP), supported formats (JPEG, PNG, GIF, WebP), limitations (low-quality image hallucinations, spatial reasoning limits) -- https://platform.claude.com/docs/en/build-with-claude/vision
+- **Telegram Bot API rate limits** (MEDIUM confidence, multiple sources): 30 msg/s global limit, ~1 msg/s per chat, 403 for blocked users, 429 with retry_after for rate limits -- https://core.telegram.org/bots/faq, https://telegramhpc.com/news/574/
+- **Telegram getFile limit:** 20MB max via Bot API, original quality via Document upload -- https://grammy.dev/guide/files
+- **SQLite ALTER TABLE documentation** (official, HIGH confidence): ADD COLUMN, RENAME COLUMN, DROP COLUMN supported; no ADD CONSTRAINT, no ALTER COLUMN type -- https://www.sqlite.org/lang_altertable.html
+- **Schema.org Recipe type** (official, HIGH confidence): JSON-LD structure, recipeIngredient array, recipeInstructions variants, ISO 8601 duration format -- https://schema.org/Recipe
+- **Recipe scraping libraries** (MEDIUM confidence): `scrape-recipe-schema` npm package for JSON-LD/microdata extraction -- https://github.com/arcetros/scrape-recipe-schema
+- **Web scraping anti-bot challenges** (MEDIUM confidence, multiple sources): Cloudflare challenges, User-Agent detection, rate limiting patterns -- https://www.scrapingbee.com/blog/web-scraping-challenges/
+- **Previous HeySous pitfalls research:** `.planning/research/PITFALLS.md` (v1.2), covering chatId migration, FTS5 trigger preservation, SQLite migration patterns -- directly applicable patterns reused here
+- **v1.3 dedup revert context:** From milestone context -- auto-upsert was too aggressive, merged distinct recipes. Informs Pitfall 4 design (Claude-driven dedup, not automatic)
 
 **Confidence notes:**
-- HIGH confidence on all codebase-specific pitfalls (direct code audit)
-- HIGH confidence on SQLite migration pitfalls (well-documented behavior)
-- HIGH confidence on Telegram deep linking mechanics (core Bot API feature)
-- MEDIUM confidence on optimal household permission model (design decision, not a technical fact)
-- LOW confidence on specific grammY deep link payload parsing (training data only, should verify at implementation time that `ctx.match` or `ctx.message.text` correctly extracts the payload)
+- HIGH confidence on all codebase-specific pitfalls (direct code audit of current implementation)
+- HIGH confidence on Claude Vision API limits (official Anthropic documentation, fetched and verified)
+- HIGH confidence on SQLite migration pitfalls (official documentation, plus experience from v1.2 migrateToHouseholdId)
+- MEDIUM confidence on recipe site anti-scraping behavior (web search sources, varies by site)
+- MEDIUM confidence on Telegram rate limit specifics (API 8.0 changes are from multiple web sources, not official docs verified via Context7)
+- LOW confidence on `scrape-recipe-schema` library quality/maintenance (npm package, should evaluate at implementation time)
 
 ---
-*Pitfalls research for: Adding multi-user support, household sharing, invite systems, onboarding flows, and feedback mechanisms to HeySous (v1.2)*
-*Researched: 2026-02-10*
+*Pitfalls research for: Adding URL/photo recipe import, knowledge dedup, data migration framework, update notifications, and notification tone changes to HeySous (v1.4)*
+*Researched: 2026-02-19*

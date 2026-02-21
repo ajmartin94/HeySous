@@ -54,6 +54,9 @@ export const KNOWLEDGE_TOOLS: Anthropic.Tool[] = [
     name: "save_knowledge",
     description:
       "Save a new item to the user's knowledge base (recipe, preference, cooking note). " +
+      "Automatically checks for similar existing items before saving. If a match is found, " +
+      "returns the match info instead of saving -- present the match to the user and ask " +
+      "whether to update the existing item or save as new (with skip_dedup: true). " +
       "Use this after the user confirms they want to save. Include a descriptive title, " +
       "a brief summary (1-2 sentences for search results), the full content, and relevant tags. " +
       "For recipes, tags should include: 'recipe', cuisine type (e.g., 'cuisine:italian'), " +
@@ -85,8 +88,38 @@ export const KNOWLEDGE_TOOLS: Anthropic.Tool[] = [
           description:
             "Relevant tags for categorization and filtering",
         },
+        skip_dedup: {
+          type: "boolean",
+          description:
+            "Set to true to skip duplicate checking and force save. " +
+            "Use when the user explicitly says to save as new after seeing a duplicate match.",
+        },
+        source_url: {
+          type: "string",
+          description:
+            "Source URL for imported recipes. Include this when saving a recipe that was imported from a URL.",
+        },
       },
       required: ["title", "summary", "content", "tags"],
+    },
+  },
+  {
+    name: "import_from_url",
+    description:
+      "Import a recipe from a URL. Fetches the page and extracts recipe data " +
+      "(title, ingredients, instructions, times) using structured data (JSON-LD, Microdata) " +
+      "or AI extraction as fallback. Returns the extracted recipe for you to present to the user " +
+      "for confirmation before saving. Always show the extracted recipe to the user and wait for " +
+      "confirmation before calling save_knowledge.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        url: {
+          type: "string",
+          description: "The recipe URL to import from",
+        },
+      },
+      required: ["url"],
     },
   },
   {

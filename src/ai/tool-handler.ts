@@ -12,6 +12,8 @@ import { logMeal, getCookingHistory } from "../planning/history.js";
 import { getWeekStartDate, DAY_NAMES } from "../planning/date-utils.js";
 import type { DrizzleDatabase } from "../db/index.js";
 import { knowledgeChangelog } from "../knowledge/schema.js";
+import { searchFts } from "../knowledge/fts.js";
+import { fetchAndParseRecipe } from "../knowledge/url-import.js";
 
 /**
  * Create a tool call dispatcher that routes Claude's tool use requests
@@ -43,14 +45,15 @@ export function createToolHandler(deps: {
      * Handle a tool call from Claude's response.
      * Dispatches to the appropriate retrieval service method by tool name.
      *
-     * All underlying operations (FTS5 search, SQLite queries) are synchronous
-     * via better-sqlite3, so this method is synchronous.
+     * Most operations (FTS5 search, SQLite queries) are synchronous via
+     * better-sqlite3. The import_from_url case is async (HTTP fetch).
+     * The method is async to support both sync and async tool handlers.
      *
      * @param name - The tool name from Claude's tool_use block
      * @param input - The parsed input object from Claude's tool_use block
      * @returns String result for the tool_result block
      */
-    handleToolCall(name: string, input: Record<string, unknown>): string {
+    async handleToolCall(name: string, input: Record<string, unknown>): Promise<string> {
       switch (name) {
         case "search_knowledge": {
           const query = input.query as string;
@@ -87,6 +90,7 @@ export function createToolHandler(deps: {
             summary: item.summary,
             content: item.content,
             source: item.source,
+            sourceUrl: item.sourceUrl,
             tags: item.tags,
           });
         }
@@ -96,6 +100,52 @@ export function createToolHandler(deps: {
           const summary = input.summary as string;
           const content = input.content as string;
           const tags = input.tags as string[];
+          const skipDedup = input.skip_dedup as boolean | undefined;
+          const sourceUrl = input.source_url as string | undefined;
+
+          // Dedup check: search for existing items with similar titles
+          if (!skipDedup && sqlite) {
+            try {
+              const matches = searchFts(sqlite, title, householdId, 3);
+
+              // Check for exact title match (case-insensitive)
+              const exactMatch = matches.find(
+                (m) => m.title.toLowerCase() === title.toLowerCase()
+              );
+
+              if (exactMatch) {
+                return JSON.stringify({
+                  duplicate_found: true,
+                  message: `A knowledge item with a very similar title already exists: "${exactMatch.title}" (ID: ${exactMatch.id}). Ask the user if they want to update the existing item or save as new.`,
+                  existing_item: {
+                    id: exactMatch.id,
+                    title: exactMatch.title,
+                    summary: exactMatch.summary,
+                  },
+                });
+              }
+
+              // Check for close FTS match (top result with strong relevance)
+              if (matches.length > 0) {
+                const topMatch = matches[0];
+                // BM25 relevance is returned as positive values (lower = better match).
+                // Title-weighted search: a score below 5 suggests strong title overlap.
+                if (topMatch.relevance < 5) {
+                  return JSON.stringify({
+                    duplicate_found: true,
+                    message: `Found a similar existing item: "${topMatch.title}" (ID: ${topMatch.id}). Ask the user if they want to update the existing item or save this as a new item.`,
+                    existing_item: {
+                      id: topMatch.id,
+                      title: topMatch.title,
+                      summary: topMatch.summary,
+                    },
+                  });
+                }
+              }
+            } catch {
+              // If search fails, proceed with save (dedup is best-effort)
+            }
+          }
 
           try {
             const item = knowledgeRepository.create(householdId, {
@@ -103,6 +153,7 @@ export function createToolHandler(deps: {
               summary,
               content,
               tags,
+              sourceUrl,
             });
 
             db.insert(knowledgeChangelog)
@@ -133,6 +184,13 @@ export function createToolHandler(deps: {
           const changeDescription = input.change_description as
             | string
             | undefined;
+
+          // Validate that at least one substantive field is provided
+          if (title === undefined && summary === undefined && content === undefined && tags === undefined) {
+            return JSON.stringify({
+              error: "No substantive fields provided. Include at least one of: title, summary, content, or tags to update. The change_description field alone is not an update.",
+            });
+          }
 
           try {
             // Get current item for changelog snapshot
@@ -595,6 +653,21 @@ export function createToolHandler(deps: {
           });
 
           return JSON.stringify({ saved: true });
+        }
+
+        case "import_from_url": {
+          const url = input.url as string;
+          try {
+            const result = await fetchAndParseRecipe(url);
+            return JSON.stringify(result);
+          } catch (error) {
+            const msg = error instanceof Error ? error.message : String(error);
+            return JSON.stringify({
+              success: false,
+              error: `Failed to import recipe from URL: ${msg}`,
+              suggestion: "Try copy-pasting the recipe text directly instead.",
+            });
+          }
         }
 
         default:

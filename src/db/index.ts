@@ -13,6 +13,7 @@ import { initializeUsers } from "../users/init.js";
 import { initializeInvites } from "../invites/init.js";
 import { initializeAppFeedback } from "../app-feedback/init.js";
 import { initializeCoreTables } from "./init.js";
+import { runMigrations } from "./migrations.js";
 import { config } from "../config.js";
 
 export type DrizzleDatabase = ReturnType<typeof createDatabase>;
@@ -29,6 +30,9 @@ export function createDatabase(dbPath: string) {
 
   // Enable foreign keys for CASCADE deletes
   sqlite.pragma("foreign_keys = ON");
+
+  // Run versioned migrations (after pragmas, before table init)
+  runMigrations(sqlite);
 
   // Initialize core tables (messages, token_usage)
   initializeCoreTables(sqlite);

@@ -71,7 +71,7 @@ The LLM is the product. It reasons, decides what to look up, and acts on what it
 
 ### Active
 
-None -- all requirements for v1.0-v1.4 validated.
+v1.5 Agent Hardening & Polish -- security, resilience, performance, prompt quality, observability, UI/UX, docs. See REQUIREMENTS.md.
 
 ### Out of Scope
 
@@ -83,7 +83,7 @@ None -- all requirements for v1.0-v1.4 validated.
 
 ## Context
 
-- **Current state:** v1.4 shipped. All 31 phases across 5 milestones. 66 plans total. ~13,177 LOC TypeScript.
+- **Current state:** v1.5 in progress. 31 phases across 5 milestones shipped. 66 plans total. ~13,177 LOC TypeScript.
 - **Tech stack:** Node.js 22, TypeScript (ESM), grammY, better-sqlite3/Drizzle, Anthropic SDK, Pino, Express, React+Vite (Mini App SPA), @telegram-apps SDK, cheerio (URL import)
 - **Primary user:** Home cook who loves cooking, time-constrained on weekdays, more flexible weekends
 - **Household:** Partner + 9-month-old. Partner now has access via invite system (v1.2).
@@ -93,10 +93,23 @@ None -- all requirements for v1.0-v1.4 validated.
 - **First-run flow:** Onboarding guides new users through preferences → tour → seed 3-5 go-to recipes (v1.3 refinement)
 - **Mini App model:** Hybrid — bot stays primary, Mini Apps open from chat buttons for visual tasks
 - **Frontend:** React+Vite SPA inside Telegram Web Apps, served by existing Express server at /app/*
-- **Known issues:** None current
-- **Next step:** Create PR to main, deploy
+- **Known issues:** 26 audit findings (security, resilience, performance, prompt quality -- see v1.5 requirements)
+- **Next step:** v1.5 execution
 
-## Latest Milestone: v1.4 Backlog Sweep — SHIPPED 2026-02-21
+## Current Milestone: v1.5 Agent Hardening & Polish
+
+**Goal:** Harden the Sous agent against security, cost, and resilience gaps identified by a comprehensive 3-agent audit. Improve prompt quality, add observability, optimize performance, and polish UI/UX.
+
+**Target features:**
+- Security: rate limiting, input validation, prompt injection defense
+- Resilience: 429 backoff, race condition fix, context overflow detection
+- Performance: N+1 fix, prompt caching, token estimation, streaming
+- Prompt quality: conflicting instructions, durability signals, persona unification
+- Observability: tool call logging, error sanitization, model pricing
+- UI/UX: Mini App theming/accessibility, admin dashboard
+- Docs: help page release process
+
+## Previous Milestone: v1.4 Backlog Sweep — SHIPPED 2026-02-21
 
 **Delivered:** Recipe import (URL + photo), knowledge dedup, Sous-personality notifications, update notifications, migration framework.
 
@@ -157,4 +170,4 @@ See .planning/MILESTONES.md for full history of all 5 milestones.
 | Migration 001 sqlite_master guard for fresh installs | Migrations targeting tables created by init functions must check table existence first -- skip if table doesn't exist, init function handles fresh DBs | ✓ Good -- pattern reusable for future migrations that ALTER init-created tables |
 
 ---
-*Last updated: 2026-02-21 after Phase 31 (v1.4 complete)*
+*Last updated: 2026-02-21 after v1.5 milestone start (Agent Hardening & Polish)*

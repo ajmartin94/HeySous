@@ -5,15 +5,13 @@
 See: .planning/PROJECT.md (updated 2026-02-21)
 
 **Core value:** The recipe brain -- an AI agent that remembers everything about your meals and reasons over that knowledge to help you plan.
-**Current focus:** v1.4 shipped — planning next milestone
+**Current focus:** v1.5 Agent Hardening & Polish
 
 ## Current Position
 
-Phase: 31 of 31 (all milestones complete)
-Status: Between milestones
-Last activity: 2026-02-21 -- v1.4 Backlog Sweep shipped
-
-Progress: [██████████████████████████████████████████████████] 100% (66/66 plans across 5 milestones)
+Phase: Not started (defining requirements)
+Status: Defining requirements
+Last activity: 2026-02-21 — Milestone v1.5 started
 
 ## Performance Metrics
 
@@ -50,7 +48,7 @@ All decisions documented in PROJECT.md Key Decisions table.
 
 ### Pending Todos
 
-26 pending todos in `.planning/todos/pending/`.
+26 pending todos in `.planning/todos/pending/`. All scoped into v1.5.
 
 ### Blockers/Concerns
 
@@ -64,5 +62,5 @@ Total: 31 phases, 66 plans.
 ## Session Continuity
 
 Last session: 2026-02-21
-Stopped at: v1.4 milestone archived
-Next action: Create PR to main, then /gsd:new-milestone for next version
+Stopped at: v1.5 milestone initialization
+Next action: Define requirements, create roadmap

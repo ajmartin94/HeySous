@@ -54,6 +54,56 @@ import type { DrizzleDatabase } from "../db/index.js";
 import type { Logger } from "pino";
 import { getErrorMessage, getTimeoutMessage, getMessageTooLongResponse } from "../bot/messages.js";
 
+/**
+ * Create an instrumented wrapper around a tool call handler.
+ * Logs structured data (tool_name, duration_ms, household_id, status) for every
+ * tool call. On error, always includes tool_input; on success, only if
+ * config.logToolInputs is true.
+ */
+export function createInstrumentedToolHandler(
+  handler: (name: string, input: Record<string, unknown>) => string | Promise<string>,
+  householdId: string,
+  log: Logger,
+): (name: string, input: Record<string, unknown>) => Promise<string> {
+  return async (name: string, input: Record<string, unknown>): Promise<string> => {
+    const startTime = Date.now();
+    try {
+      const result = await handler(name, input);
+      const duration_ms = Date.now() - startTime;
+
+      const logData: Record<string, unknown> = {
+        tool_name: name,
+        duration_ms,
+        household_id: householdId,
+        status: "success",
+      };
+      if (config.logToolInputs) {
+        logData.tool_input = input;
+      }
+
+      log.info(logData, "Tool call completed");
+      return result;
+    } catch (error) {
+      const duration_ms = Date.now() - startTime;
+      const errorMessage = error instanceof Error ? error.message : String(error);
+
+      log.error(
+        {
+          tool_name: name,
+          duration_ms,
+          household_id: householdId,
+          status: "error",
+          error: errorMessage,
+          tool_input: input,
+        },
+        "Tool call completed",
+      );
+
+      throw error;
+    }
+  };
+}
+
 const TIMEOUT_WARNING_MS = 30_000;
 
 /**
@@ -333,11 +383,17 @@ export function createProcessor(deps: ProcessorDeps) {
 
       const allTools = [...KNOWLEDGE_TOOLS, ...PLAN_TOOLS, ...GROCERY_TOOLS, ...REMINDER_TOOLS, ...FEEDBACK_TOOLS, ...APP_FEEDBACK_TOOLS];
 
+      const instrumentedHandler = createInstrumentedToolHandler(
+        toolHandler.handleToolCall,
+        householdId,
+        log,
+      );
+
       try {
         response = await claudeClient.sendMessageWithTools(
           fullMessages,
           allTools,
-          toolHandler.handleToolCall,
+          instrumentedHandler,
           10, // Increased from 5 for grocery list generation (plan + recipe lookups + save)
           systemPrompt,
         );
@@ -357,7 +413,7 @@ export function createProcessor(deps: ProcessorDeps) {
           response = await claudeClient.sendMessageWithTools(
             fullMessages,
             allTools,
-            toolHandler.handleToolCall,
+            instrumentedHandler,
             10, // Increased from 5 for grocery list generation (plan + recipe lookups + save)
             systemPrompt,
           );

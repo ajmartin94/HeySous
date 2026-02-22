@@ -60,6 +60,22 @@ export function calculateCost(model: string, usage: TokenUsage): number {
   return inputCost + outputCost + cacheWriteCost + cacheReadCost;
 }
 
+/**
+ * Sanitize an error message before returning it to Claude via tool_result.
+ * Strips stack traces, file paths, and SQL statements so no internal
+ * implementation details leak to the LLM.
+ */
+export function sanitizeToolError(error: unknown): string {
+  const raw = error instanceof Error ? error.message : String(error);
+  // Strip stack traces, file paths, and SQL from the message
+  const sanitized = raw
+    .replace(/\s+at\s+.+/g, "")           // stack trace lines
+    .replace(/\/[\w/.-]+\.\w+/g, "[path]") // file paths like /src/foo/bar.ts
+    .replace(/(SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER|DROP)\s+.*/gi, "[sql]") // SQL statements
+    .trim();
+  return sanitized || "An internal error occurred";
+}
+
 /** Default max tool use iterations before forcing a text response. */
 const DEFAULT_MAX_ITERATIONS = 5;
 
@@ -236,12 +252,10 @@ export function createClaudeClient(apiKey: string, model: string) {
                 content: result,
               };
             } catch (error) {
-              const errorMessage =
-                error instanceof Error ? error.message : String(error);
               return {
                 type: "tool_result" as const,
                 tool_use_id: block.id,
-                content: JSON.stringify({ error: errorMessage }),
+                content: JSON.stringify({ error: sanitizeToolError(error) }),
                 is_error: true,
               };
             }

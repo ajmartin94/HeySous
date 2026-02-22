@@ -15,6 +15,7 @@ interface Config {
   adminUserIds: string[];
   adminUserId: string;
   miniAppUrl: string;
+  logToolInputs: boolean;
 }
 
 const botToken = process.env.BOT_TOKEN;
@@ -58,4 +59,5 @@ export const config: Config = {
   adminUserIds: (process.env.ADMIN_USER_IDS ?? "").split(",").filter(Boolean),
   adminUserId: (process.env.ADMIN_USER_IDS ?? "").split(",").filter(Boolean)[0] ?? "",
   miniAppUrl: process.env.MINI_APP_URL ?? "",
+  logToolInputs: process.env.LOG_TOOL_INPUTS === "true",
 };

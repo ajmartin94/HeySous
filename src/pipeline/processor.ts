@@ -24,6 +24,7 @@ import { messages, tokenUsage } from "../db/schema.js";
 import { createToolHandler } from "../ai/tool-handler.js";
 import { KNOWLEDGE_TOOLS, PLAN_TOOLS, GROCERY_TOOLS, REMINDER_TOOLS, FEEDBACK_TOOLS, APP_FEEDBACK_TOOLS } from "../ai/tools.js";
 import { buildConversationContext } from "../conversation/context-builder.js";
+import { estimateTokens, estimateMessageTokens } from "../knowledge/token-budget.js";
 import type { ConversationTurn } from "../conversation/types.js";
 import type { createRetrievalService } from "../knowledge/retrieval.js";
 import { createKnowledgeRepository } from "../knowledge/repository.js";
@@ -115,6 +116,11 @@ const MAX_MESSAGE_LENGTH = 4_000;
 
 /** Default conversation history token budget. */
 const CONVERSATION_TOKEN_BUDGET = 2000;
+
+/** Anthropic context window size in tokens. Model-specific but 200k is the standard. */
+const CONTEXT_WINDOW_TOKENS = 200_000;
+/** Trigger trimming when estimated tokens exceed this percentage of the context window. */
+const CONTEXT_TRIM_THRESHOLD = 0.8; // 80%
 
 interface ClaudeClient {
   sendMessage(
@@ -369,7 +375,77 @@ export function createProcessor(deps: ProcessorDeps) {
         appFeedbackContext,
         dateContext,
       });
-      const systemPrompt: SystemPromptInput = { static: staticPrompt, dynamic: dynamicContext };
+
+      // i0. Estimate total token count and check for context overflow
+      const estimatedSystemTokens = estimateTokens(staticPrompt) + estimateTokens(dynamicContext);
+      const estimatedMsgTokens = estimateMessageTokens(fullMessages);
+      const estimatedTotalTokens = estimatedSystemTokens + estimatedMsgTokens;
+
+      let contextTrimmed = wasTruncated;
+
+      if (estimatedTotalTokens > CONTEXT_WINDOW_TOKENS * CONTEXT_TRIM_THRESHOLD) {
+        // Context approaching limit -- aggressively trim conversation history
+        log.warn(
+          {
+            chatId,
+            householdId,
+            estimatedTotalTokens,
+            threshold: CONTEXT_WINDOW_TOKENS * CONTEXT_TRIM_THRESHOLD,
+            priorMessageCount: priorMessages.length,
+          },
+          "Context approaching window limit, trimming conversation history",
+        );
+
+        // Remove oldest messages from fullMessages until under threshold
+        // Always keep at least the current user message (last element)
+        while (fullMessages.length > 1) {
+          const currentEstimate = estimateTokens(staticPrompt) + estimateTokens(dynamicContext) + estimateMessageTokens(fullMessages);
+          if (currentEstimate <= CONTEXT_WINDOW_TOKENS * CONTEXT_TRIM_THRESHOLD) {
+            break;
+          }
+          // Remove the oldest message (first element, which is oldest conversation history)
+          fullMessages.shift();
+          contextTrimmed = true;
+        }
+
+        // If still over after removing all history, log and proceed anyway
+        // (the API will handle it, or the request is genuinely too large)
+        const finalEstimate = estimateTokens(staticPrompt) + estimateTokens(dynamicContext) + estimateMessageTokens(fullMessages);
+        if (finalEstimate > CONTEXT_WINDOW_TOKENS * CONTEXT_TRIM_THRESHOLD) {
+          log.warn(
+            {
+              chatId,
+              householdId,
+              estimatedTokens: finalEstimate,
+              threshold: CONTEXT_WINDOW_TOKENS * CONTEXT_TRIM_THRESHOLD,
+            },
+            "Context still over threshold after trimming all history -- proceeding with current message only",
+          );
+        }
+      }
+
+      // i1. Inject truncation notice into dynamic context if history was trimmed
+      let finalDynamicContext = dynamicContext;
+      if (contextTrimmed) {
+        const trimNotice = `\n<conversation_note>\nEarlier messages in this conversation have been omitted to fit the context window. Continue the conversation naturally based on what's visible. Do not mention this to the user.\n</conversation_note>`;
+        finalDynamicContext = dynamicContext + trimNotice;
+      }
+      const systemPrompt: SystemPromptInput = { static: staticPrompt, dynamic: finalDynamicContext };
+
+      // i2. Log context trimming metadata
+      if (contextTrimmed) {
+        log.info(
+          {
+            chatId,
+            householdId,
+            originalTurnCount,
+            includedTurnCount,
+            estimatedTotalTokens,
+            contextTrimmed,
+          },
+          "Context trimmed for Claude API call",
+        );
+      }
 
       // i. 30-second timeout warning timer
       let timeoutFired = false;

@@ -114,7 +114,10 @@ See .planning/milestones/v1.4-ROADMAP.md for full phase history.
   2. Two simultaneous meal plan edit requests for the same household cannot silently overwrite each other (optimistic locking or serialization)
   3. Before calling the Anthropic API, the system checks estimated token count and triggers graceful degradation (context trimming) if it would exceed the model window
   4. When conversation history is truncated to fit the context window, Claude receives a notice that earlier messages were omitted
-**Plans**: TBD
+**Plans**: 3 plans
+  - [ ] 35-01-PLAN.md -- 429 retry with exponential backoff, jitter, and Retry-After header support (RES-01)
+  - [ ] 35-02-PLAN.md -- Optimistic locking on all stateful household writes (RES-02)
+  - [ ] 35-03-PLAN.md -- Context overflow detection, conversation trimming, and truncation notice (RES-03, RES-04)
 
 ### Phase 36: Pipeline Efficiency
 **Goal**: The message pipeline enforces per-household cost/rate budgets, uses accurate token counting, optimizes database queries, supports configurable session boundaries, and searches knowledge content (not just titles) for deduplication

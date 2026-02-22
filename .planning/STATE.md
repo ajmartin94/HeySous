@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-21)
 ## Current Position
 
 Phase: 35 of 39 (Resilience)
-Plan: 2 of 3 in current phase
-Status: Executing
-Last activity: 2026-02-22 -- Completed 35-02 optimistic locking plan
+Plan: 3 of 3 in current phase (COMPLETE)
+Status: Phase 35 Complete
+Last activity: 2026-02-22 -- Completed 35-03 context window overflow plan
 
-Progress: [==================================......] 85% (75/88 plans complete through Phase 35-02)
+Progress: [===================================.....] 86% (76/88 plans complete through Phase 35-03)
 
 ## Performance Metrics
 
@@ -35,6 +35,7 @@ All decisions documented in PROJECT.md Key Decisions table.
 - Phase 34-02: Haiku pricing as _fallback for unknown models; recipe validation checks Ingredients:/Steps: headers with content patterns; incomplete_recipe flag for Claude self-correction
 - Phase 35-02: Optimistic locking via version columns on stateful tables; conflict returns structured JSON with is_error:true and conflict:true; householdId as updatedBy
 - [Phase 35]: retryWithBackoff internal to claude-client; only 429 errors retried; thinking-longer message sent once on first retry only
+- Phase 35-03: wasTruncated distinguishes budget trimming from session gaps; 80% threshold for proactive trimming; conversation_note XML tag for invisible truncation notice
 
 ### Pending Todos
 
@@ -53,6 +54,6 @@ Total: 39 phases across 6 milestones.
 ## Session Continuity
 
 Last session: 2026-02-22
-Stopped at: Completed 35-02-PLAN.md
-Next action: Execute 35-03-PLAN.md
-Resume file: .planning/phases/35-resilience/35-02-SUMMARY.md
+Stopped at: Completed 35-03-PLAN.md (Phase 35 complete)
+Next action: Begin Phase 36
+Resume file: .planning/phases/35-resilience/35-03-SUMMARY.md

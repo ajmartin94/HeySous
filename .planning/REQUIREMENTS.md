@@ -18,8 +18,8 @@ Requirements for v1.5 Agent Hardening & Polish. Sourced from comprehensive 3-age
 
 - [x] **RES-01**: Anthropic API 429 errors trigger exponential backoff with jitter instead of blind retry
 - [x] **RES-02**: Concurrent meal plan modifications cannot silently overwrite each other (race condition fix)
-- [ ] **RES-03**: Context window overflow is detected before API call and triggers graceful degradation
-- [ ] **RES-04**: Claude is informed when conversation history has been truncated
+- [x] **RES-03**: Context window overflow is detected before API call and triggers graceful degradation
+- [x] **RES-04**: Claude is informed when conversation history has been truncated
 
 ### Performance & Cost
 
@@ -83,8 +83,8 @@ None deferred -- all audit findings scoped into v1.5.
 | SEC-04 | Phase 33 | Complete |
 | RES-01 | Phase 35 | Complete |
 | RES-02 | Phase 35 | Complete |
-| RES-03 | Phase 35 | Pending |
-| RES-04 | Phase 35 | Pending |
+| RES-03 | Phase 35 | Complete |
+| RES-04 | Phase 35 | Complete |
 | PERF-01 | Phase 36 | Pending |
 | PERF-02 | Phase 32 | Complete |
 | PERF-03 | Phase 36 | Pending |

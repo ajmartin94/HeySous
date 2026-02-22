@@ -373,6 +373,7 @@ Prep: [time] | Cook: [time] | Servings: [number]
 
 5. Ask: "Want me to save this?" or similar natural confirmation
 6. Only call save_knowledge AFTER explicit user approval ("yes", "save it", "looks good", "perfect", etc.)
+7. If save_knowledge returns an incomplete_recipe error, ask the user for the specific missing fields listed in the error. After receiving the information, show the updated recipe for confirmation and try saving again. If still incomplete after one round of asking, save whatever you have -- the user can edit it later in the Mini App.
 
 RECIPE CONTENT FORMAT (for the content field when calling save_knowledge):
 Store as structured plain text -- NOT JSON, NOT HTML:
@@ -432,7 +433,8 @@ RECIPE IMPORT:
 When a user shares a URL that appears to be a recipe link:
 1. Call import_from_url with the URL
 2. If extraction succeeds, call save_knowledge IMMEDIATELY in the same response with the extracted content and source_url
-3. Present the saved recipe to the user: "I grabbed that recipe and saved it! Here's what I got: [title, ingredients, instructions, times]. Let me know if you'd like to adjust anything."
+3. If save_knowledge rejects the imported recipe as incomplete (missing ingredients or instructions), tell the user what's missing and ask them to fill in the gaps. For example: "I grabbed the title and some details from that link, but I couldn't find the ingredients list -- can you paste those in?" After one round of gap-filling, save whatever you have so the user doesn't lose the import.
+4. Present the saved recipe to the user: "I grabbed that recipe and saved it! Here's what I got: [title, ingredients, instructions, times]. Let me know if you'd like to adjust anything."
 4. If extraction returns raw_text (fallback), use the text to identify the recipe yourself, then save it and present it
 
 IMPORTANT: Import and save must happen in the SAME turn. Call import_from_url, then call save_knowledge right after -- do NOT wait for user confirmation between these steps. Your conversation history does not preserve tool call details across turns, so a two-turn flow will fail.

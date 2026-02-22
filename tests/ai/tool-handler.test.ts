@@ -349,3 +349,111 @@ describe("input validation", () => {
     expect(result.error).toContain("items[0].name must be at most 200 characters");
   });
 });
+
+describe("recipe completeness validation", () => {
+  it("rejects recipe missing ingredients", async () => {
+    const { handler } = createValidationDeps();
+
+    const result = JSON.parse(
+      await handler.handleToolCall("save_knowledge", {
+        title: "Chocolate Cake",
+        summary: "A delicious cake",
+        content: "Steps:\n1. Mix everything together\n2. Bake at 350",
+        tags: ["recipe", "meal:dessert"],
+      }),
+    );
+
+    expect(result.is_error).toBe(true);
+    expect(result.incomplete_recipe).toBe(true);
+    expect(result.error).toContain("ingredients list");
+    expect(result.error).not.toContain("instructions/steps");
+  });
+
+  it("rejects recipe missing instructions", async () => {
+    const { handler } = createValidationDeps();
+
+    const result = JSON.parse(
+      await handler.handleToolCall("save_knowledge", {
+        title: "Simple Salad",
+        summary: "A quick salad",
+        content: "Ingredients:\n- 1 cup lettuce\n- 2 tomatoes\n- 1 cucumber",
+        tags: ["recipe", "meal:lunch"],
+      }),
+    );
+
+    expect(result.is_error).toBe(true);
+    expect(result.incomplete_recipe).toBe(true);
+    expect(result.error).toContain("instructions/steps");
+    expect(result.error).not.toContain("ingredients list");
+  });
+
+  it("rejects recipe missing both ingredients and instructions", async () => {
+    const { handler } = createValidationDeps();
+
+    const result = JSON.parse(
+      await handler.handleToolCall("save_knowledge", {
+        title: "Mystery Dish",
+        summary: "Something tasty",
+        content: "Some text about food that is not structured",
+        tags: ["recipe"],
+      }),
+    );
+
+    expect(result.is_error).toBe(true);
+    expect(result.incomplete_recipe).toBe(true);
+    expect(result.error).toContain("ingredients list");
+    expect(result.error).toContain("instructions/steps");
+  });
+
+  it("accepts complete recipe", async () => {
+    const { handler } = createValidationDeps();
+
+    const result = JSON.parse(
+      await handler.handleToolCall("save_knowledge", {
+        title: "Pasta Marinara",
+        summary: "Classic Italian pasta",
+        content: "Ingredients:\n- 1 lb pasta\n- 2 cups marinara sauce\n\nSteps:\n1. Boil pasta\n2. Heat sauce\n3. Combine and serve",
+        tags: ["recipe", "cuisine:italian"],
+      }),
+    );
+
+    expect(result.is_error).toBeUndefined();
+    expect(result.incomplete_recipe).toBeUndefined();
+    expect(result.id).toBe(1);
+    expect(result.message).toContain("Pasta Marinara");
+  });
+
+  it("skips validation for non-recipe items (preferences)", async () => {
+    const { handler } = createValidationDeps();
+
+    const result = JSON.parse(
+      await handler.handleToolCall("save_knowledge", {
+        title: "Dietary Preference",
+        summary: "No gluten",
+        content: "I don't eat gluten",
+        tags: ["preference", "pref:dietary"],
+      }),
+    );
+
+    expect(result.is_error).toBeUndefined();
+    expect(result.incomplete_recipe).toBeUndefined();
+    expect(result.id).toBe(1);
+  });
+
+  it("skips validation when tags don't include 'recipe'", async () => {
+    const { handler } = createValidationDeps();
+
+    const result = JSON.parse(
+      await handler.handleToolCall("save_knowledge", {
+        title: "Cooking Tip",
+        summary: "Always season your cast iron",
+        content: "Cast iron care tips and tricks",
+        tags: ["note", "cooking-tip"],
+      }),
+    );
+
+    expect(result.is_error).toBeUndefined();
+    expect(result.incomplete_recipe).toBeUndefined();
+    expect(result.id).toBe(1);
+  });
+});

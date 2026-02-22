@@ -81,6 +81,41 @@ function validationError(msg: string): string {
 }
 
 /**
+ * Validate that a recipe has the required fields: title, ingredients, instructions.
+ * Only applies to knowledge items tagged with "recipe".
+ * Returns a descriptive error message listing missing fields, or null if valid.
+ */
+function validateRecipeCompleteness(
+  title: string,
+  content: string,
+  tags: string[],
+): string | null {
+  // Only validate items tagged as recipes
+  if (!tags.some((t) => t.toLowerCase() === "recipe")) return null;
+
+  const missing: string[] = [];
+
+  if (!title || title.trim().length === 0) {
+    missing.push("title");
+  }
+
+  // Check for ingredients section in content
+  // The content format uses "Ingredients:" header followed by list items
+  if (!content || !(/ingredients:/i.test(content) && /^- .+/m.test(content.slice(content.search(/ingredients:/i))))) {
+    missing.push("ingredients list");
+  }
+
+  // Check for instructions/steps section in content
+  if (!content || !(/steps:/i.test(content) && /^\d+\.\s+.+/m.test(content.slice(content.search(/steps:/i))))) {
+    missing.push("instructions/steps");
+  }
+
+  if (missing.length === 0) return null;
+
+  return `Recipe is missing required fields: ${missing.join(", ")}. Please provide the missing information before saving.`;
+}
+
+/**
  * Create a tool call dispatcher that routes Claude's tool use requests
  * to the knowledge retrieval service and knowledge repository.
  *
@@ -229,6 +264,16 @@ export function createToolHandler(deps: {
             } catch {
               // If search fails, proceed with save (dedup is best-effort)
             }
+          }
+
+          // Recipe completeness validation (DATA-01)
+          const recipeError = validateRecipeCompleteness(title, content, tags);
+          if (recipeError) {
+            return JSON.stringify({
+              error: recipeError,
+              is_error: true,
+              incomplete_recipe: true,
+            });
           }
 
           try {

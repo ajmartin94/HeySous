@@ -27,7 +27,9 @@ export function initializePlanning(sqlite: BetterSqlite3.Database): void {
       household_id TEXT NOT NULL,
       week_start_date TEXT NOT NULL,
       created_at INTEGER NOT NULL DEFAULT (unixepoch()),
-      updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+      updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      version INTEGER NOT NULL DEFAULT 1,
+      updated_by TEXT
     )
   `);
 

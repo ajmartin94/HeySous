@@ -22,7 +22,9 @@ export function initializeFts(sqlite: BetterSqlite3.Database): void {
       source_url TEXT,
       created_at INTEGER NOT NULL DEFAULT (unixepoch()),
       updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
-      last_accessed_at INTEGER NOT NULL DEFAULT (unixepoch())
+      last_accessed_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      version INTEGER NOT NULL DEFAULT 1,
+      updated_by TEXT
     )
   `);
 

@@ -14,7 +14,9 @@ export function initializeGrocery(sqlite: BetterSqlite3.Database): void {
       message_id INTEGER,
       status TEXT NOT NULL DEFAULT 'active',
       created_at INTEGER NOT NULL DEFAULT (unixepoch()),
-      updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+      updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      version INTEGER NOT NULL DEFAULT 1,
+      updated_by TEXT
     )
   `);
 

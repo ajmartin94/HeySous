@@ -85,6 +85,53 @@ export const migrations: Migration[] = [
       sqlite.exec("DELETE FROM notification_deliveries");
     },
   },
+  {
+    version: 5,
+    name: "add-version-columns-for-optimistic-locking",
+    up: (sqlite) => {
+      // knowledge_items: add version + updated_by columns for optimistic locking
+      const kiExists = sqlite
+        .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='knowledge_items'")
+        .get();
+      if (kiExists) {
+        const kiCols = sqlite.pragma("table_info(knowledge_items)") as Array<{ name: string }>;
+        if (!kiCols.some((c) => c.name === "version")) {
+          sqlite.exec("ALTER TABLE knowledge_items ADD COLUMN version INTEGER NOT NULL DEFAULT 1");
+        }
+        if (!kiCols.some((c) => c.name === "updated_by")) {
+          sqlite.exec("ALTER TABLE knowledge_items ADD COLUMN updated_by TEXT");
+        }
+      }
+
+      // meal_plans: add version + updated_by columns
+      const mpExists = sqlite
+        .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='meal_plans'")
+        .get();
+      if (mpExists) {
+        const mpCols = sqlite.pragma("table_info(meal_plans)") as Array<{ name: string }>;
+        if (!mpCols.some((c) => c.name === "version")) {
+          sqlite.exec("ALTER TABLE meal_plans ADD COLUMN version INTEGER NOT NULL DEFAULT 1");
+        }
+        if (!mpCols.some((c) => c.name === "updated_by")) {
+          sqlite.exec("ALTER TABLE meal_plans ADD COLUMN updated_by TEXT");
+        }
+      }
+
+      // grocery_lists: add version + updated_by columns
+      const glExists = sqlite
+        .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='grocery_lists'")
+        .get();
+      if (glExists) {
+        const glCols = sqlite.pragma("table_info(grocery_lists)") as Array<{ name: string }>;
+        if (!glCols.some((c) => c.name === "version")) {
+          sqlite.exec("ALTER TABLE grocery_lists ADD COLUMN version INTEGER NOT NULL DEFAULT 1");
+        }
+        if (!glCols.some((c) => c.name === "updated_by")) {
+          sqlite.exec("ALTER TABLE grocery_lists ADD COLUMN updated_by TEXT");
+        }
+      }
+    },
+  },
 ];
 
 export function runMigrations(sqlite: BetterSqlite3.Database): void {

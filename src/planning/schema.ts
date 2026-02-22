@@ -14,6 +14,8 @@ export const mealPlans = sqliteTable("meal_plans", {
   updatedAt: integer("updated_at", { mode: "timestamp" })
     .notNull()
     .$defaultFn(() => new Date()),
+  version: integer("version").notNull().default(1),
+  updatedBy: text("updated_by"),
 });
 
 /**

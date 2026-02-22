@@ -28,9 +28,31 @@ export interface ToolHandlerResult {
   result: string;
 }
 
-// Haiku 4.5 pricing per MTok (USD)
+// Claude model pricing per MTok (USD)
 export const MODEL_PRICING: Record<string, ModelPricing> = {
+  // Haiku 4.5
   "claude-haiku-4-5-20251001": {
+    inputPerMTok: 1.0,
+    outputPerMTok: 5.0,
+    cacheWritePerMTok: 1.25,
+    cacheReadPerMTok: 0.1,
+  },
+  // Sonnet 4
+  "claude-sonnet-4-20250514": {
+    inputPerMTok: 3.0,
+    outputPerMTok: 15.0,
+    cacheWritePerMTok: 3.75,
+    cacheReadPerMTok: 0.3,
+  },
+  // Opus 4
+  "claude-opus-4-20250514": {
+    inputPerMTok: 15.0,
+    outputPerMTok: 75.0,
+    cacheWritePerMTok: 18.75,
+    cacheReadPerMTok: 1.5,
+  },
+  // Fallback for unknown models -- use Haiku pricing as conservative baseline
+  _fallback: {
     inputPerMTok: 1.0,
     outputPerMTok: 5.0,
     cacheWritePerMTok: 1.25,

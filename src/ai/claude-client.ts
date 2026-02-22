@@ -47,8 +47,8 @@ function buildSystemBlocks(input: SystemPromptInput): Anthropic.TextBlockParam[]
  * Returns 0 for unknown models.
  */
 export function calculateCost(model: string, usage: TokenUsage): number {
-  const pricing = MODEL_PRICING[model];
-  if (!pricing) return 0;
+  const pricing = MODEL_PRICING[model] ?? MODEL_PRICING._fallback;
+  if (!pricing) return 0; // defensive -- _fallback should always exist
 
   const inputCost = (usage.inputTokens / 1_000_000) * pricing.inputPerMTok;
   const outputCost = (usage.outputTokens / 1_000_000) * pricing.outputPerMTok;

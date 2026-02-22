@@ -39,8 +39,8 @@ Requirements for v1.5 Agent Hardening & Polish. Sourced from comprehensive 3-age
 
 ### Observability
 
-- [ ] **OBS-01**: Every tool call is logged with name, duration, household_id, and success/error status
-- [ ] **OBS-02**: Tool error messages are sanitized before returning to Claude (no internal details leaked)
+- [x] **OBS-01**: Every tool call is logged with name, duration, household_id, and success/error status
+- [x] **OBS-02**: Tool error messages are sanitized before returning to Claude (no internal details leaked)
 - [ ] **OBS-03**: MODEL_PRICING includes entries for Sonnet and Opus with unknown-model fallback
 
 ### Data Integrity
@@ -95,8 +95,8 @@ None deferred -- all audit findings scoped into v1.5.
 | PROMPT-04 | Phase 32 | Complete |
 | PROMPT-05 | Phase 32 | Complete |
 | PROMPT-06 | Phase 36 | Pending |
-| OBS-01 | Phase 34 | Pending |
-| OBS-02 | Phase 34 | Pending |
+| OBS-01 | Phase 34 | Complete |
+| OBS-02 | Phase 34 | Complete |
 | OBS-03 | Phase 34 | Pending |
 | DATA-01 | Phase 34 | Pending |
 | CFG-01 | Phase 36 | Pending |

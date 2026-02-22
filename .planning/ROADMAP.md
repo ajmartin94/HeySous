@@ -57,7 +57,7 @@ See .planning/milestones/v1.4-ROADMAP.md for full phase history.
 
 - [x] **Phase 32: Prompt Quality & Persona** - Unify Sous persona, fix conflicting instructions, restructure system prompt for caching (completed 2026-02-21)
 - [x] **Phase 33: Input Validation & Security** - Sanitize user-controlled text, bounds-validate tool inputs, enforce message length limits (completed 2026-02-21)
-- [ ] **Phase 34: Observability & Data Integrity** - Log tool calls with metrics, sanitize error messages, validate recipe extraction
+- [x] **Phase 34: Observability & Data Integrity** - Log tool calls with metrics, sanitize error messages, validate recipe extraction (completed 2026-02-22)
 - [ ] **Phase 35: Resilience** - 429 backoff with jitter, meal plan race condition fix, context overflow detection
 - [ ] **Phase 36: Pipeline Efficiency** - Rate limiting, configurable session, N+1 fix, token counting, knowledge content search
 - [ ] **Phase 37: Streaming** - Stream Claude responses to Telegram for lower perceived latency
@@ -174,7 +174,7 @@ Note: Phase 38 (Mini App Theme) has no backend dependencies and can be paralleli
 | 25-31. Backlog Sweep Phases | v1.4 | 7/7 | Complete | 2026-02-21 |
 | 32. Prompt Quality & Persona | v1.5 | 2/2 | Complete | 2026-02-21 |
 | 33. Input Validation & Security | 3/3 | Complete    | 2026-02-21 | - |
-| 34. Observability & Data Integrity | v1.5 | 0/0 | Not started | - |
+| 34. Observability & Data Integrity | 2/2 | Complete   | 2026-02-22 | - |
 | 35. Resilience | v1.5 | 0/0 | Not started | - |
 | 36. Pipeline Efficiency | v1.5 | 0/0 | Not started | - |
 | 37. Streaming | v1.5 | 0/0 | Not started | - |

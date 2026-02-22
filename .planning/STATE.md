@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-21)
 ## Current Position
 
 Phase: 35 of 39 (Resilience)
-Plan: 0 of 0 in current phase (not started)
-Status: Context gathered
-Last activity: 2026-02-22 -- Phase 35 context gathered
+Plan: 2 of 3 in current phase
+Status: Executing
+Last activity: 2026-02-22 -- Completed 35-02 optimistic locking plan
 
-Progress: [=================================.......] 83% (73/88 plans complete through Phase 34)
+Progress: [==================================......] 85% (75/88 plans complete through Phase 35-02)
 
 ## Performance Metrics
 
@@ -33,6 +33,8 @@ All decisions documented in PROJECT.md Key Decisions table.
 - Phase 33-02: Validation returns JSON with is_error:true flag; per-item array validation reports specific index for Claude self-correction
 - Phase 34-01: Tool inputs logged on error always, on success only with LOG_TOOL_INPUTS=true; sanitizeToolError strips stack traces, file paths, SQL via regex
 - Phase 34-02: Haiku pricing as _fallback for unknown models; recipe validation checks Ingredients:/Steps: headers with content patterns; incomplete_recipe flag for Claude self-correction
+- Phase 35-02: Optimistic locking via version columns on stateful tables; conflict returns structured JSON with is_error:true and conflict:true; householdId as updatedBy
+- [Phase 35]: retryWithBackoff internal to claude-client; only 429 errors retried; thinking-longer message sent once on first retry only
 
 ### Pending Todos
 
@@ -51,6 +53,6 @@ Total: 39 phases across 6 milestones.
 ## Session Continuity
 
 Last session: 2026-02-22
-Stopped at: Phase 35 context gathered
-Next action: /gsd:plan-phase 35
-Resume file: .planning/phases/35-resilience/35-CONTEXT.md
+Stopped at: Completed 35-02-PLAN.md
+Next action: Execute 35-03-PLAN.md
+Resume file: .planning/phases/35-resilience/35-02-SUMMARY.md

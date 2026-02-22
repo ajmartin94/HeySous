@@ -1,4 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { APIError } from "@anthropic-ai/sdk";
+import type { Logger } from "pino";
 import { buildSystemPrompt } from "./system-prompt.js";
 import type { ClaudeResponse, TokenUsage } from "./types.js";
 import { MODEL_PRICING } from "./types.js";
@@ -79,6 +81,96 @@ export function sanitizeToolError(error: unknown): string {
 /** Default max tool use iterations before forcing a text response. */
 const DEFAULT_MAX_ITERATIONS = 5;
 
+/** Default max retries for 429 rate-limit errors. */
+const DEFAULT_MAX_RETRIES = 3;
+
+/** Base delay in milliseconds for exponential backoff. */
+const BASE_DELAY_MS = 1_000;
+
+/**
+ * Retry a function with exponential backoff and jitter on 429 errors.
+ *
+ * Only retries Anthropic API 429 (rate limit) errors. All other errors
+ * are re-thrown immediately. Respects the Retry-After header when present.
+ *
+ * @param fn - The async function to retry
+ * @param options.maxRetries - Maximum number of retry attempts
+ * @param options.onRetry - Optional callback invoked before each retry sleep
+ * @param options.logger - Optional pino logger for structured retry logging
+ * @param options.context - Optional context fields for structured logging
+ */
+async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  options: {
+    maxRetries: number;
+    onRetry?: (attempt: number, delayMs: number) => void | Promise<void>;
+    logger?: Logger;
+    context?: Record<string, unknown>;
+  },
+): Promise<T> {
+  const { maxRetries, onRetry, logger, context } = options;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      // Only retry on 429 rate-limit errors
+      const is429 = error instanceof APIError && error.status === 429;
+      if (!is429) {
+        throw error;
+      }
+
+      // Exhausted all retries
+      if (attempt >= maxRetries) {
+        logger?.error(
+          { ...context, attempt, maxRetries, error: (error as Error).message },
+          "All retry attempts exhausted for 429 rate limit",
+        );
+        throw error;
+      }
+
+      // Calculate delay: exponential backoff with jitter
+      const exponentialDelay = BASE_DELAY_MS * Math.pow(2, attempt);
+      const jitter = Math.random() * 0.5 * exponentialDelay; // 0-50% jitter
+      let delayMs = exponentialDelay + jitter;
+
+      // Respect Retry-After header if present
+      const apiError = error as APIError;
+      const retryAfterHeader = apiError.headers?.get?.("retry-after");
+      if (retryAfterHeader) {
+        const retryAfterSeconds = parseFloat(retryAfterHeader);
+        if (!isNaN(retryAfterSeconds)) {
+          const retryAfterMs = retryAfterSeconds * 1_000;
+          delayMs = Math.max(retryAfterMs, delayMs);
+        }
+      }
+
+      logger?.warn(
+        {
+          ...context,
+          attempt: attempt + 1,
+          maxRetries,
+          delayMs: Math.round(delayMs),
+          retryAfterHeader: retryAfterHeader ?? null,
+          error: (error as Error).message,
+        },
+        "Retrying after 429 rate limit",
+      );
+
+      // Call onRetry callback before sleeping
+      if (onRetry) {
+        await onRetry(attempt + 1, Math.round(delayMs));
+      }
+
+      // Sleep
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+
+  // Should be unreachable, but TypeScript needs it
+  throw new Error("retryWithBackoff: unexpected code path");
+}
+
 /**
  * Create a Claude API client with the given credentials.
  *
@@ -86,7 +178,7 @@ const DEFAULT_MAX_ITERATIONS = 5;
  * maxRetries: 0 -- we handle retries ourselves for user-facing messaging.
  * timeout: 60_000 -- 60 second timeout per request.
  */
-export function createClaudeClient(apiKey: string, model: string) {
+export function createClaudeClient(apiKey: string, model: string, clientLogger?: Logger) {
   const client = new Anthropic({
     apiKey,
     maxRetries: 0,
@@ -98,23 +190,31 @@ export function createClaudeClient(apiKey: string, model: string) {
      * Send a message to Claude and return the structured response.
      * Simple single-turn call without tool support (backward compatible).
      *
+     * Wraps the API call with retryWithBackoff to handle 429 rate limits.
+     *
      * @param userMessages - Array of user message strings, joined with double newlines
+     * @param systemPrompt - Optional system prompt override
+     * @param onRetry - Optional callback invoked before each retry sleep
      * @returns ClaudeResponse with text, usage, model, and stopReason
      */
     async sendMessage(
       userMessages: string[],
       systemPrompt?: SystemPromptInput,
+      onRetry?: (attempt: number, delayMs: number) => void | Promise<void>,
     ): Promise<ClaudeResponse> {
       const prompt = systemPrompt ?? buildSystemPrompt();
       const systemBlocks = buildSystemBlocks(prompt);
       const combinedUserText = userMessages.join("\n\n");
 
-      const response = await client.messages.create({
-        model,
-        max_tokens: 2048,
-        system: systemBlocks,
-        messages: [{ role: "user" as const, content: combinedUserText }],
-      });
+      const response = await retryWithBackoff(
+        () => client.messages.create({
+          model,
+          max_tokens: 2048,
+          system: systemBlocks,
+          messages: [{ role: "user" as const, content: combinedUserText }],
+        }),
+        { maxRetries: DEFAULT_MAX_RETRIES, onRetry, logger: clientLogger },
+      );
 
       const textContent = response.content
         .filter(
@@ -148,12 +248,17 @@ export function createClaudeClient(apiKey: string, model: string) {
      * 5. Loop back to (1) until max iterations
      * 6. Safety: if max iterations reached, do one final call WITHOUT tools
      *
+     * All client.messages.create() calls are wrapped with retryWithBackoff
+     * to handle 429 rate limits with exponential backoff and jitter.
+     *
      * Token usage is aggregated across all iterations.
      *
      * @param messages - Full message array including conversation history
      * @param tools - Anthropic tool definitions
      * @param onToolCall - Callback to handle tool calls (sync or async)
      * @param maxIterations - Maximum tool use iterations (default 5)
+     * @param systemPrompt - Optional system prompt override
+     * @param onRetry - Optional callback invoked before each retry sleep (for user notifications)
      * @returns ClaudeResponse with aggregated usage from all iterations
      */
     async sendMessageWithTools(
@@ -162,6 +267,7 @@ export function createClaudeClient(apiKey: string, model: string) {
       onToolCall: (name: string, input: Record<string, unknown>) => string | Promise<string>,
       maxIterations: number = DEFAULT_MAX_ITERATIONS,
       systemPrompt?: SystemPromptInput,
+      onRetry?: (attempt: number, delayMs: number) => void | Promise<void>,
     ): Promise<ClaudeResponse> {
       const prompt = systemPrompt ?? buildSystemPrompt();
       const systemBlock = buildSystemBlocks(prompt);
@@ -180,13 +286,16 @@ export function createClaudeClient(apiKey: string, model: string) {
       let finalStopReason = "unknown";
 
       for (let iteration = 0; iteration < maxIterations; iteration++) {
-        const response = await client.messages.create({
-          model,
-          max_tokens: 2048,
-          system: systemBlock,
-          messages: loopMessages,
-          tools,
-        });
+        const response = await retryWithBackoff(
+          () => client.messages.create({
+            model,
+            max_tokens: 2048,
+            system: systemBlock,
+            messages: loopMessages,
+            tools,
+          }),
+          { maxRetries: DEFAULT_MAX_RETRIES, onRetry, logger: clientLogger },
+        );
 
         // Aggregate usage
         totalUsage.inputTokens += response.usage.input_tokens;
@@ -274,12 +383,15 @@ export function createClaudeClient(apiKey: string, model: string) {
       }
 
       // Max iterations reached -- do one final call WITHOUT tools to force text response
-      const finalResponse = await client.messages.create({
-        model,
-        max_tokens: 2048,
-        system: systemBlock,
-        messages: loopMessages,
-      });
+      const finalResponse = await retryWithBackoff(
+        () => client.messages.create({
+          model,
+          max_tokens: 2048,
+          system: systemBlock,
+          messages: loopMessages,
+        }),
+        { maxRetries: DEFAULT_MAX_RETRIES, onRetry, logger: clientLogger },
+      );
 
       totalUsage.inputTokens += finalResponse.usage.input_tokens;
       totalUsage.outputTokens += finalResponse.usage.output_tokens;

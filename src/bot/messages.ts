@@ -252,3 +252,27 @@ export function getReminderFallbackGeneric(): string {
     "Friendly reminder from your kitchen pal!",
   ]);
 }
+
+// ---------------------------------------------------------------------------
+// Resilience messages (retry / rate-limit)
+// ---------------------------------------------------------------------------
+
+export function getThinkingLongerMessage(): string {
+  return pickRandom([
+    "I'm thinking a little longer on this one -- hang tight!",
+    "Taking an extra moment to get this right for you...",
+    "Still on it! Just need a bit more time...",
+    "Bear with me -- putting a little extra thought into this one...",
+    "Working through this one carefully, just a moment more...",
+  ]);
+}
+
+export function getResilienceFailureMessage(): string {
+  return pickRandom([
+    "I got a bit overwhelmed there -- mind sending that again when you're ready?",
+    "Sorry, I couldn't quite pull that together. Try again in a moment?",
+    "My brain's a little overloaded right now. Send it again when you're ready!",
+    "Hit a snag on that one -- give me another shot when you have a sec?",
+    "I tripped up on that request. Mind trying once more in a minute?",
+  ]);
+}

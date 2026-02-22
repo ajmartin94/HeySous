@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-21)
 
 **Core value:** The recipe brain -- an AI agent that remembers everything about your meals and reasons over that knowledge to help you plan.
-**Current focus:** v1.5 Agent Hardening & Polish -- Phase 34: Observability & Data Integrity
+**Current focus:** v1.5 Agent Hardening & Polish -- Phase 35: Resilience
 
 ## Current Position
 
-Phase: 34 of 39 (Observability & Data Integrity)
-Plan: 2 of 2 in current phase (complete)
-Status: Phase complete
-Last activity: 2026-02-22 -- Completed 34-02-PLAN.md (model pricing & recipe validation)
+Phase: 35 of 39 (Resilience)
+Plan: 0 of 0 in current phase (not started)
+Status: Context gathered
+Last activity: 2026-02-22 -- Phase 35 context gathered
 
 Progress: [=================================.......] 83% (73/88 plans complete through Phase 34)
 
@@ -51,6 +51,6 @@ Total: 39 phases across 6 milestones.
 ## Session Continuity
 
 Last session: 2026-02-22
-Stopped at: Completed 34-02-PLAN.md (phase 34 complete)
-Next action: /gsd:execute-phase 35
-Resume file: .planning/phases/34-observability-data-integrity/34-02-SUMMARY.md
+Stopped at: Phase 35 context gathered
+Next action: /gsd:plan-phase 35
+Resume file: .planning/phases/35-resilience/35-CONTEXT.md

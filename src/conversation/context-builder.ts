@@ -20,29 +20,44 @@ import type { ConversationTurn } from "./types.js";
 const SESSION_GAP_MS = 4 * 60 * 60 * 1000;
 
 /**
+ * Result of building conversation context, including truncation metadata.
+ * wasTruncated is true only when messages were dropped due to token budget
+ * constraints (NOT session boundary gaps, which are intentional).
+ */
+export interface ConversationContextResult {
+  messages: Anthropic.MessageParam[];
+  wasTruncated: boolean;
+  originalTurnCount: number;
+  includedTurnCount: number;
+}
+
+/**
  * Build conversation context from historical turns within a token budget.
  *
  * @param turns - All turns for this chat, ordered by createdAt ascending
  * @param tokenBudget - Maximum estimated tokens for conversation history
- * @returns Anthropic MessageParam[] to prepend before the current user message
+ * @returns ConversationContextResult with messages and truncation metadata
  */
 export function buildConversationContext(
   turns: ConversationTurn[],
   tokenBudget: number,
-): Anthropic.MessageParam[] {
+): ConversationContextResult {
   if (turns.length === 0) {
-    return [];
+    return { messages: [], wasTruncated: false, originalTurnCount: 0, includedTurnCount: 0 };
   }
 
   // Exclude the most recent turn -- it's the current user message, handled separately
   const history = turns.slice(0, -1);
   if (history.length === 0) {
-    return [];
+    return { messages: [], wasTruncated: false, originalTurnCount: 0, includedTurnCount: 0 };
   }
+
+  const originalTurnCount = history.length;
 
   // Work backwards, applying session boundary and token budget
   const selected: ConversationTurn[] = [];
   let tokensUsed = 0;
+  let truncatedByBudget = false;
 
   for (let i = history.length - 1; i >= 0; i--) {
     const turn = history[i];
@@ -68,6 +83,7 @@ export function buildConversationContext(
     const turnTokens = estimateTokens(turn.text);
     if (tokensUsed + turnTokens > tokenBudget && selected.length > 0) {
       // Would exceed budget and we already have some history -- stop
+      truncatedByBudget = true;
       break;
     }
 
@@ -76,7 +92,7 @@ export function buildConversationContext(
   }
 
   if (selected.length === 0) {
-    return [];
+    return { messages: [], wasTruncated: truncatedByBudget, originalTurnCount, includedTurnCount: 0 };
   }
 
   // Drop leading assistant turn (Anthropic API requires user-first)
@@ -85,7 +101,7 @@ export function buildConversationContext(
   }
 
   if (selected.length === 0) {
-    return [];
+    return { messages: [], wasTruncated: truncatedByBudget, originalTurnCount, includedTurnCount: 0 };
   }
 
   // Merge consecutive same-role messages and build MessageParam array
@@ -120,5 +136,10 @@ export function buildConversationContext(
     });
   }
 
-  return params;
+  return {
+    messages: params,
+    wasTruncated: truncatedByBudget,
+    originalTurnCount,
+    includedTurnCount: selected.length,
+  };
 }

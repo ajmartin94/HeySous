@@ -232,7 +232,7 @@ export function createProcessor(deps: ProcessorDeps) {
       }));
 
       // e. Build conversation context (sliding window within token budget)
-      const priorMessages = buildConversationContext(
+      const { messages: priorMessages, wasTruncated, originalTurnCount, includedTurnCount } = buildConversationContext(
         turns,
         CONVERSATION_TOKEN_BUDGET,
       );

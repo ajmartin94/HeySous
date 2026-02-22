@@ -52,7 +52,7 @@ import { updateOnboardingState } from "../users/repository.js";
 import type { User } from "../users/types.js";
 import type { DrizzleDatabase } from "../db/index.js";
 import type { Logger } from "pino";
-import { getErrorMessage, getTimeoutMessage, getMessageTooLongResponse } from "../bot/messages.js";
+import { getErrorMessage, getTimeoutMessage, getMessageTooLongResponse, getThinkingLongerMessage, getResilienceFailureMessage } from "../bot/messages.js";
 
 /**
  * Create an instrumented wrapper around a tool call handler.
@@ -117,13 +117,18 @@ const MAX_MESSAGE_LENGTH = 4_000;
 const CONVERSATION_TOKEN_BUDGET = 2000;
 
 interface ClaudeClient {
-  sendMessage(userMessages: string[], systemPrompt?: SystemPromptInput): Promise<ClaudeResponse>;
+  sendMessage(
+    userMessages: string[],
+    systemPrompt?: SystemPromptInput,
+    onRetry?: (attempt: number, delayMs: number) => void | Promise<void>,
+  ): Promise<ClaudeResponse>;
   sendMessageWithTools(
     messages: Anthropic.MessageParam[],
     tools: Anthropic.Tool[],
     onToolCall: (name: string, input: Record<string, unknown>) => string | Promise<string>,
     maxIterations?: number,
     systemPrompt?: SystemPromptInput,
+    onRetry?: (attempt: number, delayMs: number) => void | Promise<void>,
   ): Promise<ClaudeResponse>;
 }
 
@@ -377,7 +382,7 @@ export function createProcessor(deps: ProcessorDeps) {
         }
       }, TIMEOUT_WARNING_MS);
 
-      // j. Call Claude with tools and one silent retry
+      // j. Call Claude with tools and retry via retryWithBackoff (inside claude-client)
       let response: ClaudeResponse;
       const startTime = Date.now();
 
@@ -389,6 +394,33 @@ export function createProcessor(deps: ProcessorDeps) {
         log,
       );
 
+      // Track whether user has been notified about retry (only once per request)
+      let retryNotificationSent = false;
+
+      const onRetry = async (attempt: number, delayMs: number): Promise<void> => {
+        log.warn(
+          {
+            chatId,
+            userId,
+            householdId,
+            attempt,
+            delayMs,
+            timestamp: new Date().toISOString(),
+          },
+          "Claude API retry in progress",
+        );
+
+        // Send "thinking longer" message to user on first retry only
+        if (!retryNotificationSent) {
+          retryNotificationSent = true;
+          try {
+            await ctx.reply(getThinkingLongerMessage());
+          } catch {
+            // Best-effort notification
+          }
+        }
+      };
+
       try {
         response = await claudeClient.sendMessageWithTools(
           fullMessages,
@@ -396,46 +428,29 @@ export function createProcessor(deps: ProcessorDeps) {
           instrumentedHandler,
           10, // Increased from 5 for grocery list generation (plan + recipe lookups + save)
           systemPrompt,
+          onRetry,
         );
-      } catch (firstError) {
-        log.warn(
+      } catch (retryExhaustedError) {
+        clearTimeout(timeoutTimer);
+        log.error(
           {
-            error: firstError instanceof Error ? firstError.message : String(firstError),
-            stack: firstError instanceof Error ? firstError.stack : undefined,
+            error: retryExhaustedError instanceof Error ? retryExhaustedError.message : String(retryExhaustedError),
+            stack: retryExhaustedError instanceof Error ? retryExhaustedError.stack : undefined,
             chatId,
             userId,
+            householdId,
+            failureType: "429_exhausted",
+            retryCount: 3,
             timestamp: new Date().toISOString(),
           },
-          "Claude API call failed (attempt 1), retrying",
+          "Claude API call failed after all retries, sending resilience failure to user",
         );
-
         try {
-          response = await claudeClient.sendMessageWithTools(
-            fullMessages,
-            allTools,
-            instrumentedHandler,
-            10, // Increased from 5 for grocery list generation (plan + recipe lookups + save)
-            systemPrompt,
-          );
-        } catch (secondError) {
-          clearTimeout(timeoutTimer);
-          log.error(
-            {
-              error: secondError instanceof Error ? secondError.message : String(secondError),
-              stack: secondError instanceof Error ? secondError.stack : undefined,
-              chatId,
-              userId,
-              timestamp: new Date().toISOString(),
-            },
-            "Claude API call failed (attempt 2), sending error to user",
-          );
-          try {
-            await ctx.reply(getErrorMessage());
-          } catch {
-            // Best-effort error message
-          }
-          return;
+          await ctx.reply(getResilienceFailureMessage());
+        } catch {
+          // Best-effort error message
         }
+        return;
       }
 
       const requestDurationMs = Date.now() - startTime;

@@ -10,6 +10,8 @@ export interface KnowledgeItem {
   createdAt: Date;
   updatedAt: Date;
   lastAccessedAt: Date;
+  version: number;
+  updatedBy: string | null;
 }
 
 export interface SearchResult {

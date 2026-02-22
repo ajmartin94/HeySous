@@ -201,6 +201,7 @@ export function createToolHandler(deps: {
             source: item.source,
             sourceUrl: item.sourceUrl,
             tags: item.tags,
+            version: item.version,
           });
         }
 
@@ -333,7 +334,7 @@ export function createToolHandler(deps: {
           }
 
           try {
-            // Get current item for changelog snapshot
+            // Get current item for changelog snapshot (also captures version for locking)
             const previous = knowledgeRepository.getById(id, householdId);
             if (!previous) {
               return JSON.stringify({ error: `No item found with ID ${id}` });
@@ -346,9 +347,16 @@ export function createToolHandler(deps: {
             if (content !== undefined) changes.content = content;
             if (tags !== undefined) changes.tags = tags;
 
-            const updated = knowledgeRepository.update(id, householdId, changes);
+            const updated = knowledgeRepository.update(id, householdId, changes, {
+              expectedVersion: previous.version,
+              updatedBy: householdId,
+            });
             if (!updated) {
-              return JSON.stringify({ error: `Failed to update item ${id}` });
+              return JSON.stringify({
+                error: "This item was just modified by someone else. Please review the current version (use get_knowledge_item) and try your update again.",
+                is_error: true,
+                conflict: true,
+              });
             }
 
             // Build changelog description
@@ -369,6 +377,7 @@ export function createToolHandler(deps: {
             return JSON.stringify({
               message: `Updated "${updated.title}" (ID: ${id})`,
               id: updated.id,
+              version: updated.version,
             });
           } catch (error) {
             const msg = error instanceof Error ? error.message : String(error);
@@ -451,7 +460,20 @@ export function createToolHandler(deps: {
             knowledgeItemId: e.knowledge_item_id,
           }));
 
-          const plan = planRepository.savePlan(householdId, weekStartDate, entries);
+          // Check for existing plan to get version for optimistic locking
+          const existingPlan = planRepository.getPlan(householdId, weekStartDate);
+          const plan = planRepository.savePlan(householdId, weekStartDate, entries, {
+            expectedVersion: existingPlan?.version,
+            updatedBy: householdId,
+          });
+
+          if (!plan) {
+            return JSON.stringify({
+              error: "The meal plan for this week was just updated by someone else. Please check the current plan (use get_meal_plan) and try again.",
+              is_error: true,
+              conflict: true,
+            });
+          }
 
           return JSON.stringify({
             message: `Saved plan for week of ${weekStartDate}`,
@@ -465,6 +487,7 @@ export function createToolHandler(deps: {
                 recipeName: e.recipeName,
                 knowledgeItemId: e.knowledgeItemId,
               })),
+              version: plan.version,
             },
           });
         }
@@ -502,6 +525,7 @@ export function createToolHandler(deps: {
                 recipeName: e.recipeName,
                 knowledgeItemId: e.knowledgeItemId,
               })),
+              version: plan.version,
             },
           });
         }
@@ -660,6 +684,16 @@ export function createToolHandler(deps: {
             }
           }
 
+          // Optimistic locking: check version before writing
+          const versionOk = groceryRepository.updateListVersion(activeList.id, activeList.version, householdId);
+          if (!versionOk) {
+            return JSON.stringify({
+              error: "The grocery list was just updated by someone else. Please check the current list (use get_grocery_list) and try again.",
+              is_error: true,
+              conflict: true,
+            });
+          }
+
           const addItems = input.add_items as
             | Array<{
                 name: string;
@@ -687,10 +721,14 @@ export function createToolHandler(deps: {
 
           const updatedItems = groceryRepository.getListItems(activeList.id);
 
+          // Re-read the list to get the new version after our update
+          const refreshedList = groceryRepository.getActiveList(householdId);
+
           return JSON.stringify({
             message: "List updated",
             listId: activeList.id,
             messageId: activeList.messageId,
+            version: refreshedList?.version ?? activeList.version + 1,
             items: updatedItems.map((i) => ({
               id: i.id,
               name: i.name,
@@ -717,6 +755,7 @@ export function createToolHandler(deps: {
           return JSON.stringify({
             listId: currentList.id,
             status: currentList.status,
+            version: currentList.version,
             items: listItems.map((i) => ({
               id: i.id,
               name: i.name,

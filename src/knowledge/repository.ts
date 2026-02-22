@@ -41,6 +41,8 @@ export function createKnowledgeRepository(db: DrizzleDatabase) {
       createdAt: item.createdAt,
       updatedAt: item.updatedAt,
       lastAccessedAt: item.lastAccessedAt,
+      version: item.version,
+      updatedBy: item.updatedBy ?? null,
     };
   }
 
@@ -107,11 +109,14 @@ export function createKnowledgeRepository(db: DrizzleDatabase) {
 
     /**
      * Update a knowledge item. If tags provided, replaces all tags.
+     * Supports optimistic locking: if expectedVersion is provided, the update
+     * only succeeds when the current version matches. Returns null on conflict.
      */
     update(
       id: number,
       householdId: string,
-      changes: UpdateKnowledgeInput
+      changes: UpdateKnowledgeInput,
+      options?: { expectedVersion?: number; updatedBy?: string },
     ): KnowledgeItem | null {
       // Verify item exists and belongs to householdId
       const existing = db
@@ -124,10 +129,17 @@ export function createKnowledgeRepository(db: DrizzleDatabase) {
 
       if (!existing) return null;
 
+      // Optimistic locking: check version matches expected
+      if (options?.expectedVersion !== undefined && existing.version !== options.expectedVersion) {
+        return null; // Conflict detected
+      }
+
       // Build update values (only specified fields)
       const updateValues: Record<string, unknown> = {
         updatedAt: new Date(),
+        version: existing.version + 1,
       };
+      if (options?.updatedBy !== undefined) updateValues.updatedBy = options.updatedBy;
       if (changes.title !== undefined) updateValues.title = changes.title;
       if (changes.summary !== undefined) updateValues.summary = changes.summary;
       if (changes.content !== undefined) updateValues.content = changes.content;

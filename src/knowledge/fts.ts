@@ -247,7 +247,7 @@ export function getFullItem(
   // Fetch the item
   const row = sqlite
     .prepare(
-      `SELECT id, household_id, title, summary, content, source, source_url, created_at, updated_at, last_accessed_at
+      `SELECT id, household_id, title, summary, content, source, source_url, created_at, updated_at, last_accessed_at, version, updated_by
        FROM knowledge_items WHERE id = ? AND household_id = ?`
     )
     .get(id, householdId) as
@@ -262,6 +262,8 @@ export function getFullItem(
         created_at: number;
         updated_at: number;
         last_accessed_at: number;
+        version: number;
+        updated_by: string | null;
       }
     | undefined;
 
@@ -286,5 +288,7 @@ export function getFullItem(
     createdAt: new Date(row.created_at * 1000),
     updatedAt: new Date(row.updated_at * 1000),
     lastAccessedAt: new Date(row.last_accessed_at * 1000),
+    version: row.version ?? 1,
+    updatedBy: row.updated_by ?? null,
   };
 }

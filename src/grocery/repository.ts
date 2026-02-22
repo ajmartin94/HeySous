@@ -11,6 +11,8 @@ export interface GroceryList {
   status: string;
   createdAt: Date;
   updatedAt: Date;
+  version: number;
+  updatedBy: string | null;
 }
 
 /**
@@ -46,6 +48,8 @@ interface GroceryListRow {
   status: string;
   created_at: number;
   updated_at: number;
+  version: number;
+  updated_by: string | null;
 }
 
 /** Raw row shape for grocery_list_items from SQLite. */
@@ -70,6 +74,8 @@ function mapList(row: GroceryListRow): GroceryList {
     status: row.status,
     createdAt: new Date(row.created_at * 1000),
     updatedAt: new Date(row.updated_at * 1000),
+    version: row.version ?? 1,
+    updatedBy: row.updated_by ?? null,
   };
 }
 
@@ -260,6 +266,23 @@ export function createGroceryRepository(sqlite: BetterSqlite3.Database) {
            WHERE household_id = ? AND status = 'active'`,
         )
         .run(householdId);
+
+      return result.changes > 0;
+    },
+
+    /**
+     * Atomically check and increment the version of a grocery list.
+     * Used for optimistic locking: returns true if the version matched
+     * and was incremented, false if the version has changed (conflict).
+     */
+    updateListVersion(listId: number, expectedVersion: number, updatedBy?: string): boolean {
+      const result = sqlite
+        .prepare(
+          `UPDATE grocery_lists
+           SET version = version + 1, updated_at = unixepoch(), updated_by = ?
+           WHERE id = ? AND version = ?`,
+        )
+        .run(updatedBy ?? null, listId, expectedVersion);
 
       return result.changes > 0;
     },

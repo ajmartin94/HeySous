@@ -106,7 +106,7 @@ describe("save_knowledge dedup", () => {
       await handler.handleToolCall("save_knowledge", {
         title: "Chicken Parmesan",
         summary: "A chicken parmesan recipe",
-        content: "New chicken parmesan recipe...",
+        content: "Ingredients:\n- 2 chicken breasts\n- 1 cup mozzarella\n\nSteps:\n1. Bread and fry chicken\n2. Top with cheese",
         tags: ["recipe"],
       }),
     );
@@ -124,7 +124,7 @@ describe("save_knowledge dedup", () => {
       await handler.handleToolCall("save_knowledge", {
         title: "chicken parmesan",
         summary: "A chicken parmesan recipe",
-        content: "New recipe...",
+        content: "Ingredients:\n- 2 chicken breasts\n- 1 cup mozzarella\n\nSteps:\n1. Bread and fry chicken\n2. Top with cheese",
         tags: ["recipe"],
       }),
     );
@@ -141,7 +141,7 @@ describe("save_knowledge dedup", () => {
       await handler.handleToolCall("save_knowledge", {
         title: "Chicken Parmesan",
         summary: "A different chicken parm",
-        content: "Different recipe...",
+        content: "Ingredients:\n- 2 chicken breasts\n- 1 cup mozzarella\n\nSteps:\n1. Pan fry chicken\n2. Add cheese and bake",
         tags: ["recipe"],
         skip_dedup: true,
       }),
@@ -158,7 +158,7 @@ describe("save_knowledge dedup", () => {
       await handler.handleToolCall("save_knowledge", {
         title: "Unique Thai Basil Stir Fry",
         summary: "Quick Thai stir fry",
-        content: "Ingredients: basil, tofu...",
+        content: "Ingredients:\n- 1 cup basil\n- 1 block tofu\n\nSteps:\n1. Stir fry tofu\n2. Add basil",
         tags: ["recipe"],
       }),
     );
@@ -267,7 +267,7 @@ describe("BM25 threshold accuracy", () => {
       await handler.handleToolCall("save_knowledge", {
         title: "Beef Tacos",
         summary: "Quick weeknight beef tacos",
-        content: "Ground beef tacos with toppings and salsa verde",
+        content: "Ingredients:\n- 1 lb ground beef\n- 8 taco shells\n\nSteps:\n1. Brown beef\n2. Fill shells",
         tags: ["recipe"],
       }),
     );
@@ -295,7 +295,7 @@ describe("BM25 threshold accuracy", () => {
       await handler.handleToolCall("save_knowledge", {
         title: "Beef Tacos",
         summary: "Quick tacos",
-        content: "Tacos...",
+        content: "Ingredients:\n- 1 lb ground beef\n- 8 taco shells\n\nSteps:\n1. Brown beef\n2. Fill shells",
         tags: ["recipe"],
       }),
     );
@@ -323,7 +323,7 @@ describe("BM25 threshold accuracy", () => {
       await handler.handleToolCall("save_knowledge", {
         title: "Chicken Tikka Masala Recipe",
         summary: "Tikka masala",
-        content: "Recipe...",
+        content: "Ingredients:\n- 2 lbs chicken\n- 1 cup tikka paste\n\nSteps:\n1. Marinate chicken\n2. Cook in sauce",
         tags: ["recipe"],
       }),
     );

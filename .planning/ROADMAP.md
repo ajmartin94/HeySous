@@ -101,7 +101,9 @@ See .planning/milestones/v1.4-ROADMAP.md for full phase history.
   2. When a tool throws an internal error, the message returned to Claude describes the failure generically without exposing stack traces, file paths, or SQL
   3. MODEL_PRICING in config covers Sonnet and Opus model IDs and falls back gracefully for unknown models
   4. Recipes extracted from URLs or photos that lack a title, ingredients list, or instructions are rejected with a message explaining what is missing
-**Plans**: TBD
+**Plans**: 2 plans
+  - [ ] 34-01-PLAN.md -- Tool call observability wrapper and error sanitization (OBS-01, OBS-02)
+  - [ ] 34-02-PLAN.md -- Model pricing update and recipe completeness validation (OBS-03, DATA-01)
 
 ### Phase 35: Resilience
 **Goal**: The pipeline gracefully handles API rate limits, concurrent modifications, and oversized context instead of failing silently or crashing

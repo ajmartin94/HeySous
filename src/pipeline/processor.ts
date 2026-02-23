@@ -3,8 +3,8 @@
  *
  * Orchestrates the full knowledge-augmented message processing pipeline:
  * save incoming message -> load conversation history -> build context ->
- * typing indicator -> Claude call with tools + retry -> 30s timeout messaging ->
- * formatted response delivery -> save outgoing message ->
+ * typing indicator -> streaming Claude call with tools + retry ->
+ * progressive message delivery -> save outgoing message ->
  * token usage logged to database and pino.
  *
  * The processor NEVER throws -- it's called from the debounce queue's
@@ -53,7 +53,9 @@ import { updateOnboardingState } from "../users/repository.js";
 import type { User } from "../users/types.js";
 import type { DrizzleDatabase } from "../db/index.js";
 import type { Logger } from "pino";
-import { getErrorMessage, getTimeoutMessage, getMessageTooLongResponse, getThinkingLongerMessage, getResilienceFailureMessage, getDailyLimitMessage } from "../bot/messages.js";
+import { getErrorMessage, getMessageTooLongResponse, getThinkingLongerMessage, getResilienceFailureMessage, getDailyLimitMessage } from "../bot/messages.js";
+import { createTelegramStreamSender } from "../telegram/stream-sender.js";
+import { getToolStatusLabel } from "../ai/tool-status.js";
 import { checkDailyTokenBudget } from "../pipeline/token-budget-guard.js";
 
 /**
@@ -105,8 +107,6 @@ export function createInstrumentedToolHandler(
     }
   };
 }
-
-const TIMEOUT_WARNING_MS = 30_000;
 
 /**
  * Maximum combined character length for debounced messages.
@@ -466,18 +466,11 @@ export function createProcessor(deps: ProcessorDeps) {
         );
       }
 
-      // i. 30-second timeout warning timer
-      let timeoutFired = false;
-      const timeoutTimer = setTimeout(async () => {
-        timeoutFired = true;
-        try {
-          await ctx.reply(getTimeoutMessage());
-        } catch {
-          // Best-effort timeout message
-        }
-      }, TIMEOUT_WARNING_MS);
+      // i. Set up streaming infrastructure
+      // Streaming provides visual progress, so the 30-second timeout timer is removed.
+      // The "thinking longer" message is only sent on 429 retries (via onRetry callback).
 
-      // j. Call Claude with tools and retry via retryWithBackoff (inside claude-client)
+      // j. Call Claude with streaming tools and retry via retryWithBackoff (inside claude-client)
       let response: ClaudeResponse;
       const startTime = Date.now();
 
@@ -506,6 +499,7 @@ export function createProcessor(deps: ProcessorDeps) {
         );
 
         // Send "thinking longer" message to user on first retry only
+        // This goes through ctx.reply (not stream sender) since it's a separate notification
         if (!retryNotificationSent) {
           retryNotificationSent = true;
           try {
@@ -516,42 +510,136 @@ export function createProcessor(deps: ProcessorDeps) {
         }
       };
 
+      // Create stream sender for progressive message delivery
+      const streamSender = createTelegramStreamSender(ctx, log);
+      let streamingActive = false;
+
       try {
-        response = await claudeClient.sendMessageWithTools(
-          fullMessages,
-          allTools,
-          instrumentedHandler,
-          10, // Increased from 5 for grocery list generation (plan + recipe lookups + save)
-          systemPrompt,
-          onRetry,
+        await streamSender.sendPlaceholder();
+        streamingActive = true;
+      } catch (placeholderError) {
+        log.warn(
+          { error: placeholderError instanceof Error ? placeholderError.message : String(placeholderError), chatId },
+          "Stream placeholder failed, falling back to non-streaming",
         );
-      } catch (retryExhaustedError) {
-        clearTimeout(timeoutTimer);
-        log.error(
-          {
-            error: retryExhaustedError instanceof Error ? retryExhaustedError.message : String(retryExhaustedError),
-            stack: retryExhaustedError instanceof Error ? retryExhaustedError.stack : undefined,
-            chatId,
-            userId,
-            householdId,
-            failureType: "429_exhausted",
-            retryCount: 3,
-            timestamp: new Date().toISOString(),
+      }
+
+      if (streamingActive) {
+        // Streaming path -- progressive delivery via stream sender
+        const streamCallbacks = {
+          onText: (delta: string, _snapshot: string) => {
+            streamSender.appendText(delta);
           },
-          "Claude API call failed after all retries, sending resilience failure to user",
-        );
+          onToolUseStart: (toolName: string) => {
+            streamSender.showToolStatus(getToolStatusLabel(toolName));
+          },
+          onToolUseEnd: (_toolName: string) => {
+            streamSender.clearToolStatus();
+          },
+        };
+
         try {
-          await ctx.reply(getResilienceFailureMessage());
-        } catch {
-          // Best-effort error message
+          response = await claudeClient.streamMessageWithTools(
+            fullMessages,
+            allTools,
+            instrumentedHandler,
+            streamCallbacks,
+            10, // max iterations for grocery list generation (plan + recipe lookups + save)
+            systemPrompt,
+            onRetry,
+          );
+        } catch (streamError) {
+          // Handle stream failure
+          const is429Exhausted = streamError instanceof Error &&
+            streamError.message.includes("429");
+
+          if (is429Exhausted) {
+            // Finalize stream with error note
+            await streamSender.handleError();
+            log.error(
+              {
+                error: streamError instanceof Error ? streamError.message : String(streamError),
+                stack: streamError instanceof Error ? streamError.stack : undefined,
+                chatId,
+                userId,
+                householdId,
+                failureType: "429_exhausted",
+                retryCount: 3,
+                timestamp: new Date().toISOString(),
+              },
+              "Claude API streaming call failed after all retries, sending resilience failure to user",
+            );
+            try {
+              await ctx.reply(getResilienceFailureMessage());
+            } catch {
+              // Best-effort error message
+            }
+            return;
+          }
+
+          // Generic stream error -- keep partial text, append error note
+          const partialText = await streamSender.handleError();
+          log.error(
+            {
+              error: streamError instanceof Error ? streamError.message : String(streamError),
+              chatId,
+              userId,
+              householdId,
+              partialTextLength: partialText.length,
+            },
+            "Stream error, partial text preserved",
+          );
+
+          // Save partial text to conversation history if meaningful
+          if (partialText.trim()) {
+            db.insert(messages)
+              .values({
+                chatId,
+                userId,
+                text: partialText,
+                direction: "out" as const,
+              })
+              .run();
+          }
+          return;
         }
-        return;
+      } else {
+        // Non-streaming fallback -- original sendMessageWithTools path
+        try {
+          response = await claudeClient.sendMessageWithTools(
+            fullMessages,
+            allTools,
+            instrumentedHandler,
+            10,
+            systemPrompt,
+            onRetry,
+          );
+        } catch (retryExhaustedError) {
+          log.error(
+            {
+              error: retryExhaustedError instanceof Error ? retryExhaustedError.message : String(retryExhaustedError),
+              stack: retryExhaustedError instanceof Error ? retryExhaustedError.stack : undefined,
+              chatId,
+              userId,
+              householdId,
+              failureType: "429_exhausted",
+              retryCount: 3,
+              timestamp: new Date().toISOString(),
+            },
+            "Claude API call failed after all retries, sending resilience failure to user",
+          );
+          try {
+            await ctx.reply(getResilienceFailureMessage());
+          } catch {
+            // Best-effort error message
+          }
+          return;
+        }
       }
 
       const requestDurationMs = Date.now() - startTime;
-      clearTimeout(timeoutTimer);
 
-      // k. Extract onboarding marker (if any) BEFORE sending to user
+      // k. Extract onboarding marker (if any) BEFORE finalizing
       const { text: cleanText, completedPhase } = extractOnboardingMarker(response.text);
 
       // k2. Advance onboarding state if marker was found
@@ -569,20 +657,40 @@ export function createProcessor(deps: ProcessorDeps) {
         }
       }
 
-      // k3. Send cleaned response via formatted sender (marker stripped)
-      // Skip sending if text is empty after marker extraction (Claude sent only the marker)
-      if (cleanText.trim()) {
-        await sendFormattedMessage(ctx, cleanText);
+      // k3. Finalize the message and save to conversation history
+      if (streamingActive) {
+        // Streaming path: finalize the stream sender with clean text (markers stripped)
+        if (cleanText.trim()) {
+          await streamSender.finalize(cleanText);
 
-        // l. Save outgoing response to messages table for conversation continuity
-        db.insert(messages)
-          .values({
-            chatId,
-            userId,
-            text: cleanText,
-            direction: "out" as const,
-          })
-          .run();
+          // l. Save outgoing response to messages table for conversation continuity
+          db.insert(messages)
+            .values({
+              chatId,
+              userId,
+              text: cleanText,
+              direction: "out" as const,
+            })
+            .run();
+        } else {
+          // Empty after marker extraction -- clean up the streamed message
+          await streamSender.finalize();
+        }
+      } else {
+        // Non-streaming fallback: use sendFormattedMessage as before
+        if (cleanText.trim()) {
+          await sendFormattedMessage(ctx, cleanText);
+
+          // l. Save outgoing response to messages table for conversation continuity
+          db.insert(messages)
+            .values({
+              chatId,
+              userId,
+              text: cleanText,
+              direction: "out" as const,
+            })
+            .run();
+        }
       }
 
       // l2. Edit grocery list message if tools modified it

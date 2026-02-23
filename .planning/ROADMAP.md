@@ -143,7 +143,10 @@ Plans:
   1. Claude responses are streamed to Telegram, with message edits delivering incremental text as it generates
   2. Tool calls within a streaming response are still executed correctly and their results incorporated into the final message
   3. Long responses that require Telegram message splitting still render correctly when streamed
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+  - [ ] 37-01-PLAN.md -- Streaming infrastructure: Claude client streaming method, Telegram stream sender, tool status labels (PERF-04)
+  - [ ] 37-02-PLAN.md -- Processor integration: wire streaming into pipeline, replace non-streaming path, preserve post-processing (PERF-04)
 
 ### Phase 38: Mini App Theme & Accessibility
 **Goal**: Users can customize the Mini App appearance for comfort and readability, and the help page reflects current features

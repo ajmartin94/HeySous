@@ -12,7 +12,7 @@ import { logMeal, getCookingHistory } from "../planning/history.js";
 import { getWeekStartDate, DAY_NAMES } from "../planning/date-utils.js";
 import type { DrizzleDatabase } from "../db/index.js";
 import { knowledgeChangelog } from "../knowledge/schema.js";
-import { searchFts } from "../knowledge/fts.js";
+import { searchFts, searchFtsContent, computeIngredientOverlap, computeContentSimilarity } from "../knowledge/fts.js";
 import { fetchAndParseRecipe } from "../knowledge/url-import.js";
 
 /** Maximum string lengths for tool inputs */
@@ -223,7 +223,7 @@ export function createToolHandler(deps: {
           const skipDedup = input.skip_dedup as boolean | undefined;
           const sourceUrl = input.source_url as string | undefined;
 
-          // Dedup check: search for existing items with similar titles
+          // Dedup check: title-based search + content-aware matching
           if (!skipDedup && sqlite) {
             try {
               const matches = searchFts(sqlite, title, householdId, 3);
@@ -243,6 +243,61 @@ export function createToolHandler(deps: {
                     summary: exactMatch.summary,
                   },
                 });
+              }
+
+              // Content-aware dedup: check ingredient/content overlap
+              const isRecipe = tags.some((t) => t.toLowerCase() === "recipe");
+              const isPreference = tags.some((t) => t.toLowerCase() === "preference");
+
+              if (isRecipe || isPreference) {
+                try {
+                  // Build content search query from key terms
+                  let contentSearchQuery: string;
+                  if (isRecipe) {
+                    // Extract 3-5 key ingredient names from content
+                    const ingredientLines = content
+                      .split("\n")
+                      .filter((line) => line.trim().startsWith("- "))
+                      .slice(0, 5)
+                      .map((line) => line.trim().slice(2).replace(/^[\d\s/.,½¼¾⅓⅔⅛]+\s*(?:cups?|tbsps?|tsps?|tablespoons?|teaspoons?|lbs?|pounds?|oz|ounces?|g|grams?|kg|ml|cloves?|bunch(?:es)?|packages?|cans?|bags?|heads?|stalks?|pieces?)\s*/i, "").trim());
+                    contentSearchQuery = ingredientLines.filter(Boolean).join(" ");
+                  } else {
+                    // For preferences: use title + first sentence of content
+                    const firstSentence = content.split(/[.!?\n]/)[0] ?? "";
+                    contentSearchQuery = `${title} ${firstSentence}`.trim();
+                  }
+
+                  if (contentSearchQuery) {
+                    const contentMatches = searchFtsContent(sqlite, contentSearchQuery, householdId, 5);
+
+                    // Check top 3 content matches for overlap
+                    for (const match of contentMatches.slice(0, 3)) {
+                      const existingItem = retrievalService.getItem(match.id, householdId);
+                      if (!existingItem) continue;
+
+                      let overlap: number;
+                      if (isRecipe) {
+                        overlap = computeIngredientOverlap(content, existingItem.content);
+                      } else {
+                        overlap = computeContentSimilarity(content, existingItem.content);
+                      }
+
+                      if (overlap > 0.85) {
+                        return JSON.stringify({
+                          duplicate_found: true,
+                          message: `Found a similar existing item: "${match.title}" (ID: ${match.id}). Ask the user if they want to update the existing item or save this as a new item.`,
+                          existing_item: {
+                            id: match.id,
+                            title: match.title,
+                            summary: match.summary,
+                          },
+                        });
+                      }
+                    }
+                  }
+                } catch {
+                  // Content-based dedup is best-effort, fall through to BM25 check
+                }
               }
 
               // Check for close FTS match (top result with strong relevance)

@@ -46,7 +46,7 @@ import { checkPendingNotification } from "../notifications/update-notifier.js";
 import { config } from "../config.js";
 import { buildStaticPrompt, buildDynamicContext } from "../ai/system-prompt.js";
 import { sanitizeAndLog } from "../ai/sanitize.js";
-import type { SystemPromptInput } from "../ai/claude-client.js";
+import type { SystemPromptInput, StreamCallbacks } from "../ai/claude-client.js";
 import { extractOnboardingMarker, getNextOnboardingState } from "../onboarding/state.js";
 import { buildOnboardingPrompt } from "../onboarding/prompt.js";
 import { updateOnboardingState } from "../users/repository.js";
@@ -133,6 +133,15 @@ interface ClaudeClient {
     messages: Anthropic.MessageParam[],
     tools: Anthropic.Tool[],
     onToolCall: (name: string, input: Record<string, unknown>) => string | Promise<string>,
+    maxIterations?: number,
+    systemPrompt?: SystemPromptInput,
+    onRetry?: (attempt: number, delayMs: number) => void | Promise<void>,
+  ): Promise<ClaudeResponse>;
+  streamMessageWithTools(
+    messages: Anthropic.MessageParam[],
+    tools: Anthropic.Tool[],
+    onToolCall: (name: string, input: Record<string, unknown>) => string | Promise<string>,
+    callbacks: StreamCallbacks,
     maxIterations?: number,
     systemPrompt?: SystemPromptInput,
     onRetry?: (attempt: number, delayMs: number) => void | Promise<void>,

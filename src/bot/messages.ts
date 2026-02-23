@@ -279,6 +279,10 @@ export function getThinkingLongerMessage(): string {
   ]);
 }
 
+export function getStreamInterruptedMessage(): string {
+  return "(response interrupted -- try again)";
+}
+
 export function getResilienceFailureMessage(): string {
   return pickRandom([
     "I got a bit overwhelmed there -- mind sending that again when you're ready?",

@@ -54,6 +54,6 @@ Total: 39 phases across 6 milestones.
 ## Session Continuity
 
 Last session: 2026-02-22
-Stopped at: Completed 35-03-PLAN.md (Phase 35 complete)
-Next action: Begin Phase 36
-Resume file: .planning/phases/35-resilience/35-03-SUMMARY.md
+Stopped at: Phase 36 context gathered
+Next action: Plan Phase 36
+Resume file: .planning/phases/36-pipeline-efficiency/36-CONTEXT.md

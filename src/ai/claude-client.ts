@@ -78,6 +78,19 @@ export function sanitizeToolError(error: unknown): string {
   return sanitized || "An internal error occurred";
 }
 
+/**
+ * Callbacks for progressive delivery of a streaming Claude response.
+ * All callbacks are optional; callers register only what they need.
+ */
+export interface StreamCallbacks {
+  /** Fired on each text delta (incremental chunk). */
+  onText?: (textDelta: string, textSnapshot: string) => void;
+  /** Fired when a tool call begins execution. */
+  onToolUseStart?: (toolName: string) => void;
+  /** Fired when a tool call finishes execution. */
+  onToolUseEnd?: (toolName: string) => void;
+}
+
 /** Default max tool use iterations before forcing a text response. */
 const DEFAULT_MAX_ITERATIONS = 5;
 
@@ -390,6 +403,205 @@ export function createClaudeClient(apiKey: string, model: string, clientLogger?:
           system: systemBlock,
           messages: loopMessages,
         }),
+        { maxRetries: DEFAULT_MAX_RETRIES, onRetry, logger: clientLogger },
+      );
+
+      totalUsage.inputTokens += finalResponse.usage.input_tokens;
+      totalUsage.outputTokens += finalResponse.usage.output_tokens;
+      totalUsage.cacheCreationInputTokens +=
+        finalResponse.usage.cache_creation_input_tokens ?? 0;
+      totalUsage.cacheReadInputTokens +=
+        finalResponse.usage.cache_read_input_tokens ?? 0;
+
+      const textContent = finalResponse.content
+        .filter(
+          (block): block is Anthropic.TextBlock => block.type === "text",
+        )
+        .map((block) => block.text)
+        .join("\n");
+
+      return {
+        text: textContent,
+        usage: totalUsage,
+        model: finalResponse.model,
+        stopReason: finalResponse.stop_reason ?? "unknown",
+      };
+    },
+
+    /**
+     * Stream a message to Claude with tool support, firing callbacks for
+     * progressive text delivery and tool lifecycle events.
+     *
+     * Uses the Anthropic SDK's `client.messages.stream()` API for incremental
+     * text delivery. Implements the same multi-iteration tool use loop as
+     * `sendMessageWithTools`, but each iteration streams text via callbacks.
+     *
+     * The `onText` callback fires on EVERY iteration (including ones that end
+     * with tool_use). The caller (stream sender / bridge) decides how to handle
+     * partial text before tool calls vs final text.
+     *
+     * Token usage is aggregated across all stream iterations.
+     *
+     * @param messages - Full message array including conversation history
+     * @param tools - Anthropic tool definitions
+     * @param onToolCall - Callback to handle tool calls (sync or async)
+     * @param callbacks - Stream event callbacks (onText, onToolUseStart, onToolUseEnd)
+     * @param maxIterations - Maximum tool use iterations (default 5)
+     * @param systemPrompt - Optional system prompt override
+     * @param onRetry - Optional callback invoked before each retry sleep
+     * @returns ClaudeResponse with aggregated usage from all iterations
+     */
+    async streamMessageWithTools(
+      messages: Anthropic.MessageParam[],
+      tools: Anthropic.Tool[],
+      onToolCall: (name: string, input: Record<string, unknown>) => string | Promise<string>,
+      callbacks: StreamCallbacks,
+      maxIterations: number = DEFAULT_MAX_ITERATIONS,
+      systemPrompt?: SystemPromptInput,
+      onRetry?: (attempt: number, delayMs: number) => void | Promise<void>,
+    ): Promise<ClaudeResponse> {
+      const prompt = systemPrompt ?? buildSystemPrompt();
+      const systemBlock = buildSystemBlocks(prompt);
+
+      // Aggregate token usage across all iterations
+      const totalUsage: TokenUsage = {
+        inputTokens: 0,
+        outputTokens: 0,
+        cacheCreationInputTokens: 0,
+        cacheReadInputTokens: 0,
+      };
+
+      // Mutable copy of messages for the loop
+      const loopMessages: Anthropic.MessageParam[] = [...messages];
+      let finalModel = model;
+      let finalStopReason = "unknown";
+
+      for (let iteration = 0; iteration < maxIterations; iteration++) {
+        // Wrap the entire stream lifecycle in retryWithBackoff for 429 handling
+        const response = await retryWithBackoff(
+          async () => {
+            const stream = client.messages.stream({
+              model,
+              max_tokens: 2048,
+              system: systemBlock,
+              messages: loopMessages,
+              tools,
+            });
+
+            // Register text delta callback -- fires on every iteration
+            stream.on("text", (delta, snapshot) => {
+              callbacks.onText?.(delta, snapshot);
+            });
+
+            // Wait for the complete message
+            return await stream.finalMessage();
+          },
+          { maxRetries: DEFAULT_MAX_RETRIES, onRetry, logger: clientLogger },
+        );
+
+        // Aggregate usage
+        totalUsage.inputTokens += response.usage.input_tokens;
+        totalUsage.outputTokens += response.usage.output_tokens;
+        totalUsage.cacheCreationInputTokens +=
+          response.usage.cache_creation_input_tokens ?? 0;
+        totalUsage.cacheReadInputTokens +=
+          response.usage.cache_read_input_tokens ?? 0;
+
+        finalModel = response.model;
+        finalStopReason = response.stop_reason ?? "unknown";
+
+        // Check if Claude is done (no tool use)
+        if (response.stop_reason === "end_turn") {
+          const textContent = response.content
+            .filter(
+              (block): block is Anthropic.TextBlock => block.type === "text",
+            )
+            .map((block) => block.text)
+            .join("\n");
+
+          return {
+            text: textContent,
+            usage: totalUsage,
+            model: finalModel,
+            stopReason: finalStopReason,
+          };
+        }
+
+        // Extract tool_use blocks
+        const toolUseBlocks = response.content.filter(
+          (block): block is Anthropic.ToolUseBlock => block.type === "tool_use",
+        );
+
+        if (toolUseBlocks.length === 0) {
+          // No tool use and not end_turn -- extract text and return
+          const textContent = response.content
+            .filter(
+              (block): block is Anthropic.TextBlock => block.type === "text",
+            )
+            .map((block) => block.text)
+            .join("\n");
+
+          return {
+            text: textContent,
+            usage: totalUsage,
+            model: finalModel,
+            stopReason: finalStopReason,
+          };
+        }
+
+        // Handle tool calls with callbacks and error resilience
+        const toolResults: Anthropic.ToolResultBlockParam[] =
+          await Promise.all(toolUseBlocks.map(async (block) => {
+            callbacks.onToolUseStart?.(block.name);
+            try {
+              const result = await onToolCall(
+                block.name,
+                block.input as Record<string, unknown>,
+              );
+              callbacks.onToolUseEnd?.(block.name);
+              return {
+                type: "tool_result" as const,
+                tool_use_id: block.id,
+                content: result,
+              };
+            } catch (error) {
+              callbacks.onToolUseEnd?.(block.name);
+              return {
+                type: "tool_result" as const,
+                tool_use_id: block.id,
+                content: JSON.stringify({ error: sanitizeToolError(error) }),
+                is_error: true,
+              };
+            }
+          }));
+
+        // Append assistant response + all tool results in ONE user message
+        loopMessages.push({
+          role: "assistant" as const,
+          content: response.content,
+        });
+        loopMessages.push({
+          role: "user" as const,
+          content: toolResults,
+        });
+      }
+
+      // Max iterations reached -- do one final stream WITHOUT tools to force text response
+      const finalResponse = await retryWithBackoff(
+        async () => {
+          const stream = client.messages.stream({
+            model,
+            max_tokens: 2048,
+            system: systemBlock,
+            messages: loopMessages,
+          });
+
+          stream.on("text", (delta, snapshot) => {
+            callbacks.onText?.(delta, snapshot);
+          });
+
+          return await stream.finalMessage();
+        },
         { maxRetries: DEFAULT_MAX_RETRIES, onRetry, logger: clientLogger },
       );
 

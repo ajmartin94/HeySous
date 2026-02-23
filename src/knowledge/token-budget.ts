@@ -39,10 +39,16 @@ const DEFAULT_CONFIG: TokenBudgetConfig = {
 
 /**
  * Estimate token count for a text string.
- * Uses the 4 chars/token heuristic (reasonable for English text).
+ * Uses byte-length / 3.3 which is empirically closer to actual BPE
+ * tokenization than the simpler text.length / 4 heuristic. This accounts for:
+ * - Multi-byte UTF-8 characters consuming more tokens
+ * - Structured content (XML, JSON) being more token-dense
+ * - Common English words averaging ~4 chars but ~3.3 bytes per token
  */
 export function estimateTokens(text: string): number {
-  return Math.ceil(text.length / 4);
+  if (!text) return 0;
+  const byteLength = Buffer.byteLength(text, "utf-8");
+  return Math.ceil(byteLength / 3.3);
 }
 
 /**

@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-21)
 ## Current Position
 
 Phase: 37 of 39 (Streaming)
-Plan: 1 of 2 in current phase
+Plan: 2 of 2 in current phase
 Status: Executing Phase 37
-Last activity: 2026-02-23 -- Completed 37-01 streaming infrastructure plan
+Last activity: 2026-02-23 -- Completed 37-02 streaming pipeline integration plan
 
-Progress: [====================================....] 91% (80/88 plans complete through Phase 37-01)
+Progress: [=====================================...] 92% (81/88 plans complete through Phase 37-02)
 
 ## Performance Metrics
 
@@ -40,6 +40,7 @@ All decisions documented in PROJECT.md Key Decisions table.
 - Phase 36-02: Self-join knowledge_tags (filter vs fetch aliases) for single-query preference loading; byte-length / 3.3 for token estimation replacing 4-chars heuristic
 - Phase 36-03: Content-aware dedup with 85% Jaccard threshold; ingredient overlap for recipes, word-level similarity for preferences; content-weighted BM25 search
 - Phase 37-01: Plain text parse_mode during streaming, HTML only on final edit; 300ms edit interval; short replies as fresh messages; onText fires every iteration
+- Phase 37-02: Remove 30s timeout timer for streaming; non-streaming fallback on placeholder failure; finalize with marker-stripped clean text; partial text saved on stream error
 
 ### Pending Todos
 
@@ -58,6 +59,6 @@ Total: 39 phases across 6 milestones.
 ## Session Continuity
 
 Last session: 2026-02-23
-Stopped at: Completed 37-01-PLAN.md
-Next action: Continue Phase 37 (37-02 next)
-Resume file: .planning/phases/37-streaming/37-01-SUMMARY.md
+Stopped at: Completed 37-02-PLAN.md (Phase 37 complete)
+Next action: Continue to Phase 38
+Resume file: .planning/phases/37-streaming/37-02-SUMMARY.md

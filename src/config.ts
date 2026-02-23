@@ -16,6 +16,8 @@ interface Config {
   adminUserId: string;
   miniAppUrl: string;
   logToolInputs: boolean;
+  dailyTokenBudget: number;
+  sessionTimezone: string;
 }
 
 const botToken = process.env.BOT_TOKEN;
@@ -60,4 +62,6 @@ export const config: Config = {
   adminUserId: (process.env.ADMIN_USER_IDS ?? "").split(",").filter(Boolean)[0] ?? "",
   miniAppUrl: process.env.MINI_APP_URL ?? "",
   logToolInputs: process.env.LOG_TOOL_INPUTS === "true",
+  dailyTokenBudget: Number(process.env.DAILY_TOKEN_BUDGET) || 500_000,
+  sessionTimezone: process.env.SESSION_TIMEZONE ?? "America/New_York",
 };

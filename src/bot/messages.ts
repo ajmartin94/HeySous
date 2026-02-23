@@ -254,6 +254,18 @@ export function getReminderFallbackGeneric(): string {
 }
 
 // ---------------------------------------------------------------------------
+// Daily token budget messages
+// ---------------------------------------------------------------------------
+
+export function getDailyLimitMessage(): string {
+  return pickRandom([
+    "You've reached your daily message limit. Your limit resets at midnight -- feel free to keep using commands, the Mini App, and your grocery list in the meantime!",
+    "You've hit your daily message cap! It'll reset at midnight. Commands, the Mini App, and your grocery list still work in the meantime.",
+    "Daily message limit reached! Everything resets at midnight. You can still use commands, the Mini App, and your grocery list until then.",
+  ]);
+}
+
+// ---------------------------------------------------------------------------
 // Resilience messages (retry / rate-limit)
 // ---------------------------------------------------------------------------
 

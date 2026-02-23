@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-21)
 
 **Core value:** The recipe brain -- an AI agent that remembers everything about your meals and reasons over that knowledge to help you plan.
-**Current focus:** v1.5 Agent Hardening & Polish -- Phase 35: Resilience
+**Current focus:** v1.5 Agent Hardening & Polish -- Phase 36: Pipeline Efficiency
 
 ## Current Position
 
-Phase: 35 of 39 (Resilience)
-Plan: 3 of 3 in current phase (COMPLETE)
-Status: Phase 35 Complete
-Last activity: 2026-02-22 -- Completed 35-03 context window overflow plan
+Phase: 36 of 39 (Pipeline Efficiency)
+Plan: 2 of 3 in current phase
+Status: Executing Phase 36
+Last activity: 2026-02-22 -- Completed 36-02 N+1 query fix and token estimation plan
 
-Progress: [===================================.....] 86% (76/88 plans complete through Phase 35-03)
+Progress: [====================================....] 89% (78/88 plans complete through Phase 36-02)
 
 ## Performance Metrics
 
@@ -36,6 +36,7 @@ All decisions documented in PROJECT.md Key Decisions table.
 - Phase 35-02: Optimistic locking via version columns on stateful tables; conflict returns structured JSON with is_error:true and conflict:true; householdId as updatedBy
 - [Phase 35]: retryWithBackoff internal to claude-client; only 429 errors retried; thinking-longer message sent once on first retry only
 - Phase 35-03: wasTruncated distinguishes budget trimming from session gaps; 80% threshold for proactive trimming; conversation_note XML tag for invisible truncation notice
+- Phase 36-02: Self-join knowledge_tags (filter vs fetch aliases) for single-query preference loading; byte-length / 3.3 for token estimation replacing 4-chars heuristic
 
 ### Pending Todos
 
@@ -54,6 +55,6 @@ Total: 39 phases across 6 milestones.
 ## Session Continuity
 
 Last session: 2026-02-22
-Stopped at: Phase 36 context gathered
-Next action: Plan Phase 36
-Resume file: .planning/phases/36-pipeline-efficiency/36-CONTEXT.md
+Stopped at: Completed 36-02-PLAN.md
+Next action: Execute 36-03-PLAN.md
+Resume file: .planning/phases/36-pipeline-efficiency/36-03-PLAN.md

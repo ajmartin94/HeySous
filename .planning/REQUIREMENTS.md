@@ -23,9 +23,9 @@ Requirements for v1.5 Agent Hardening & Polish. Sourced from comprehensive 3-age
 
 ### Performance & Cost
 
-- [ ] **PERF-01**: Preference loading uses a single query instead of N+1 pattern
+- [x] **PERF-01**: Preference loading uses a single query instead of N+1 pattern
 - [x] **PERF-02**: Static system prompt instructions are separated from dynamic context for effective prompt caching
-- [ ] **PERF-03**: Token estimation uses accurate counting instead of 4 chars/token heuristic
+- [x] **PERF-03**: Token estimation uses accurate counting instead of 4 chars/token heuristic
 - [ ] **PERF-04**: Claude responses stream to Telegram for lower perceived latency
 
 ### Prompt Quality
@@ -85,9 +85,9 @@ None deferred -- all audit findings scoped into v1.5.
 | RES-02 | Phase 35 | Complete |
 | RES-03 | Phase 35 | Complete |
 | RES-04 | Phase 35 | Complete |
-| PERF-01 | Phase 36 | Pending |
+| PERF-01 | Phase 36 | Complete |
 | PERF-02 | Phase 32 | Complete |
-| PERF-03 | Phase 36 | Pending |
+| PERF-03 | Phase 36 | Complete |
 | PERF-04 | Phase 37 | Pending |
 | PROMPT-01 | Phase 32 | Complete |
 | PROMPT-02 | Phase 32 | Complete |

@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-21)
 
 **Core value:** The recipe brain -- an AI agent that remembers everything about your meals and reasons over that knowledge to help you plan.
-**Current focus:** v1.5 Agent Hardening & Polish -- Phase 36: Pipeline Efficiency
+**Current focus:** v1.5 Agent Hardening & Polish -- Phase 37: Streaming
 
 ## Current Position
 
-Phase: 36 of 39 (Pipeline Efficiency)
-Plan: 3 of 3 in current phase (COMPLETE)
-Status: Phase 36 Complete
-Last activity: 2026-02-22 -- Completed 36-03 content-aware knowledge dedup plan
+Phase: 37 of 39 (Streaming)
+Plan: 1 of 2 in current phase
+Status: Executing Phase 37
+Last activity: 2026-02-23 -- Completed 37-01 streaming infrastructure plan
 
-Progress: [====================================....] 90% (79/88 plans complete through Phase 36-03)
+Progress: [====================================....] 91% (80/88 plans complete through Phase 37-01)
 
 ## Performance Metrics
 
@@ -39,6 +39,7 @@ All decisions documented in PROJECT.md Key Decisions table.
 - Phase 36-01: Budget check before DB save -- exhausted budget means message not persisted; midnight boundary via Intl.DateTimeFormat offset; daily limit messages out-of-character per user decision
 - Phase 36-02: Self-join knowledge_tags (filter vs fetch aliases) for single-query preference loading; byte-length / 3.3 for token estimation replacing 4-chars heuristic
 - Phase 36-03: Content-aware dedup with 85% Jaccard threshold; ingredient overlap for recipes, word-level similarity for preferences; content-weighted BM25 search
+- Phase 37-01: Plain text parse_mode during streaming, HTML only on final edit; 300ms edit interval; short replies as fresh messages; onText fires every iteration
 
 ### Pending Todos
 
@@ -56,7 +57,7 @@ Total: 39 phases across 6 milestones.
 
 ## Session Continuity
 
-Last session: 2026-02-22
-Stopped at: Completed 36-01-PLAN.md
-Next action: Continue Phase 36 (36-02 next)
-Resume file: .planning/phases/36-pipeline-efficiency/36-01-SUMMARY.md
+Last session: 2026-02-23
+Stopped at: Completed 37-01-PLAN.md
+Next action: Continue Phase 37 (37-02 next)
+Resume file: .planning/phases/37-streaming/37-01-SUMMARY.md

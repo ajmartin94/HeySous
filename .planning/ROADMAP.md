@@ -129,7 +129,11 @@ See .planning/milestones/v1.4-ROADMAP.md for full phase history.
   3. Preference loading for system prompt construction executes a single query instead of one query per preference category
   4. Token estimation before API calls uses a counting method that matches actual API token usage within 10% instead of the 4-chars-per-token heuristic
   5. Knowledge deduplication searches recipe/preference content (ingredients, instructions) beyond title-only matching
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+  - [ ] 36-01-PLAN.md -- Daily token budget enforcement and midnight session boundary (SEC-01, CFG-01)
+  - [ ] 36-02-PLAN.md -- N+1 preference query fix and byte-based token estimation (PERF-01, PERF-03)
+  - [ ] 36-03-PLAN.md -- Content-aware knowledge deduplication (PROMPT-06)
 
 ### Phase 37: Streaming
 **Goal**: Users see Claude's response appearing progressively in Telegram instead of waiting for the full response before any text appears

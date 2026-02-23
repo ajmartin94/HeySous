@@ -36,6 +36,7 @@ All decisions documented in PROJECT.md Key Decisions table.
 - Phase 35-02: Optimistic locking via version columns on stateful tables; conflict returns structured JSON with is_error:true and conflict:true; householdId as updatedBy
 - [Phase 35]: retryWithBackoff internal to claude-client; only 429 errors retried; thinking-longer message sent once on first retry only
 - Phase 35-03: wasTruncated distinguishes budget trimming from session gaps; 80% threshold for proactive trimming; conversation_note XML tag for invisible truncation notice
+- Phase 36-01: Budget check before DB save -- exhausted budget means message not persisted; midnight boundary via Intl.DateTimeFormat offset; daily limit messages out-of-character per user decision
 - Phase 36-02: Self-join knowledge_tags (filter vs fetch aliases) for single-query preference loading; byte-length / 3.3 for token estimation replacing 4-chars heuristic
 - Phase 36-03: Content-aware dedup with 85% Jaccard threshold; ingredient overlap for recipes, word-level similarity for preferences; content-weighted BM25 search
 
@@ -56,6 +57,6 @@ Total: 39 phases across 6 milestones.
 ## Session Continuity
 
 Last session: 2026-02-22
-Stopped at: Completed 36-03-PLAN.md (Phase 36 complete)
-Next action: Plan Phase 37
-Resume file: .planning/phases/36-pipeline-efficiency/36-03-SUMMARY.md
+Stopped at: Completed 36-01-PLAN.md
+Next action: Continue Phase 36 (36-02 next)
+Resume file: .planning/phases/36-pipeline-efficiency/36-01-SUMMARY.md

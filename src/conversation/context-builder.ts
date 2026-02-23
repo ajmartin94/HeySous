@@ -5,8 +5,8 @@
  * conversation history within a token budget. Works backwards from the
  * most recent turn, accumulating until the budget is reached.
  *
- * Session boundary: 4 hours. Gaps longer than 4 hours between turns
- * indicate a new session; earlier turns are excluded.
+ * Session boundary: midnight in the configured timezone. All messages
+ * from midnight to now are in the current session, regardless of gaps.
  *
  * Output is an Anthropic MessageParam[] suitable for prepending to the
  * current user message in the messages array.
@@ -15,9 +15,6 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { estimateTokens } from "../knowledge/token-budget.js";
 import type { ConversationTurn } from "./types.js";
-
-/** 4 hours in milliseconds -- session boundary. */
-const SESSION_GAP_MS = 4 * 60 * 60 * 1000;
 
 /**
  * Result of building conversation context, including truncation metadata.
@@ -32,15 +29,66 @@ export interface ConversationContextResult {
 }
 
 /**
+ * Get the midnight epoch (in milliseconds) for today in the given timezone.
+ * All messages with createdAt >= this value are in the current session.
+ */
+function getMidnightEpochMs(timezone: string): number {
+  // Get today's date string in the timezone (YYYY-MM-DD format via en-CA locale)
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const todayStr = formatter.format(new Date());
+
+  // Get a reference point at midnight UTC for today
+  const refDate = new Date(`${todayStr}T00:00:00Z`);
+
+  // Use Intl to find the UTC offset for this timezone at this reference point
+  const detailFormatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+
+  const parts = detailFormatter.formatToParts(refDate);
+  const getPart = (type: string): number =>
+    Number(parts.find((p) => p.type === type)?.value ?? "0");
+
+  const localAtRef = Date.UTC(
+    getPart("year"),
+    getPart("month") - 1,
+    getPart("day"),
+    getPart("hour") === 24 ? 0 : getPart("hour"),
+    getPart("minute"),
+    getPart("second"),
+  );
+
+  // offsetMs = how far ahead local time is from UTC
+  const offsetMs = localAtRef - refDate.getTime();
+
+  // Midnight local = midnight UTC minus the offset
+  return refDate.getTime() - offsetMs;
+}
+
+/**
  * Build conversation context from historical turns within a token budget.
  *
  * @param turns - All turns for this chat, ordered by createdAt ascending
  * @param tokenBudget - Maximum estimated tokens for conversation history
+ * @param sessionTimezone - IANA timezone for midnight session boundary (default "America/New_York")
  * @returns ConversationContextResult with messages and truncation metadata
  */
 export function buildConversationContext(
   turns: ConversationTurn[],
   tokenBudget: number,
+  sessionTimezone?: string,
 ): ConversationContextResult {
   if (turns.length === 0) {
     return { messages: [], wasTruncated: false, originalTurnCount: 0, includedTurnCount: 0 };
@@ -53,8 +101,10 @@ export function buildConversationContext(
   }
 
   const originalTurnCount = history.length;
+  const timezone = sessionTimezone ?? "America/New_York";
+  const midnightMs = getMidnightEpochMs(timezone);
 
-  // Work backwards, applying session boundary and token budget
+  // Work backwards, applying midnight session boundary and token budget
   const selected: ConversationTurn[] = [];
   let tokensUsed = 0;
   let truncatedByBudget = false;
@@ -62,22 +112,9 @@ export function buildConversationContext(
   for (let i = history.length - 1; i >= 0; i--) {
     const turn = history[i];
 
-    // Session boundary check: if there's a next (more recent) turn,
-    // check the gap between this turn and the next one
-    if (i < history.length - 1) {
-      const nextTurn = history[i + 1];
-      const gap = nextTurn.createdAt.getTime() - turn.createdAt.getTime();
-      if (gap > SESSION_GAP_MS) {
-        // This turn is from a previous session -- stop including
-        break;
-      }
-    } else {
-      // Check gap between last history turn and current message (last in turns)
-      const currentMessage = turns[turns.length - 1];
-      const gap = currentMessage.createdAt.getTime() - turn.createdAt.getTime();
-      if (gap > SESSION_GAP_MS) {
-        break;
-      }
+    // Session boundary: exclude turns from before midnight today
+    if (turn.createdAt.getTime() < midnightMs) {
+      break;
     }
 
     const turnTokens = estimateTokens(turn.text);

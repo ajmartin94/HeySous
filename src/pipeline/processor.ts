@@ -53,7 +53,8 @@ import { updateOnboardingState } from "../users/repository.js";
 import type { User } from "../users/types.js";
 import type { DrizzleDatabase } from "../db/index.js";
 import type { Logger } from "pino";
-import { getErrorMessage, getTimeoutMessage, getMessageTooLongResponse, getThinkingLongerMessage, getResilienceFailureMessage } from "../bot/messages.js";
+import { getErrorMessage, getTimeoutMessage, getMessageTooLongResponse, getThinkingLongerMessage, getResilienceFailureMessage, getDailyLimitMessage } from "../bot/messages.js";
+import { checkDailyTokenBudget } from "../pipeline/token-budget-guard.js";
 
 /**
  * Create an instrumented wrapper around a tool call handler.
@@ -194,7 +195,15 @@ export function createProcessor(deps: ProcessorDeps) {
         return; // Discard -- do not save to conversation history or process
       }
 
-      // b2. Collect images from batch (for multimodal messages)
+      // b2. Check daily token budget before processing
+      const budgetCheck = checkDailyTokenBudget(deps.sqlite, householdId, config.dailyTokenBudget, config.sessionTimezone);
+      if (!budgetCheck.allowed) {
+        log.info({ chatId, householdId, tokensUsed: budgetCheck.tokensUsed, budget: budgetCheck.budgetTokens }, "Daily token budget exhausted");
+        try { await ctx.reply(getDailyLimitMessage()); } catch { /* best-effort */ }
+        return;
+      }
+
+      // b3. Collect images from batch (for multimodal messages)
       const batchImages = batch.messages.filter((m) => m.imageBase64 && m.imageMimeType);
 
       // c. Save incoming user message to messages table BEFORE Claude call
@@ -241,6 +250,7 @@ export function createProcessor(deps: ProcessorDeps) {
       const { messages: priorMessages, wasTruncated, originalTurnCount, includedTurnCount } = buildConversationContext(
         turns,
         CONVERSATION_TOKEN_BUDGET,
+        config.sessionTimezone,
       );
 
       // f. Construct full messages array: prior history + current user message

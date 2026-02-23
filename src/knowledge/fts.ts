@@ -224,6 +224,209 @@ export function searchFts(
 }
 
 /**
+ * Search knowledge items using FTS5 with content-weighted BM25 ranking.
+ * Prioritizes content matches over title matches -- used for dedup detection
+ * where two items may have different titles but overlapping content.
+ */
+export function searchFtsContent(
+  sqlite: BetterSqlite3.Database,
+  query: string,
+  householdId: string,
+  limit: number = 5,
+): SearchResult[] {
+  const escaped = escapeForFts5(query);
+  if (!escaped) return [];
+
+  try {
+    // BM25 weights: title 1x, summary 1x, content 10x (inverted from searchFts)
+    const rows = sqlite
+      .prepare(
+        `
+      SELECT
+        ki.id,
+        ki.title,
+        ki.summary,
+        ki.last_accessed_at,
+        bm25(knowledge_fts, 1.0, 1.0, 10.0) AS relevance
+      FROM knowledge_fts
+      JOIN knowledge_items ki ON ki.id = knowledge_fts.rowid
+      WHERE knowledge_fts MATCH ?
+        AND ki.household_id = ?
+      ORDER BY relevance ASC
+      LIMIT ?
+    `
+      )
+      .all(escaped, householdId, limit) as Array<{
+      id: number;
+      title: string;
+      summary: string;
+      last_accessed_at: number;
+      relevance: number;
+    }>;
+
+    const tagStmt = sqlite.prepare(
+      `SELECT tag FROM knowledge_tags WHERE knowledge_item_id = ?`
+    );
+
+    return rows.map((row) => {
+      const tags = (
+        tagStmt.all(row.id) as Array<{ tag: string }>
+      ).map((t) => t.tag);
+      return {
+        id: row.id,
+        title: row.title,
+        summary: row.summary,
+        relevance: Math.abs(row.relevance),
+        tags,
+        lastAccessedAt: new Date(row.last_accessed_at * 1000),
+      };
+    });
+  } catch {
+    // Fallback to LIKE query if FTS5 parse error
+    const likePattern = `%${query.replace(/%/g, "\\%")}%`;
+    const rows = sqlite
+      .prepare(
+        `
+      SELECT
+        ki.id,
+        ki.title,
+        ki.summary,
+        ki.last_accessed_at
+      FROM knowledge_items ki
+      WHERE ki.household_id = ?
+        AND (ki.title LIKE ? ESCAPE '\\' OR ki.summary LIKE ? ESCAPE '\\' OR ki.content LIKE ? ESCAPE '\\')
+      ORDER BY ki.last_accessed_at DESC
+      LIMIT ?
+    `
+      )
+      .all(householdId, likePattern, likePattern, likePattern, limit) as Array<{
+      id: number;
+      title: string;
+      summary: string;
+      last_accessed_at: number;
+    }>;
+
+    const tagStmt = sqlite.prepare(
+      `SELECT tag FROM knowledge_tags WHERE knowledge_item_id = ?`
+    );
+
+    return rows.map((row) => {
+      const tags = (
+        tagStmt.all(row.id) as Array<{ tag: string }>
+      ).map((t) => t.tag);
+      return {
+        id: row.id,
+        title: row.title,
+        summary: row.summary,
+        relevance: 0,
+        tags,
+        lastAccessedAt: new Date(row.last_accessed_at * 1000),
+      };
+    });
+  }
+}
+
+/** Common units to strip when extracting ingredient names */
+const UNIT_PATTERN = /^[\d\s/.,½¼¾⅓⅔⅛]+\s*(?:cups?|tbsps?|tsps?|tablespoons?|teaspoons?|lbs?|pounds?|oz|ounces?|g|grams?|kg|kilograms?|ml|milliliters?|l|liters?|cloves?|bunch(?:es)?|packages?|cans?|bags?|heads?|stalks?|pieces?)\s*/i;
+
+/**
+ * Extract ingredient names from recipe content.
+ * Finds the "Ingredients:" section and parses list items,
+ * stripping quantities and units to get normalized ingredient names.
+ */
+function extractIngredients(content: string): Set<string> {
+  const ingredients = new Set<string>();
+
+  // Find ingredients section (case-insensitive)
+  const ingredientsMatch = content.match(/ingredients:\s*\n/i);
+  if (!ingredientsMatch) return ingredients;
+
+  const startIndex = ingredientsMatch.index! + ingredientsMatch[0].length;
+  const remaining = content.slice(startIndex);
+
+  // Extract lines starting with "- " until the next section header
+  const lines = remaining.split("\n");
+  for (const line of lines) {
+    const trimmed = line.trim();
+    // Stop at the next section header (e.g., "Steps:", "Notes:", "Instructions:")
+    if (/^[A-Z][a-z]+:/.test(trimmed) && !trimmed.startsWith("- ")) break;
+    if (!trimmed.startsWith("- ")) continue;
+
+    // Remove the leading "- " and strip quantities/units
+    let ingredient = trimmed.slice(2).trim();
+    ingredient = ingredient.replace(UNIT_PATTERN, "").trim();
+    // Remove parenthetical notes like "(diced)" or "(optional)"
+    ingredient = ingredient.replace(/\s*\([^)]*\)\s*/g, " ").trim();
+
+    if (ingredient) {
+      ingredients.add(ingredient.toLowerCase());
+    }
+  }
+
+  return ingredients;
+}
+
+/**
+ * Compute ingredient overlap between two recipe contents using Jaccard similarity.
+ * Extracts ingredient names (stripping quantities/units) and computes
+ * |intersection| / |union| of the ingredient sets.
+ *
+ * @returns 0.0 (no overlap) to 1.0 (identical ingredients)
+ */
+export function computeIngredientOverlap(contentA: string, contentB: string): number {
+  const setA = extractIngredients(contentA);
+  const setB = extractIngredients(contentB);
+
+  if (setA.size === 0 && setB.size === 0) return 0;
+  if (setA.size === 0 || setB.size === 0) return 0;
+
+  let intersection = 0;
+  for (const item of setA) {
+    if (setB.has(item)) intersection++;
+  }
+
+  const union = setA.size + setB.size - intersection;
+  return union === 0 ? 0 : intersection / union;
+}
+
+/** Stop words to filter out for content similarity comparison */
+const STOP_WORDS = new Set([
+  "a", "the", "is", "are", "i", "we", "my", "our", "and", "or", "but",
+  "to", "of", "in", "for", "on", "at", "it", "do", "don't", "not", "no",
+  "that", "this", "with", "have", "has", "be", "been", "was", "were",
+]);
+
+/**
+ * Compute content similarity between two text strings using word-level Jaccard similarity.
+ * Tokenizes both texts, filters stop words, and computes |intersection| / |union|.
+ *
+ * @returns 0.0 (no similarity) to 1.0 (identical content words)
+ */
+export function computeContentSimilarity(textA: string, textB: string): number {
+  const tokenize = (text: string): Set<string> => {
+    const words = text
+      .toLowerCase()
+      .split(/\s+/)
+      .filter((w) => w.length > 0 && !STOP_WORDS.has(w));
+    return new Set(words);
+  };
+
+  const setA = tokenize(textA);
+  const setB = tokenize(textB);
+
+  if (setA.size === 0 && setB.size === 0) return 0;
+  if (setA.size === 0 || setB.size === 0) return 0;
+
+  let intersection = 0;
+  for (const word of setA) {
+    if (setB.has(word)) intersection++;
+  }
+
+  const union = setA.size + setB.size - intersection;
+  return union === 0 ? 0 : intersection / union;
+}
+
+/**
  * Get full knowledge item by ID (pass 2 of two-pass retrieval).
  * Updates last_accessed_at for recency tracking.
  * Filters by householdId for per-household knowledge isolation.

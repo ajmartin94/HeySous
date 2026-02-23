@@ -59,7 +59,7 @@ See .planning/milestones/v1.4-ROADMAP.md for full phase history.
 - [x] **Phase 33: Input Validation & Security** - Sanitize user-controlled text, bounds-validate tool inputs, enforce message length limits (completed 2026-02-21)
 - [x] **Phase 34: Observability & Data Integrity** - Log tool calls with metrics, sanitize error messages, validate recipe extraction (completed 2026-02-22)
 - [x] **Phase 35: Resilience** - 429 backoff with jitter, meal plan race condition fix, context overflow detection (completed 2026-02-22)
-- [ ] **Phase 36: Pipeline Efficiency** - Rate limiting, configurable session, N+1 fix, token counting, knowledge content search
+- [x] **Phase 36: Pipeline Efficiency** - Rate limiting, configurable session, N+1 fix, token counting, knowledge content search (completed 2026-02-23)
 - [ ] **Phase 37: Streaming** - Stream Claude responses to Telegram for lower perceived latency
 - [ ] **Phase 38: Mini App Theme & Accessibility** - Theme selection, font size, tag contrast, help page update
 - [ ] **Phase 39: Admin Dashboard** - Activity feed, usage stats, cost trends, feedback overview
@@ -183,7 +183,7 @@ Note: Phase 38 (Mini App Theme) has no backend dependencies and can be paralleli
 | 33. Input Validation & Security | 3/3 | Complete    | 2026-02-21 | - |
 | 34. Observability & Data Integrity | 2/2 | Complete    | 2026-02-22 | - |
 | 35. Resilience | 3/3 | Complete    | 2026-02-22 | - |
-| 36. Pipeline Efficiency | 1/3 | In Progress|  | - |
+| 36. Pipeline Efficiency | 3/3 | Complete   | 2026-02-23 | - |
 | 37. Streaming | v1.5 | 0/0 | Not started | - |
 | 38. Mini App Theme & Accessibility | v1.5 | 0/0 | Not started | - |
 | 39. Admin Dashboard | v1.5 | 0/0 | Not started | - |

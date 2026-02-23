@@ -35,7 +35,7 @@ Requirements for v1.5 Agent Hardening & Polish. Sourced from comprehensive 3-age
 - [x] **PROMPT-03**: Recipe ID format [recipe #ID] is explicitly documented for plan modification
 - [x] **PROMPT-04**: Dinner time sync requirement is cross-referenced in reminder prompt section
 - [x] **PROMPT-05**: All Claude interactions share a unified Sous persona definition
-- [ ] **PROMPT-06**: Knowledge deduplication searches content beyond title-only matching
+- [x] **PROMPT-06**: Knowledge deduplication searches content beyond title-only matching
 
 ### Observability
 
@@ -94,7 +94,7 @@ None deferred -- all audit findings scoped into v1.5.
 | PROMPT-03 | Phase 32 | Complete |
 | PROMPT-04 | Phase 32 | Complete |
 | PROMPT-05 | Phase 32 | Complete |
-| PROMPT-06 | Phase 36 | Pending |
+| PROMPT-06 | Phase 36 | Complete |
 | OBS-01 | Phase 34 | Complete |
 | OBS-02 | Phase 34 | Complete |
 | OBS-03 | Phase 34 | Complete |

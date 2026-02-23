@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-21)
 ## Current Position
 
 Phase: 36 of 39 (Pipeline Efficiency)
-Plan: 2 of 3 in current phase
-Status: Executing Phase 36
-Last activity: 2026-02-22 -- Completed 36-02 N+1 query fix and token estimation plan
+Plan: 3 of 3 in current phase (COMPLETE)
+Status: Phase 36 Complete
+Last activity: 2026-02-22 -- Completed 36-03 content-aware knowledge dedup plan
 
-Progress: [====================================....] 89% (78/88 plans complete through Phase 36-02)
+Progress: [====================================....] 90% (79/88 plans complete through Phase 36-03)
 
 ## Performance Metrics
 
@@ -37,6 +37,7 @@ All decisions documented in PROJECT.md Key Decisions table.
 - [Phase 35]: retryWithBackoff internal to claude-client; only 429 errors retried; thinking-longer message sent once on first retry only
 - Phase 35-03: wasTruncated distinguishes budget trimming from session gaps; 80% threshold for proactive trimming; conversation_note XML tag for invisible truncation notice
 - Phase 36-02: Self-join knowledge_tags (filter vs fetch aliases) for single-query preference loading; byte-length / 3.3 for token estimation replacing 4-chars heuristic
+- Phase 36-03: Content-aware dedup with 85% Jaccard threshold; ingredient overlap for recipes, word-level similarity for preferences; content-weighted BM25 search
 
 ### Pending Todos
 
@@ -55,6 +56,6 @@ Total: 39 phases across 6 milestones.
 ## Session Continuity
 
 Last session: 2026-02-22
-Stopped at: Completed 36-02-PLAN.md
-Next action: Execute 36-03-PLAN.md
-Resume file: .planning/phases/36-pipeline-efficiency/36-03-PLAN.md
+Stopped at: Completed 36-03-PLAN.md (Phase 36 complete)
+Next action: Plan Phase 37
+Resume file: .planning/phases/36-pipeline-efficiency/36-03-SUMMARY.md

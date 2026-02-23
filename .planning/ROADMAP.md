@@ -157,7 +157,10 @@ Plans:
   2. Users can adjust font size and the entire Mini App respects the setting
   3. Recipe tags in the browser have sufficient color contrast against their background for readability
   4. The Mini App help page documents all current features including those added in v1.3 and v1.4
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+  - [ ] 38-01-PLAN.md -- Theme infrastructure, font size scale, Settings page, localStorage persistence (UX-01)
+  - [ ] 38-02-PLAN.md -- Tag contrast fix for both themes and comprehensive help page rewrite (UX-01, DOCS-01)
 
 ### Phase 39: Admin Dashboard
 **Goal**: The admin user has a visual overview of system health, usage patterns, costs, and user feedback without querying the database directly

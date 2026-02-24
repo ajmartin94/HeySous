@@ -121,8 +121,8 @@
   gap: 4px;
   padding: 4px 10px;
   border-radius: 14px;
-  background: var(--hs-accent);
-  color: #fff;
+  background: var(--hs-tag-active-bg, var(--hs-accent));
+  color: var(--hs-tag-active-text, #fff);
   font-size: 12px;
   border: none;
   cursor: pointer;
@@ -193,14 +193,17 @@
   padding: 2px 8px;
   border-radius: 10px;
   font-size: 12px;
-  background: var(--hs-accent-subtle);
-  color: var(--hs-accent-dark);
+  background: var(--hs-tag-bg);
+  color: var(--hs-tag-text);
   border: none;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
 
-.tag-pill:active { background: var(--hs-accent); color: #fff; }
+.tag-pill:active {
+  background: var(--hs-tag-active-bg);
+  color: var(--hs-tag-active-text);
+}
 
 .tag-pill--overflow {
   background: transparent;

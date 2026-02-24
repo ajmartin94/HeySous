@@ -22,6 +22,12 @@
   --hs-overlay: rgba(0, 0, 0, 0.6);
   --hs-destructive: #e53935;
 
+  /* Tag pill colors (WCAG AA ~5:1 contrast) */
+  --hs-tag-bg: rgba(91, 140, 90, 0.25);
+  --hs-tag-text: #a3d4a2;
+  --hs-tag-active-bg: var(--hs-accent);
+  --hs-tag-active-text: #fff;
+
   /* Override Telegram theme variables for dark mode */
   --tg-theme-bg-color: #1a1a2e;
   --tg-theme-text-color: #e8e8e8;
@@ -47,6 +53,12 @@
   --hs-card-bg: #ffffff;
   --hs-overlay: rgba(0, 0, 0, 0.5);
   --hs-destructive: #e53935;
+
+  /* Tag pill colors (WCAG AA ~7:1 contrast) */
+  --hs-tag-bg: rgba(91, 140, 90, 0.12);
+  --hs-tag-text: #2d5a2c;
+  --hs-tag-active-bg: var(--hs-accent);
+  --hs-tag-active-text: #fff;
 
   /* Override Telegram theme variables for light mode */
   --tg-theme-bg-color: #ffffff;

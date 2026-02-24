@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Section, Cell } from '@telegram-apps/telegram-ui';
-import { ChefHat, ShoppingCart, CookingPot, CalendarDays, MessageSquare, HelpCircle } from 'lucide-react';
+import { ChefHat, ShoppingCart, CookingPot, CalendarDays, MessageSquare, HelpCircle, Settings } from 'lucide-react';
 import { apiFetch } from '../api';
 import { SkeletonCard } from '../components/SkeletonCard';
 import { colors } from '../theme/tokens';
@@ -83,7 +83,24 @@ export function Hub() {
         }}
       >
         <ChefHat size={28} style={iconStyle} />
-        HeySous
+        <span style={{ flex: 1 }}>HeySous</span>
+        <button
+          onClick={() => navigate('/settings')}
+          style={{
+            background: 'none',
+            border: 'none',
+            padding: 8,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'var(--tg-theme-hint-color, #999)',
+            WebkitTapHighlightColor: 'transparent',
+          }}
+          aria-label="Settings"
+        >
+          <Settings size={22} />
+        </button>
       </div>
 
       {/* Dashboard cards */}

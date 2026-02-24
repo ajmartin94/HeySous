@@ -44,12 +44,26 @@ export const MODEL_PRICING: Record<string, ModelPricing> = {
     cacheWritePerMTok: 3.75,
     cacheReadPerMTok: 0.3,
   },
+  // Sonnet 4.6
+  "claude-sonnet-4-6": {
+    inputPerMTok: 3.0,
+    outputPerMTok: 15.0,
+    cacheWritePerMTok: 3.75,
+    cacheReadPerMTok: 0.3,
+  },
   // Opus 4
   "claude-opus-4-20250514": {
     inputPerMTok: 15.0,
     outputPerMTok: 75.0,
     cacheWritePerMTok: 18.75,
     cacheReadPerMTok: 1.5,
+  },
+  // Opus 4.6
+  "claude-opus-4-6": {
+    inputPerMTok: 5.0,
+    outputPerMTok: 25.0,
+    cacheWritePerMTok: 6.25,
+    cacheReadPerMTok: 0.5,
   },
   // Fallback for unknown models -- use Haiku pricing as conservative baseline
   _fallback: {

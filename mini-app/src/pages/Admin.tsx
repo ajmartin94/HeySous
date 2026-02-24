@@ -144,7 +144,7 @@ const loadMoreBtnStyle: React.CSSProperties = {
 };
 
 const eventDotColors: Record<string, string> = {
-  message: '#4caf50',
+  message: '#5C9FD0',
   tool_call: '#2196f3',
   feedback: '#ff9800',
 };
@@ -177,7 +177,7 @@ function getSourceBadgeColor(source: string): React.CSSProperties {
     case 'implicit':
       return { background: 'rgba(156,39,176,0.15)', color: '#9c27b0' };
     case 'mini-app':
-      return { background: 'rgba(76,175,80,0.15)', color: '#4caf50' };
+      return { background: 'rgba(92,159,208,0.15)', color: '#5C9FD0' };
     case 'proactive':
       return { background: 'rgba(255,152,0,0.15)', color: '#ff9800' };
     default:

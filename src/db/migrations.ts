@@ -1,5 +1,6 @@
 import type BetterSqlite3 from "better-sqlite3";
 import { logger } from "../logger.js";
+import { parseRecipeTotalMinutes, parseTimeToMinutes } from "../reminders/generator.js";
 
 export interface Migration {
   version: number;
@@ -130,6 +131,82 @@ export const migrations: Migration[] = [
           sqlite.exec("ALTER TABLE grocery_lists ADD COLUMN updated_by TEXT");
         }
       }
+    },
+  },
+  {
+    version: 6,
+    name: "add-recipe-time-columns",
+    up: (sqlite) => {
+      // On fresh install, knowledge_items may not exist yet (created later by initializeFts).
+      const tableExists = sqlite
+        .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='knowledge_items'")
+        .get();
+      if (!tableExists) return;
+
+      // Add each column individually (idempotent, safe to re-run)
+      const columns = sqlite.pragma("table_info(knowledge_items)") as Array<{ name: string }>;
+      if (!columns.some((c) => c.name === "prep_time_minutes")) {
+        sqlite.exec("ALTER TABLE knowledge_items ADD COLUMN prep_time_minutes INTEGER");
+      }
+      if (!columns.some((c) => c.name === "cook_time_minutes")) {
+        sqlite.exec("ALTER TABLE knowledge_items ADD COLUMN cook_time_minutes INTEGER");
+      }
+      if (!columns.some((c) => c.name === "total_time_minutes")) {
+        sqlite.exec("ALTER TABLE knowledge_items ADD COLUMN total_time_minutes INTEGER");
+      }
+
+      // Backfill: parse time data from existing recipe content
+      const recipes = sqlite
+        .prepare(
+          `SELECT ki.id, ki.content FROM knowledge_items ki
+           JOIN knowledge_tags kt ON kt.knowledge_item_id = ki.id
+           WHERE kt.tag = 'recipe'`
+        )
+        .all() as Array<{ id: number; content: string }>;
+
+      const updateStmt = sqlite.prepare(
+        `UPDATE knowledge_items
+         SET prep_time_minutes = ?, cook_time_minutes = ?, total_time_minutes = ?
+         WHERE id = ?`
+      );
+
+      for (const row of recipes) {
+        let prepMinutes: number | null = null;
+        let cookMinutes: number | null = null;
+        let totalMinutes: number | null = null;
+
+        // Parse individual time lines
+        const lines = row.content.split("\n");
+        for (const line of lines) {
+          const prepMatch = line.match(/^Prep\s*Time:\s*(.+)$/i);
+          if (prepMatch) {
+            prepMinutes = parseTimeToMinutes(prepMatch[1]);
+          }
+          const cookMatch = line.match(/^Cook\s*Time:\s*(.+)$/i);
+          if (cookMatch) {
+            cookMinutes = parseTimeToMinutes(cookMatch[1]);
+          }
+          const totalMatch = line.match(/^Total\s*Time:\s*(.+)$/i);
+          if (totalMatch) {
+            totalMinutes = parseTimeToMinutes(totalMatch[1]);
+          }
+        }
+
+        // Compute total from prep + cook if both available
+        if (prepMinutes !== null && cookMinutes !== null) {
+          totalMinutes = prepMinutes + cookMinutes;
+        } else if (totalMinutes === null) {
+          // Fall back to parseRecipeTotalMinutes for total
+          totalMinutes = parseRecipeTotalMinutes(row.content);
+        }
+
+        // Only update if we found at least one value
+        if (prepMinutes !== null || cookMinutes !== null || totalMinutes !== null) {
+          updateStmt.run(prepMinutes, cookMinutes, totalMinutes, row.id);
+        }
+      }
+
+      logger.info({ recipeCount: recipes.length }, "Backfilled recipe time columns");
     },
   },
 ];

@@ -10,7 +10,7 @@ import { localTimeToUtc, getTodayInTimezone } from "../clock.js";
  * Parse a time string like "30 minutes", "1 hour 30 minutes", "1 hr", "45 min", "1:30" into minutes.
  * Returns null if unparseable.
  */
-function parseTimeToMinutes(timeStr: string): number | null {
+export function parseTimeToMinutes(timeStr: string): number | null {
   const s = timeStr.trim().toLowerCase();
 
   // Handle "H:MM" format (e.g., "1:30")

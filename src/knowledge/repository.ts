@@ -10,6 +10,9 @@ interface CreateKnowledgeInput {
   source?: string;
   sourceUrl?: string;
   tags: string[];
+  prepTimeMinutes?: number | null;
+  cookTimeMinutes?: number | null;
+  totalTimeMinutes?: number | null;
 }
 
 interface UpdateKnowledgeInput {
@@ -18,6 +21,9 @@ interface UpdateKnowledgeInput {
   content?: string;
   source?: string;
   tags?: string[];
+  prepTimeMinutes?: number | null;
+  cookTimeMinutes?: number | null;
+  totalTimeMinutes?: number | null;
 }
 
 /**
@@ -43,6 +49,9 @@ export function createKnowledgeRepository(db: DrizzleDatabase) {
       lastAccessedAt: item.lastAccessedAt,
       version: item.version,
       updatedBy: item.updatedBy ?? null,
+      prepTimeMinutes: item.prepTimeMinutes ?? null,
+      cookTimeMinutes: item.cookTimeMinutes ?? null,
+      totalTimeMinutes: item.totalTimeMinutes ?? null,
     };
   }
 
@@ -60,6 +69,9 @@ export function createKnowledgeRepository(db: DrizzleDatabase) {
           content: input.content,
           source: input.source ?? null,
           sourceUrl: input.sourceUrl ?? null,
+          prepTimeMinutes: input.prepTimeMinutes ?? null,
+          cookTimeMinutes: input.cookTimeMinutes ?? null,
+          totalTimeMinutes: input.totalTimeMinutes ?? null,
         })
         .returning()
         .get();
@@ -144,6 +156,9 @@ export function createKnowledgeRepository(db: DrizzleDatabase) {
       if (changes.summary !== undefined) updateValues.summary = changes.summary;
       if (changes.content !== undefined) updateValues.content = changes.content;
       if (changes.source !== undefined) updateValues.source = changes.source;
+      if (changes.prepTimeMinutes !== undefined) updateValues.prepTimeMinutes = changes.prepTimeMinutes;
+      if (changes.cookTimeMinutes !== undefined) updateValues.cookTimeMinutes = changes.cookTimeMinutes;
+      if (changes.totalTimeMinutes !== undefined) updateValues.totalTimeMinutes = changes.totalTimeMinutes;
 
       db.update(knowledgeItems)
         .set(updateValues)

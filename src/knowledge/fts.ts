@@ -24,7 +24,10 @@ export function initializeFts(sqlite: BetterSqlite3.Database): void {
       updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
       last_accessed_at INTEGER NOT NULL DEFAULT (unixepoch()),
       version INTEGER NOT NULL DEFAULT 1,
-      updated_by TEXT
+      updated_by TEXT,
+      prep_time_minutes INTEGER,
+      cook_time_minutes INTEGER,
+      total_time_minutes INTEGER
     )
   `);
 
@@ -450,7 +453,7 @@ export function getFullItem(
   // Fetch the item
   const row = sqlite
     .prepare(
-      `SELECT id, household_id, title, summary, content, source, source_url, created_at, updated_at, last_accessed_at, version, updated_by
+      `SELECT id, household_id, title, summary, content, source, source_url, created_at, updated_at, last_accessed_at, version, updated_by, prep_time_minutes, cook_time_minutes, total_time_minutes
        FROM knowledge_items WHERE id = ? AND household_id = ?`
     )
     .get(id, householdId) as
@@ -467,6 +470,9 @@ export function getFullItem(
         last_accessed_at: number;
         version: number;
         updated_by: string | null;
+        prep_time_minutes: number | null;
+        cook_time_minutes: number | null;
+        total_time_minutes: number | null;
       }
     | undefined;
 
@@ -493,5 +499,8 @@ export function getFullItem(
     lastAccessedAt: new Date(row.last_accessed_at * 1000),
     version: row.version ?? 1,
     updatedBy: row.updated_by ?? null,
+    prepTimeMinutes: row.prep_time_minutes ?? null,
+    cookTimeMinutes: row.cook_time_minutes ?? null,
+    totalTimeMinutes: row.total_time_minutes ?? null,
   };
 }

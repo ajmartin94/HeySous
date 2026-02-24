@@ -12,6 +12,9 @@ export interface KnowledgeItem {
   lastAccessedAt: Date;
   version: number;
   updatedBy: string | null;
+  prepTimeMinutes: number | null;
+  cookTimeMinutes: number | null;
+  totalTimeMinutes: number | null;
 }
 
 export interface SearchResult {

@@ -5,6 +5,10 @@ import type { ReminderSettings, ReminderType } from "./types.js";
 import type { Clock } from "../clock.js";
 import { addDays } from "../planning/date-utils.js";
 import { localTimeToUtc, getTodayInTimezone } from "../clock.js";
+import { logger } from "../logger.js";
+
+/** Default cooking time (minutes) when recipe time cannot be determined. */
+const DEFAULT_COOKING_MINUTES = 45;
 
 /**
  * Parse a time string like "30 minutes", "1 hour 30 minutes", "1 hr", "45 min", "1:30" into minutes.
@@ -262,34 +266,79 @@ export function generateReminders(deps: {
 
     // c. Start-cooking nudge: for each dinner entry
     // Adjusted for total recipe prep+cook time when available
+    // Fallback chain: structured metadata -> content parsing -> 45-min default
     if (meals) {
       for (const meal of meals) {
         if (meal.mealType === "dinner") {
-          // Calculate start time: dinner time minus total recipe time
-          let reminderTime = settings.dinnerTime; // default fallback
+          // Calculate start time: dinner time minus recipe total time
+          let recipeTotalMinutes: number | null = null;
 
           if (meal.knowledgeItemId && deps.sqlite) {
             try {
+              // Query both content and structured time columns
               const row = deps.sqlite
-                .prepare("SELECT content FROM knowledge_items WHERE id = ? AND household_id = ?")
-                .get(meal.knowledgeItemId, householdId) as { content: string } | undefined;
+                .prepare("SELECT content, prep_time_minutes, cook_time_minutes, total_time_minutes FROM knowledge_items WHERE id = ? AND household_id = ?")
+                .get(meal.knowledgeItemId, householdId) as {
+                  content: string;
+                  prep_time_minutes: number | null;
+                  cook_time_minutes: number | null;
+                  total_time_minutes: number | null;
+                } | undefined;
 
               if (row) {
-                const recipeTotalMinutes = parseRecipeTotalMinutes(row.content);
-                if (recipeTotalMinutes !== null && recipeTotalMinutes > 0) {
-                  // Parse dinner time and subtract total recipe minutes
-                  const [dinnerHours, dinnerMinutes] = settings.dinnerTime.split(":").map(Number);
-                  const dinnerTotalMin = dinnerHours * 60 + dinnerMinutes;
-                  const startMin = Math.max(0, dinnerTotalMin - recipeTotalMinutes);
-                  const startHours = Math.floor(startMin / 60);
-                  const startMins = startMin % 60;
-                  reminderTime = `${String(startHours).padStart(2, "0")}:${String(startMins).padStart(2, "0")}`;
+                // Priority 1: Structured metadata columns
+                if (row.prep_time_minutes !== null && row.cook_time_minutes !== null) {
+                  recipeTotalMinutes = row.prep_time_minutes + row.cook_time_minutes;
+                } else if (row.total_time_minutes !== null) {
+                  recipeTotalMinutes = row.total_time_minutes;
+                } else if (row.prep_time_minutes !== null) {
+                  recipeTotalMinutes = row.prep_time_minutes;
+                } else if (row.cook_time_minutes !== null) {
+                  recipeTotalMinutes = row.cook_time_minutes;
                 }
+
+                // Priority 2: Fall back to content parsing
+                if (recipeTotalMinutes === null) {
+                  recipeTotalMinutes = parseRecipeTotalMinutes(row.content);
+                }
+
+                // Log when neither source yields a result
+                if (recipeTotalMinutes === null) {
+                  logger.info(
+                    { householdId, recipeName: meal.recipeName, knowledgeItemId: meal.knowledgeItemId, reason: "no_time_data" },
+                    "No recipe time found in content or metadata, using default fallback",
+                  );
+                }
+              } else {
+                logger.info(
+                  { householdId, recipeName: meal.recipeName, knowledgeItemId: meal.knowledgeItemId, reason: "knowledge_item_not_found" },
+                  "Knowledge item not found for start-cooking reminder, using default fallback",
+                );
               }
-            } catch {
-              // On any error, fall back to dinner time
+            } catch (err) {
+              logger.error(
+                { err, householdId, recipeName: meal.recipeName, knowledgeItemId: meal.knowledgeItemId },
+                "Error querying recipe time for start-cooking reminder",
+              );
             }
+          } else if (!meal.knowledgeItemId) {
+            logger.info(
+              { householdId, recipeName: meal.recipeName, reason: "no_knowledge_item_id" },
+              "No knowledge item linked to dinner entry, using default fallback",
+            );
           }
+
+          // Apply time offset: use recipe total or default 45 minutes
+          const offsetMinutes = recipeTotalMinutes !== null && recipeTotalMinutes > 0
+            ? recipeTotalMinutes
+            : DEFAULT_COOKING_MINUTES;
+
+          const [dinnerHours, dinnerMinutes] = settings.dinnerTime.split(":").map(Number);
+          const dinnerTotalMin = dinnerHours * 60 + dinnerMinutes;
+          const startMin = Math.max(0, dinnerTotalMin - offsetMinutes);
+          const startHours = Math.floor(startMin / 60);
+          const startMins = startMin % 60;
+          const reminderTime = `${String(startHours).padStart(2, "0")}:${String(startMins).padStart(2, "0")}`;
 
           const dueAt = localTimeToUtc(
             currentDate,

@@ -9,16 +9,14 @@ import { createReminderRepository } from "../../src/reminders/repository.js";
 import { createTestClock } from "../../src/clock.js";
 import { initializeFts } from "../../src/knowledge/fts.js";
 
-// Mock logger so we can spy on calls
-const mockLogger = {
-  info: vi.fn(),
-  warn: vi.fn(),
-  error: vi.fn(),
-  debug: vi.fn(),
-};
-
+// Mock logger so we can spy on calls -- inline to avoid hoisting issues
 vi.mock("../../src/logger.js", () => ({
-  logger: mockLogger,
+  logger: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+  },
 }));
 
 // Mock config for logger module (some test paths import it transitively)
@@ -30,6 +28,15 @@ vi.mock("../../src/config.js", () => ({
     adminUserIds: [],
   },
 }));
+
+// Import the mocked logger for assertions
+import { logger as mockLoggerImport } from "../../src/logger.js";
+const mockLogger = mockLoggerImport as unknown as {
+  info: ReturnType<typeof vi.fn>;
+  warn: ReturnType<typeof vi.fn>;
+  error: ReturnType<typeof vi.fn>;
+  debug: ReturnType<typeof vi.fn>;
+};
 
 const HOUSEHOLD_ID = "test-household";
 

@@ -17,7 +17,7 @@ export function Help() {
   }, [navigate]);
 
   const sectionHeaderStyle: React.CSSProperties = {
-    fontSize: '17px',
+    fontSize: 'calc(var(--hs-font-size-body) + 2px)',
     fontWeight: 600,
     color: 'var(--hs-accent)',
     marginBottom: '8px',
@@ -27,13 +27,13 @@ export function Help() {
   const tipStyle: React.CSSProperties = {
     color: 'var(--tgui--secondary_hint_color)',
     fontStyle: 'italic',
-    fontSize: '13px',
+    fontSize: 'var(--hs-font-size-small)',
     marginTop: '6px',
     lineHeight: 1.4,
   };
 
   const paragraphStyle: React.CSSProperties = {
-    fontSize: '14px',
+    fontSize: 'var(--hs-font-size-body)',
     lineHeight: 1.6,
     color: 'var(--tgui--text_color)',
     margin: '0 0 4px 0',
@@ -46,7 +46,7 @@ export function Help() {
   };
 
   const commandRowStyle: React.CSSProperties = {
-    fontSize: '14px',
+    fontSize: 'var(--hs-font-size-body)',
     lineHeight: 1.8,
     color: 'var(--tgui--text_color)',
   };
@@ -59,61 +59,154 @@ export function Help() {
           fontSize: 'var(--hs-font-size-heading)',
           fontWeight: 600,
           color: 'var(--hs-accent)',
-          paddingBottom: '8px',
+          paddingBottom: '4px',
         }}
       >
-        Help
+        Hey, I'm Sous!
       </div>
       <p style={{ ...paragraphStyle, marginBottom: '16px', color: 'var(--tgui--secondary_hint_color)' }}>
-        Everything HeySous can do for you, all in one place.
+        I'm your cooking partner with a really good memory. Think of me as a
+        friend who keeps track of all your recipes, helps plan the week, and
+        makes sure the grocery run goes smoothly. Here's everything I can help
+        with.
       </p>
 
-      {/* Recipes */}
-      <div style={sectionHeaderStyle}>Recipes</div>
+      {/* Saving Recipes */}
+      <div style={sectionHeaderStyle}>Saving Recipes</div>
       <p style={paragraphStyle}>
-        Save recipes by pasting a URL or typing out ingredients and steps.
-        Browse your saved recipes, search by name or ingredient, and view
-        full details anytime.
+        I'm always happy to learn a new recipe. You've got a few ways to share
+        them with me:
       </p>
-      <div style={tipStyle}>Try: paste a recipe URL and I'll save it!</div>
+      <p style={paragraphStyle}>
+        - Just tell me the recipe in conversation and I'll offer to save it
+      </p>
+      <p style={paragraphStyle}>
+        - Paste a URL from any recipe site and I'll pull it in automatically
+      </p>
+      <p style={paragraphStyle}>
+        - Snap a photo of a recipe (from a cookbook, a friend's card, wherever) and send it -- I can read it
+      </p>
+      <p style={paragraphStyle}>
+        Once saved, you can browse, search, and filter your whole collection in the Mini App.
+      </p>
+      <div style={tipStyle}>
+        Try: "Here's my mom's chicken soup recipe..." or just paste a link like https://example.com/recipe
+      </div>
 
-      {/* Meal Planning */}
-      <div style={sectionHeaderStyle}>Meal Planning</div>
+      {/* Planning Meals */}
+      <div style={sectionHeaderStyle}>Planning Meals</div>
       <p style={paragraphStyle}>
-        Ask me to plan your meals for the week and I'll create a full plan
-        based on your saved recipes and preferences. You can modify individual
-        days, swap meals, or regenerate the whole plan.
+        This is where things get fun. Ask me to plan your week and I'll put
+        together a full lineup based on your saved recipes, what you're in the
+        mood for, and what you haven't had in a while. I keep track of your
+        cooking history so things stay fresh.
       </p>
-      <div style={tipStyle}>Try: "plan my meals for the week" and I'll build a full plan based on your recipes!</div>
+      <p style={paragraphStyle}>
+        Not feeling Tuesday's dinner? No problem -- tell me to swap it out.
+        Want to redo a whole day? I'm on it. You can also view and browse the
+        plan in the Mini App with a 7-day grid that swipes between weeks.
+      </p>
+      <div style={tipStyle}>
+        Try: "Plan my meals for the week" / "Swap Tuesday's dinner for something lighter" / "What did we have last week?"
+      </div>
 
       {/* Grocery Lists */}
       <div style={sectionHeaderStyle}>Grocery Lists</div>
       <p style={paragraphStyle}>
-        Generate a grocery list from your meal plan automatically. Add extra
-        items, check things off as you shop, and start fresh whenever you need.
+        Once you've got a meal plan, I can turn it into a grocery list in
+        seconds. Check items off as you shop in the Mini App, quick-add
+        anything extra with the + button, and clear the list when you're done.
       </p>
-      <div style={tipStyle}>Try: "make my grocery list" after creating a meal plan!</div>
-
-      {/* Reminders */}
-      <div style={sectionHeaderStyle}>Reminders</div>
       <p style={paragraphStyle}>
-        Get morning summaries of what's on the menu, prep alerts before
-        cooking, and dinner time reminders. Set your timezone and customize
-        when you'd like to be reminded.
+        If you've told me about your store preferences (like splitting between
+        Kroger and Costco), I'll keep that in mind too.
       </p>
-      <div style={tipStyle}>Try: "set my dinner time to 6:30pm" to customize reminders</div>
+      <div style={tipStyle}>
+        Try: "Make my grocery list" / "Add milk to the grocery list"
+      </div>
 
-      {/* Preferences */}
-      <div style={sectionHeaderStyle}>Preferences</div>
+      {/* Reminders & Timing */}
+      <div style={sectionHeaderStyle}>Reminders & Timing</div>
       <p style={paragraphStyle}>
-        Tell me about dietary restrictions, allergies, or foods you love and
-        hate. I'll remember everything and use it when planning meals and
-        suggesting recipes.
+        I'll send you a morning heads-up about what's on the menu, a prep
+        alert based on actual recipe cook times so you start at the right
+        moment, and a dinner time nudge when it's go time.
       </p>
-      <div style={tipStyle}>Just mention preferences naturally -- I'll remember them!</div>
+      <p style={paragraphStyle}>
+        You can customize your schedule, set your preferred dinner time, or
+        mute everything when life gets busy.
+      </p>
+      <div style={tipStyle}>
+        Try: "Set my dinner time to 6:30pm" / "Mute reminders until Thursday"
+      </div>
+
+      {/* Preferences & Learning */}
+      <div style={sectionHeaderStyle}>Preferences & Learning</div>
+      <p style={paragraphStyle}>
+        Here's a little secret: you don't have to formally "set" your
+        preferences. Just mention things naturally in conversation -- that you
+        don't eat pork, that you love spicy food, that you shop at Kroger -- and
+        I'll pick it up and remember it.
+      </p>
+      <p style={paragraphStyle}>
+        Of course, you can also tell me directly about dietary restrictions,
+        allergies, or favorites. Either way, I'll use what I know about you
+        when planning meals and suggesting recipes.
+      </p>
+      <div style={tipStyle}>
+        Try: "We don't eat pork" / "I love spicy food" / "We usually shop at Kroger and Costco"
+      </div>
+
+      {/* Recipe Tweaks & Variations */}
+      <div style={sectionHeaderStyle}>Recipe Tweaks & Variations</div>
+      <p style={paragraphStyle}>
+        Want to make a recipe dairy-free? Swap chicken for tofu? Just ask and
+        I'll update the recipe in place with your changes. I also note
+        interchangeable ingredients as variations so you can flex based on
+        what's in the fridge.
+      </p>
+      <div style={tipStyle}>
+        Try: "Make the pasta recipe dairy-free" / "Can I substitute chicken for tofu in the stir fry?"
+      </div>
+
+      {/* After Dinner (Feedback) */}
+      <div style={sectionHeaderStyle}>After Dinner</div>
+      <p style={paragraphStyle}>
+        After you cook something, I'll check in to see how it went. Your
+        feedback helps me learn what works and what doesn't -- so future plans
+        get better over time. You can rate meals, let me know if something
+        needs more salt, or flag a new favorite.
+      </p>
+      <div style={tipStyle}>
+        Try: "The chicken was great!" / "That recipe needs more salt"
+      </div>
+
+      {/* Mini App Features */}
+      <div style={sectionHeaderStyle}>Mini App Features</div>
+      <p style={paragraphStyle}>
+        The Mini App is your visual dashboard. Here's what each section does:
+      </p>
+      <p style={paragraphStyle}>
+        - <b>Hub</b> -- Your overview dashboard
+      </p>
+      <p style={paragraphStyle}>
+        - <b>Recipes</b> -- Browse, search, filter by tag, view details, delete
+      </p>
+      <p style={paragraphStyle}>
+        - <b>Meal Plan</b> -- 7-day grid view, swipe between weeks
+      </p>
+      <p style={paragraphStyle}>
+        - <b>Grocery List</b> -- Check off items, quick-add, clear the list
+      </p>
+      <p style={paragraphStyle}>
+        - <b>Settings</b> -- Theme (light/dark) and font size preferences
+      </p>
 
       {/* Commands */}
       <div style={{ ...sectionHeaderStyle, marginTop: '32px' }}>Commands</div>
+      <p style={{ ...paragraphStyle, marginBottom: '8px', color: 'var(--tgui--secondary_hint_color)' }}>
+        You can also use these shortcuts in the chat:
+      </p>
       <div style={commandRowStyle}>
         <span style={commandStyle}>/help</span> -- Open this help page
       </div>
@@ -148,6 +241,9 @@ export function Help() {
           </div>
         </>
       )}
+
+      {/* Bottom spacing */}
+      <div style={{ height: '32px' }} />
     </div>
   );
 }

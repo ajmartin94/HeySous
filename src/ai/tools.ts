@@ -99,6 +99,21 @@ export const KNOWLEDGE_TOOLS: Anthropic.Tool[] = [
           description:
             "Source URL for imported recipes. Include this when saving a recipe that was imported from a URL.",
         },
+        prep_time: {
+          type: "number",
+          description:
+            "Prep time in minutes. Auto-extracted from content for recipes; explicit values override auto-extraction.",
+        },
+        cook_time: {
+          type: "number",
+          description:
+            "Cook time in minutes. Auto-extracted from content for recipes; explicit values override auto-extraction.",
+        },
+        total_time: {
+          type: "number",
+          description:
+            "Total time in minutes. Auto-extracted from content for recipes; explicit values override auto-extraction.",
+        },
       },
       required: ["title", "summary", "content", "tags"],
     },
@@ -159,6 +174,21 @@ export const KNOWLEDGE_TOOLS: Anthropic.Tool[] = [
           type: "string",
           description:
             "Brief note of what changed for the changelog",
+        },
+        prep_time: {
+          type: "number",
+          description:
+            "Prep time in minutes. Auto-extracted from content for recipes; explicit values override auto-extraction.",
+        },
+        cook_time: {
+          type: "number",
+          description:
+            "Cook time in minutes. Auto-extracted from content for recipes; explicit values override auto-extraction.",
+        },
+        total_time: {
+          type: "number",
+          description:
+            "Total time in minutes. Auto-extracted from content for recipes; explicit values override auto-extraction.",
         },
       },
       required: ["id"],

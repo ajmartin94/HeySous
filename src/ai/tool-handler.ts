@@ -14,6 +14,8 @@ import type { DrizzleDatabase } from "../db/index.js";
 import { knowledgeChangelog } from "../knowledge/schema.js";
 import { searchFts, searchFtsContent, computeIngredientOverlap, computeContentSimilarity } from "../knowledge/fts.js";
 import { fetchAndParseRecipe } from "../knowledge/url-import.js";
+import { parseRecipeTotalMinutes, parseTimeToMinutes } from "../reminders/generator.js";
+import { logger } from "../logger.js";
 
 /** Maximum string lengths for tool inputs */
 const MAX_LENGTHS = {
@@ -213,7 +215,10 @@ export function createToolHandler(deps: {
             ?? (Array.isArray(input.tags)
               ? input.tags.reduce((e: string | null, t: unknown, i: number) => e ?? validateString(t, `tags[${i}]`, MAX_LENGTHS.tag), null as string | null)
               : null)
-            ?? validateString(input.source_url, "source_url", MAX_LENGTHS.url);
+            ?? validateString(input.source_url, "source_url", MAX_LENGTHS.url)
+            ?? validatePositiveInt(input.prep_time, "prep_time")
+            ?? validatePositiveInt(input.cook_time, "cook_time")
+            ?? validatePositiveInt(input.total_time, "total_time");
           if (err) return validationError(err);
 
           const title = input.title as string;
@@ -332,6 +337,39 @@ export function createToolHandler(deps: {
             });
           }
 
+          // Auto-extract time fields for recipes
+          let prepTimeMinutes: number | null = (input.prep_time as number | undefined) ?? null;
+          let cookTimeMinutes: number | null = (input.cook_time as number | undefined) ?? null;
+          let totalTimeMinutes: number | null = (input.total_time as number | undefined) ?? null;
+
+          if (tags.some((t) => t.toLowerCase() === "recipe")) {
+            // Parse time from content lines
+            const lines = content.split("\n");
+            for (const line of lines) {
+              const prepMatch = line.match(/^Prep\s*Time:\s*(.+)$/i);
+              if (prepMatch && prepTimeMinutes === null) {
+                prepTimeMinutes = parseTimeToMinutes(prepMatch[1]);
+              }
+              const cookMatch = line.match(/^Cook\s*Time:\s*(.+)$/i);
+              if (cookMatch && cookTimeMinutes === null) {
+                cookTimeMinutes = parseTimeToMinutes(cookMatch[1]);
+              }
+              const totalMatch = line.match(/^Total\s*Time:\s*(.+)$/i);
+              if (totalMatch && totalTimeMinutes === null) {
+                totalTimeMinutes = parseTimeToMinutes(totalMatch[1]);
+              }
+            }
+
+            // Compute total from prep + cook if both known
+            if (totalTimeMinutes === null && prepTimeMinutes !== null && cookTimeMinutes !== null) {
+              totalTimeMinutes = prepTimeMinutes + cookTimeMinutes;
+            }
+            // Fall back to parseRecipeTotalMinutes if still null
+            if (totalTimeMinutes === null) {
+              totalTimeMinutes = parseRecipeTotalMinutes(content);
+            }
+          }
+
           try {
             const item = knowledgeRepository.create(householdId, {
               title,
@@ -339,6 +377,9 @@ export function createToolHandler(deps: {
               content,
               tags,
               sourceUrl,
+              prepTimeMinutes,
+              cookTimeMinutes,
+              totalTimeMinutes,
             });
 
             db.insert(knowledgeChangelog)
@@ -369,7 +410,10 @@ export function createToolHandler(deps: {
             ?? (Array.isArray(input.tags)
               ? input.tags.reduce((e: string | null, t: unknown, i: number) => e ?? validateString(t, `tags[${i}]`, MAX_LENGTHS.tag), null as string | null)
               : null)
-            ?? validateString(input.change_description, "change_description", MAX_LENGTHS.changeDescription);
+            ?? validateString(input.change_description, "change_description", MAX_LENGTHS.changeDescription)
+            ?? validatePositiveInt(input.prep_time, "prep_time")
+            ?? validatePositiveInt(input.cook_time, "cook_time")
+            ?? validatePositiveInt(input.total_time, "total_time");
           if (err) return validationError(err);
 
           const id = input.id as number;
@@ -401,6 +445,45 @@ export function createToolHandler(deps: {
             if (summary !== undefined) changes.summary = summary;
             if (content !== undefined) changes.content = content;
             if (tags !== undefined) changes.tags = tags;
+
+            // Auto-extract time fields for recipes when content is being updated
+            const effectiveTags = tags ?? previous.tags;
+            const effectiveContent = content ?? previous.content;
+            if (effectiveTags.some((t) => t.toLowerCase() === "recipe")) {
+              let prepTimeMinutes: number | null = (input.prep_time as number | undefined) ?? null;
+              let cookTimeMinutes: number | null = (input.cook_time as number | undefined) ?? null;
+              let totalTimeMinutes: number | null = (input.total_time as number | undefined) ?? null;
+
+              // Parse time from content lines
+              const contentLines = effectiveContent.split("\n");
+              for (const line of contentLines) {
+                const prepMatch = line.match(/^Prep\s*Time:\s*(.+)$/i);
+                if (prepMatch && prepTimeMinutes === null) {
+                  prepTimeMinutes = parseTimeToMinutes(prepMatch[1]);
+                }
+                const cookMatch = line.match(/^Cook\s*Time:\s*(.+)$/i);
+                if (cookMatch && cookTimeMinutes === null) {
+                  cookTimeMinutes = parseTimeToMinutes(cookMatch[1]);
+                }
+                const totalMatch = line.match(/^Total\s*Time:\s*(.+)$/i);
+                if (totalMatch && totalTimeMinutes === null) {
+                  totalTimeMinutes = parseTimeToMinutes(totalMatch[1]);
+                }
+              }
+
+              // Compute total from prep + cook if both known
+              if (totalTimeMinutes === null && prepTimeMinutes !== null && cookTimeMinutes !== null) {
+                totalTimeMinutes = prepTimeMinutes + cookTimeMinutes;
+              }
+              // Fall back to parseRecipeTotalMinutes if still null
+              if (totalTimeMinutes === null) {
+                totalTimeMinutes = parseRecipeTotalMinutes(effectiveContent);
+              }
+
+              if (prepTimeMinutes !== null) changes.prepTimeMinutes = prepTimeMinutes;
+              if (cookTimeMinutes !== null) changes.cookTimeMinutes = cookTimeMinutes;
+              if (totalTimeMinutes !== null) changes.totalTimeMinutes = totalTimeMinutes;
+            }
 
             const updated = knowledgeRepository.update(id, householdId, changes, {
               expectedVersion: previous.version,
@@ -530,7 +613,32 @@ export function createToolHandler(deps: {
             });
           }
 
-          return JSON.stringify({
+          // Plan-recipe linking guard: check for unlinked recipes that exist in knowledge base
+          const unlinkedRecipes: Array<{ name: string; match_id: number; match_title: string }> = [];
+          if (sqlite) {
+            for (const entry of rawEntries) {
+              if (!entry.knowledge_item_id) {
+                try {
+                  const ftsResults = searchFts(sqlite, entry.recipe_name, householdId, 1);
+                  if (ftsResults.length > 0) {
+                    const topResult = ftsResults[0];
+                    // Only consider it a match if the title closely matches (case-insensitive)
+                    if (topResult.title.toLowerCase() === entry.recipe_name.toLowerCase() || topResult.relevance < 5) {
+                      unlinkedRecipes.push({
+                        name: entry.recipe_name,
+                        match_id: topResult.id,
+                        match_title: topResult.title,
+                      });
+                    }
+                  }
+                } catch {
+                  // FTS search failure is non-blocking
+                }
+              }
+            }
+          }
+
+          const response: Record<string, unknown> = {
             message: `Saved plan for week of ${weekStartDate}`,
             plan: {
               id: plan.id,
@@ -544,7 +652,15 @@ export function createToolHandler(deps: {
               })),
               version: plan.version,
             },
-          });
+          };
+
+          if (unlinkedRecipes.length > 0) {
+            response.unlinked_recipes = unlinkedRecipes;
+            response.warning = "Some entries reference recipes that exist in the knowledge base but aren't linked. Consider re-saving with knowledge_item_id to enable cooking time reminders.";
+            logger.info({ householdId, unlinkedRecipes }, "Unlinked recipe matches found in meal plan");
+          }
+
+          return JSON.stringify(response);
         }
 
         case "get_meal_plan": {

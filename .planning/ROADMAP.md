@@ -171,7 +171,10 @@ Plans:
   2. Admin dashboard displays usage statistics (messages per day, active households, tool call frequency)
   3. Admin dashboard shows cost trends (daily/weekly token spend with model breakdown)
   4. Admin dashboard includes a feedback overview (recent feedback entries, sentiment summary)
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+  - [ ] 39-01-PLAN.md -- Backend admin API endpoints (activity feed, stats, costs, feedback) with admin role guard
+  - [ ] 39-02-PLAN.md -- Frontend admin dashboard page with all sections, SVG charts, and admin nav tab in Hub
 
 ## Progress
 

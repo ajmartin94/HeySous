@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-21)
 ## Current Position
 
 Phase: 38 of 39 (Mini App Theme & Accessibility)
-Plan: 1 of 2 in current phase
-Status: Executing Phase 38
-Last activity: 2026-02-24 -- Completed 38-01 theme infrastructure plan
+Plan: 2 of 2 in current phase (COMPLETE)
+Status: Phase 38 Complete
+Last activity: 2026-02-24 -- Completed 38-02 tag contrast and help page plan
 
-Progress: [======================================..] 93% (82/88 plans complete through Phase 38-01)
+Progress: [=======================================.] 94% (83/88 plans complete through Phase 38-02)
 
 ## Performance Metrics
 
@@ -42,6 +42,7 @@ All decisions documented in PROJECT.md Key Decisions table.
 - Phase 37-01: Plain text parse_mode during streaming, HTML only on final edit; 300ms edit interval; short replies as fresh messages; onText fires every iteration
 - Phase 37-02: Remove 30s timeout timer for streaming; non-streaming fallback on placeholder failure; finalize with marker-stripped clean text; partial text saved on stream error
 - Phase 38-01: Override Telegram --tg-theme-* and --tgui--* CSS variables per theme so existing component CSS works unchanged; default Dark theme with Small font size
+- Phase 38-02: Dark tag text #a3d4a2 (~5:1 contrast), light #2d5a2c (~7:1); help page organized by workflow with Try: examples in Sous voice; font sizes use CSS var() for setting responsiveness
 
 ### Pending Todos
 
@@ -60,6 +61,6 @@ Total: 39 phases across 6 milestones.
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: Completed 38-01-PLAN.md
-Next action: Execute 38-02-PLAN.md
-Resume file: .planning/phases/38-mini-app-theme-accessibility/38-02-PLAN.md
+Stopped at: Completed 38-02-PLAN.md (Phase 38 complete)
+Next action: Begin Phase 39 planning/execution
+Resume file: .planning/phases/38-mini-app-theme-accessibility/38-02-SUMMARY.md

@@ -58,7 +58,7 @@ Requirements for v1.5 Agent Hardening & Polish. Sourced from comprehensive 3-age
 
 ### Documentation
 
-- [ ] **DOCS-01**: Help page update is part of the release checklist and reflects current features
+- [x] **DOCS-01**: Help page update is part of the release checklist and reflects current features
 
 ## Future Requirements
 
@@ -102,7 +102,7 @@ None deferred -- all audit findings scoped into v1.5.
 | CFG-01 | Phase 36 | Complete |
 | UX-01 | Phase 38 | Complete |
 | UX-02 | Phase 39 | Pending |
-| DOCS-01 | Phase 38 | Pending |
+| DOCS-01 | Phase 38 | Complete |
 
 **Coverage:**
 - v1.5 requirements: 26 total

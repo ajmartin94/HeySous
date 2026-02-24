@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-21)
 ## Current Position
 
 Phase: 39 of 40 (Admin Dashboard)
-Plan: 1 of 2 in current phase
-Status: Executing Phase 39
-Last activity: 2026-02-24 -- Completed 39-01 admin dashboard API routes
+Plan: 2 of 2 in current phase
+Status: Phase 39 Complete
+Last activity: 2026-02-24 -- Completed 39-02 admin dashboard frontend
 
-Progress: [=======================================.] 95% (84/88 plans complete through Phase 39-01)
+Progress: [========================================] 97% (86/88 plans complete through Phase 39-02)
 
 ## Performance Metrics
 
@@ -44,6 +44,7 @@ All decisions documented in PROJECT.md Key Decisions table.
 - Phase 38-01: Override Telegram --tg-theme-* and --tgui--* CSS variables per theme so existing component CSS works unchanged; default Dark theme with Small font size
 - Phase 38-02: Dark tag text #a3d4a2 (~5:1 contrast), light #2d5a2c (~7:1); help page organized by workflow with Try: examples in Sous voice; font sizes use CSS var() for setting responsiveness
 - Phase 39-01: Admin guard uses config.adminUserIds inline check (no DB lookup); activity feed uses separate queries per event type merged in JS rather than UNION ALL
+- Phase 39-02: Admin Hub section rendered outside loading conditional for immediate visibility; SVG BarChart uses viewBox-based responsive sizing; budget line computed as weighted cost-per-token projection
 
 ### Pending Todos
 
@@ -63,6 +64,6 @@ Total: 40 phases across 6 milestones.
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: Completed 39-01-PLAN.md
-Next action: Execute 39-02-PLAN.md (Admin Dashboard Frontend)
-Resume file: .planning/phases/39-admin-dashboard/39-01-SUMMARY.md
+Stopped at: Completed 39-02-PLAN.md
+Next action: Execute Phase 40 (Reminder Resilience & Recipe Time Extraction)
+Resume file: .planning/phases/39-admin-dashboard/39-02-SUMMARY.md

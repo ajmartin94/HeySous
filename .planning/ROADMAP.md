@@ -62,7 +62,7 @@ See .planning/milestones/v1.4-ROADMAP.md for full phase history.
 - [x] **Phase 36: Pipeline Efficiency** - Rate limiting, configurable session, N+1 fix, token counting, knowledge content search (completed 2026-02-23)
 - [x] **Phase 37: Streaming** - Stream Claude responses to Telegram for lower perceived latency (completed 2026-02-23)
 - [x] **Phase 38: Mini App Theme & Accessibility** - Theme selection, font size, tag contrast, help page update (completed 2026-02-24)
-- [ ] **Phase 39: Admin Dashboard** - Activity feed, usage stats, cost trends, feedback overview
+- [x] **Phase 39: Admin Dashboard** - Activity feed, usage stats, cost trends, feedback overview (completed 2026-02-24)
 - [ ] **Phase 40: Reminder Resilience & Recipe Time Extraction** - 45min fallback offset, plan-recipe linking guard, structured time metadata
 
 ## Phase Details
@@ -197,7 +197,7 @@ Note: Phase 40 (Reminder Resilience) has no dependencies and can be parallelized
 | 36. Pipeline Efficiency | 3/3 | Complete    | 2026-02-23 | - |
 | 37. Streaming | 2/2 | Complete    | 2026-02-23 | - |
 | 38. Mini App Theme & Accessibility | 2/2 | Complete    | 2026-02-24 | - |
-| 39. Admin Dashboard | 1/2 | In Progress|  | - |
+| 39. Admin Dashboard | 2/2 | Complete   | 2026-02-24 | - |
 | 40. Reminder Resilience & Recipe Time Extraction | v1.5 | 0/2 | Not started | - |
 
 **Total: 32 phases complete (68 plans), 8 phases remaining for v1.5**
@@ -212,7 +212,7 @@ Note: Phase 40 (Reminder Resilience) has no dependencies and can be parallelized
   3. Recipe time fields (prep, cook, total) are stored as structured metadata alongside the unstructured recipe content so time extraction does not depend on regex parsing of free text
   4. `parseRecipeTotalMinutes` falls back to structured metadata when free-text parsing fails, and logs when neither source yields a result
   5. Silent `catch {}` in reminder generation is replaced with observability logging
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 40-01-PLAN.md -- Structured time columns, migration+backfill, auto-extraction on save/update, plan-recipe linking guard

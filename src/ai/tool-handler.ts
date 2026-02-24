@@ -46,6 +46,19 @@ const MAX_ENTRIES = {
   searchLimit: 20,        // search results limit
 } as const;
 
+function validateRequired(value: unknown, field: string, expectedType: "string" | "array"): string | null {
+  if (value === undefined || value === null) {
+    return `${field} is required`;
+  }
+  if (expectedType === "string" && typeof value !== "string") {
+    return `${field} must be a string, got ${typeof value}`;
+  }
+  if (expectedType === "array" && !Array.isArray(value)) {
+    return `${field} must be an array, got ${typeof value}`;
+  }
+  return null;
+}
+
 function validateString(value: unknown, field: string, maxLength: number): string | null {
   if (typeof value !== "string") return null; // Let existing type casting handle undefined/null
   if (value.length > maxLength) {
@@ -208,7 +221,11 @@ export function createToolHandler(deps: {
         }
 
         case "save_knowledge": {
-          const err = validateString(input.title, "title", MAX_LENGTHS.title)
+          const err = validateRequired(input.title, "title", "string")
+            ?? validateRequired(input.summary, "summary", "string")
+            ?? validateRequired(input.content, "content", "string")
+            ?? validateRequired(input.tags, "tags", "array")
+            ?? validateString(input.title, "title", MAX_LENGTHS.title)
             ?? validateString(input.summary, "summary", MAX_LENGTHS.summary)
             ?? validateString(input.content, "content", MAX_LENGTHS.content)
             ?? validateArray(input.tags, "tags", MAX_ENTRIES.tags)

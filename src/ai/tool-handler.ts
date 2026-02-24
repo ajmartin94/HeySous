@@ -591,12 +591,74 @@ export function createToolHandler(deps: {
             knowledge_item_id?: number;
           }>;
 
-          const entries: PlanEntry[] = rawEntries.map((e) => ({
-            day: e.day,
-            recipeName: e.recipe_name,
-            mealType: (e.meal_type as MealType) ?? "dinner",
-            knowledgeItemId: e.knowledge_item_id,
-          }));
+          // Server-side auto-linking: validate provided IDs and auto-link unlinked entries
+          const autoLinked: Array<{ recipe_name: string; knowledge_item_id: number; match_title: string }> = [];
+          const correctedIds: Array<{ recipe_name: string; provided_id: number; corrected_id: number; match_title: string }> = [];
+
+          const entries: PlanEntry[] = rawEntries.map((e) => {
+            let knowledgeItemId = e.knowledge_item_id;
+
+            if (sqlite) {
+              // Phase 1: Validate provided knowledge_item_id
+              if (knowledgeItemId) {
+                try {
+                  const exists = sqlite.prepare(
+                    "SELECT id FROM knowledge_items WHERE id = ? AND household_id = ?"
+                  ).get(knowledgeItemId, householdId) as { id: number } | undefined;
+                  if (!exists) {
+                    // ID is invalid (wrong household or doesn't exist) -- clear it so auto-link can try
+                    const invalidId = knowledgeItemId;
+                    knowledgeItemId = undefined;
+                    logger.warn({ householdId, recipeName: e.recipe_name, invalidId }, "Invalid knowledge_item_id in save_meal_plan, will attempt auto-link");
+                    // We'll track this in correctedIds below if FTS finds a match
+                  }
+                } catch {
+                  // Validation failure is non-blocking
+                }
+              }
+
+              // Phase 2: Auto-link entries without a (valid) knowledge_item_id
+              if (!knowledgeItemId) {
+                try {
+                  const ftsResults = searchFts(sqlite, e.recipe_name, householdId, 1);
+                  if (ftsResults.length > 0) {
+                    const topResult = ftsResults[0];
+                    // Match if title is an exact case-insensitive match OR relevance score is very strong
+                    if (topResult.title.toLowerCase() === e.recipe_name.toLowerCase() || topResult.relevance < 5) {
+                      knowledgeItemId = topResult.id;
+                      if (e.knowledge_item_id) {
+                        correctedIds.push({
+                          recipe_name: e.recipe_name,
+                          provided_id: e.knowledge_item_id,
+                          corrected_id: topResult.id,
+                          match_title: topResult.title,
+                        });
+                      } else {
+                        autoLinked.push({
+                          recipe_name: e.recipe_name,
+                          knowledge_item_id: topResult.id,
+                          match_title: topResult.title,
+                        });
+                      }
+                    }
+                  }
+                } catch {
+                  // FTS search failure is non-blocking
+                }
+              }
+            }
+
+            return {
+              day: e.day,
+              recipeName: e.recipe_name,
+              mealType: (e.meal_type as MealType) ?? "dinner",
+              knowledgeItemId,
+            };
+          });
+
+          if (autoLinked.length > 0 || correctedIds.length > 0) {
+            logger.info({ householdId, autoLinked, correctedIds }, "Server-side recipe auto-linking applied");
+          }
 
           // Check for existing plan to get version for optimistic locking
           const existingPlan = planRepository.getPlan(householdId, weekStartDate);
@@ -611,31 +673,6 @@ export function createToolHandler(deps: {
               is_error: true,
               conflict: true,
             });
-          }
-
-          // Plan-recipe linking guard: check for unlinked recipes that exist in knowledge base
-          const unlinkedRecipes: Array<{ name: string; match_id: number; match_title: string }> = [];
-          if (sqlite) {
-            for (const entry of rawEntries) {
-              if (!entry.knowledge_item_id) {
-                try {
-                  const ftsResults = searchFts(sqlite, entry.recipe_name, householdId, 1);
-                  if (ftsResults.length > 0) {
-                    const topResult = ftsResults[0];
-                    // Only consider it a match if the title closely matches (case-insensitive)
-                    if (topResult.title.toLowerCase() === entry.recipe_name.toLowerCase() || topResult.relevance < 5) {
-                      unlinkedRecipes.push({
-                        name: entry.recipe_name,
-                        match_id: topResult.id,
-                        match_title: topResult.title,
-                      });
-                    }
-                  }
-                } catch {
-                  // FTS search failure is non-blocking
-                }
-              }
-            }
           }
 
           const response: Record<string, unknown> = {
@@ -654,10 +691,8 @@ export function createToolHandler(deps: {
             },
           };
 
-          if (unlinkedRecipes.length > 0) {
-            response.unlinked_recipes = unlinkedRecipes;
-            response.warning = "Some entries reference recipes that exist in the knowledge base but aren't linked. Consider re-saving with knowledge_item_id to enable cooking time reminders.";
-            logger.info({ householdId, unlinkedRecipes }, "Unlinked recipe matches found in meal plan");
+          if (autoLinked.length > 0) {
+            response.auto_linked = autoLinked;
           }
 
           return JSON.stringify(response);

@@ -1,7 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
+import Database from "better-sqlite3";
 import { createToolHandler } from "../../src/ai/tool-handler.js";
 import type { PlanEntry, SavedPlan } from "../../src/planning/repository.js";
 import { createTestClock } from "../../src/clock.js";
+import { initializeFts } from "../../src/knowledge/fts.js";
 
 /** Helper to parse a validation error response */
 function parseError(result: string): { error: string; is_error: boolean } {
@@ -455,5 +457,206 @@ describe("recipe completeness validation", () => {
     expect(result.is_error).toBeUndefined();
     expect(result.incomplete_recipe).toBeUndefined();
     expect(result.id).toBe(1);
+  });
+});
+
+describe("save_meal_plan auto-linking", () => {
+  function createAutoLinkDeps() {
+    // Create a real in-memory SQLite database with FTS
+    const sqlite = new Database(":memory:");
+    sqlite.exec(`
+      CREATE TABLE knowledge_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        household_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        summary TEXT NOT NULL,
+        content TEXT NOT NULL,
+        source TEXT,
+        source_url TEXT,
+        created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+        updated_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+        last_accessed_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+        version INTEGER NOT NULL DEFAULT 1,
+        updated_by TEXT,
+        prep_time_minutes INTEGER,
+        cook_time_minutes INTEGER,
+        total_time_minutes INTEGER
+      )
+    `);
+    initializeFts(sqlite);
+
+    // Insert test recipes
+    sqlite.prepare(
+      "INSERT INTO knowledge_items (id, household_id, title, summary, content) VALUES (?, ?, ?, ?, ?)"
+    ).run(50, "test-household", "Classic Pancakes", "Fluffy pancakes", "Ingredients:\n- flour\nSteps:\n1. Mix");
+    sqlite.prepare(
+      "INSERT INTO knowledge_items (id, household_id, title, summary, content) VALUES (?, ?, ?, ?, ?)"
+    ).run(44, "test-household", "Fish Tacos", "Crispy fish tacos", "Ingredients:\n- fish\nSteps:\n1. Fry");
+    sqlite.prepare(
+      "INSERT INTO knowledge_items (id, household_id, title, summary, content) VALUES (?, ?, ?, ?, ?)"
+    ).run(99, "other-household", "Classic Pancakes", "Different pancakes", "Ingredients:\n- flour\nSteps:\n1. Mix");
+
+    const mockPlanRepository = {
+      savePlan: vi.fn(
+        (
+          _householdId: string,
+          weekStartDate: string,
+          entries: PlanEntry[],
+        ): SavedPlan => ({
+          id: 1,
+          weekStartDate,
+          entries: entries.map((e, i) => ({
+            id: i + 1,
+            dayOfWeek: e.day,
+            mealType: e.mealType ?? "dinner",
+            recipeName: e.recipeName,
+            knowledgeItemId: e.knowledgeItemId ?? null,
+          })),
+        }),
+      ),
+      getPlan: vi.fn(),
+      getActivePlans: vi.fn(),
+    };
+
+    const handler = createToolHandler({
+      retrievalService: {} as any,
+      knowledgeRepository: {} as any,
+      db: {} as any,
+      householdId: "test-household",
+      planRepository: mockPlanRepository as any,
+      sqlite,
+      clock: createTestClock(new Date("2026-02-18")),
+    });
+
+    return { handler, mockPlanRepository, sqlite };
+  }
+
+  it("auto-links entries that match knowledge base recipes by name", async () => {
+    const { handler, mockPlanRepository } = createAutoLinkDeps();
+
+    const result = JSON.parse(
+      await handler.handleToolCall("save_meal_plan", {
+        week_start_date: "2026-02-23",
+        entries: [
+          { day: 0, recipe_name: "Classic Pancakes" },
+          { day: 1, recipe_name: "Fish Tacos" },
+        ],
+      }),
+    );
+
+    // Entries should be auto-linked to their KB matches
+    expect(result.plan.entries[0].knowledgeItemId).toBe(50);
+    expect(result.plan.entries[1].knowledgeItemId).toBe(44);
+
+    // Verify auto-linked info is in response
+    expect(result.auto_linked).toHaveLength(2);
+    expect(result.auto_linked[0].recipe_name).toBe("Classic Pancakes");
+    expect(result.auto_linked[0].knowledge_item_id).toBe(50);
+
+    // Verify repository received the linked entries
+    const savedEntries = mockPlanRepository.savePlan.mock.calls[0][2];
+    expect(savedEntries[0].knowledgeItemId).toBe(50);
+    expect(savedEntries[1].knowledgeItemId).toBe(44);
+  });
+
+  it("does not auto-link entries with no KB match", async () => {
+    const { handler } = createAutoLinkDeps();
+
+    const result = JSON.parse(
+      await handler.handleToolCall("save_meal_plan", {
+        week_start_date: "2026-02-23",
+        entries: [
+          { day: 0, recipe_name: "Beef Wellington" },
+        ],
+      }),
+    );
+
+    expect(result.plan.entries[0].knowledgeItemId).toBeNull();
+    expect(result.auto_linked).toBeUndefined();
+  });
+
+  it("validates and corrects invalid knowledge_item_id from Claude", async () => {
+    const { handler, mockPlanRepository } = createAutoLinkDeps();
+
+    const result = JSON.parse(
+      await handler.handleToolCall("save_meal_plan", {
+        week_start_date: "2026-02-23",
+        entries: [
+          // Claude provides ID 1 which doesn't exist -- should correct to 50
+          { day: 0, recipe_name: "Classic Pancakes", knowledge_item_id: 1 },
+        ],
+      }),
+    );
+
+    // Should be corrected to the real ID 50
+    expect(result.plan.entries[0].knowledgeItemId).toBe(50);
+
+    // Verify the corrected ID was saved
+    const savedEntries = mockPlanRepository.savePlan.mock.calls[0][2];
+    expect(savedEntries[0].knowledgeItemId).toBe(50);
+  });
+
+  it("rejects knowledge_item_id from wrong household", async () => {
+    const { handler, mockPlanRepository } = createAutoLinkDeps();
+
+    const result = JSON.parse(
+      await handler.handleToolCall("save_meal_plan", {
+        week_start_date: "2026-02-23",
+        entries: [
+          // ID 99 exists but belongs to other-household
+          { day: 0, recipe_name: "New Recipe", knowledge_item_id: 99 },
+        ],
+      }),
+    );
+
+    // Should be cleared (no FTS match for "New Recipe")
+    expect(result.plan.entries[0].knowledgeItemId).toBeNull();
+
+    const savedEntries = mockPlanRepository.savePlan.mock.calls[0][2];
+    expect(savedEntries[0].knowledgeItemId).toBeUndefined();
+  });
+
+  it("preserves valid knowledge_item_id without modification", async () => {
+    const { handler, mockPlanRepository } = createAutoLinkDeps();
+
+    const result = JSON.parse(
+      await handler.handleToolCall("save_meal_plan", {
+        week_start_date: "2026-02-23",
+        entries: [
+          // Claude provides correct ID 50
+          { day: 0, recipe_name: "Classic Pancakes", knowledge_item_id: 50 },
+        ],
+      }),
+    );
+
+    // Valid ID should pass through unchanged
+    expect(result.plan.entries[0].knowledgeItemId).toBe(50);
+    expect(result.auto_linked).toBeUndefined();
+
+    const savedEntries = mockPlanRepository.savePlan.mock.calls[0][2];
+    expect(savedEntries[0].knowledgeItemId).toBe(50);
+  });
+
+  it("handles mix of linked, unlinked, and auto-linked entries", async () => {
+    const { handler } = createAutoLinkDeps();
+
+    const result = JSON.parse(
+      await handler.handleToolCall("save_meal_plan", {
+        week_start_date: "2026-02-23",
+        entries: [
+          { day: 0, recipe_name: "Classic Pancakes", knowledge_item_id: 50 }, // valid, keep
+          { day: 1, recipe_name: "Fish Tacos" },                              // auto-link to 44
+          { day: 2, recipe_name: "Beef Wellington" },                          // no match, stays null
+        ],
+      }),
+    );
+
+    expect(result.plan.entries[0].knowledgeItemId).toBe(50);  // preserved
+    expect(result.plan.entries[1].knowledgeItemId).toBe(44);  // auto-linked
+    expect(result.plan.entries[2].knowledgeItemId).toBeNull(); // no match
+
+    // Only Fish Tacos should be in auto_linked
+    expect(result.auto_linked).toHaveLength(1);
+    expect(result.auto_linked[0].recipe_name).toBe("Fish Tacos");
   });
 });

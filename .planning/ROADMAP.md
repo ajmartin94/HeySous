@@ -198,7 +198,7 @@ Note: Phase 40 (Reminder Resilience) has no dependencies and can be parallelized
 | 37. Streaming | 2/2 | Complete    | 2026-02-23 | - |
 | 38. Mini App Theme & Accessibility | 2/2 | Complete    | 2026-02-24 | - |
 | 39. Admin Dashboard | 1/2 | In Progress|  | - |
-| 40. Reminder Resilience & Recipe Time Extraction | v1.5 | 0/0 | Not started | - |
+| 40. Reminder Resilience & Recipe Time Extraction | v1.5 | 0/2 | Not started | - |
 
 **Total: 32 phases complete (68 plans), 8 phases remaining for v1.5**
 
@@ -212,7 +212,8 @@ Note: Phase 40 (Reminder Resilience) has no dependencies and can be parallelized
   3. Recipe time fields (prep, cook, total) are stored as structured metadata alongside the unstructured recipe content so time extraction does not depend on regex parsing of free text
   4. `parseRecipeTotalMinutes` falls back to structured metadata when free-text parsing fails, and logs when neither source yields a result
   5. Silent `catch {}` in reminder generation is replaced with observability logging
-**Plans:** 1/2 plans executed
+**Plans:** 2 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 40 to break down)
+- [ ] 40-01-PLAN.md -- Structured time columns, migration+backfill, auto-extraction on save/update, plan-recipe linking guard
+- [ ] 40-02-PLAN.md -- Generator fixes: 45-min fallback, structured metadata lookup, error logging (TDD)

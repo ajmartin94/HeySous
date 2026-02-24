@@ -46,12 +46,15 @@ const MAX_ENTRIES = {
   searchLimit: 20,        // search results limit
 } as const;
 
-function validateRequired(value: unknown, field: string, expectedType: "string" | "array"): string | null {
+function validateRequired(value: unknown, field: string, expectedType: "string" | "array" | "number"): string | null {
   if (value === undefined || value === null) {
     return `${field} is required`;
   }
   if (expectedType === "string" && typeof value !== "string") {
     return `${field} must be a string, got ${typeof value}`;
+  }
+  if (expectedType === "number" && typeof value !== "number") {
+    return `${field} must be a number, got ${typeof value}`;
   }
   if (expectedType === "array" && !Array.isArray(value)) {
     return `${field} must be an array, got ${typeof value}`;
@@ -171,7 +174,8 @@ export function createToolHandler(deps: {
     async handleToolCall(name: string, input: Record<string, unknown>): Promise<string> {
       switch (name) {
         case "search_knowledge": {
-          const err = validateString(input.query, "query", MAX_LENGTHS.query)
+          const err = validateRequired(input.query, "query", "string")
+            ?? validateString(input.query, "query", MAX_LENGTHS.query)
             ?? (input.limit !== undefined && (typeof input.limit !== "number" || !Number.isInteger(input.limit) || input.limit < 1 || input.limit > MAX_ENTRIES.searchLimit)
               ? `limit must be 1-${MAX_ENTRIES.searchLimit}, got ${JSON.stringify(input.limit)}`
               : null);
@@ -198,7 +202,8 @@ export function createToolHandler(deps: {
         }
 
         case "get_knowledge_item": {
-          const err = validatePositiveInt(input.id, "id");
+          const err = validateRequired(input.id, "id", "number")
+            ?? validatePositiveInt(input.id, "id");
           if (err) return validationError(err);
 
           const id = input.id as number;
@@ -419,7 +424,8 @@ export function createToolHandler(deps: {
         }
 
         case "update_knowledge": {
-          const err = validatePositiveInt(input.id, "id")
+          const err = validateRequired(input.id, "id", "number")
+            ?? validatePositiveInt(input.id, "id")
             ?? validateString(input.title, "title", MAX_LENGTHS.title)
             ?? validateString(input.summary, "summary", MAX_LENGTHS.summary)
             ?? validateString(input.content, "content", MAX_LENGTHS.content)
@@ -541,7 +547,8 @@ export function createToolHandler(deps: {
         }
 
         case "delete_knowledge": {
-          const err = validatePositiveInt(input.id, "id");
+          const err = validateRequired(input.id, "id", "number")
+            ?? validatePositiveInt(input.id, "id");
           if (err) return validationError(err);
 
           const id = input.id as number;
@@ -584,7 +591,9 @@ export function createToolHandler(deps: {
           }
 
           {
-            const err = validateString(input.week_start_date, "week_start_date", MAX_LENGTHS.date)
+            const err = validateRequired(input.week_start_date, "week_start_date", "string")
+              ?? validateRequired(input.entries, "entries", "array")
+              ?? validateString(input.week_start_date, "week_start_date", MAX_LENGTHS.date)
               ?? validateArray(input.entries, "entries", MAX_ENTRIES.mealPlanEntries);
             if (err) return validationError(err);
 
@@ -759,7 +768,9 @@ export function createToolHandler(deps: {
           }
 
           {
-            const err = validateString(input.recipe_name, "recipe_name", MAX_LENGTHS.recipeName)
+            const err = validateRequired(input.recipe_name, "recipe_name", "string")
+              ?? validateRequired(input.cooked_date, "cooked_date", "string")
+              ?? validateString(input.recipe_name, "recipe_name", MAX_LENGTHS.recipeName)
               ?? validateString(input.cooked_date, "cooked_date", MAX_LENGTHS.date)
               ?? validateString(input.notes, "notes", MAX_LENGTHS.notes)
               ?? validatePositiveInt(input.knowledge_item_id, "knowledge_item_id");
@@ -828,7 +839,8 @@ export function createToolHandler(deps: {
           }
 
           {
-            const err = validateArray(input.items, "items", MAX_ENTRIES.groceryItems);
+            const err = validateRequired(input.items, "items", "array")
+              ?? validateArray(input.items, "items", MAX_ENTRIES.groceryItems);
             if (err) return validationError(err);
 
             // Per-item validation
@@ -1081,7 +1093,9 @@ export function createToolHandler(deps: {
         }
 
         case "record_feedback": {
-          const err = validateString(input.recipe_name, "recipe_name", MAX_LENGTHS.recipeName)
+          const err = validateRequired(input.recipe_name, "recipe_name", "string")
+            ?? validateRequired(input.sentiment, "sentiment", "string")
+            ?? validateString(input.recipe_name, "recipe_name", MAX_LENGTHS.recipeName)
             ?? validatePositiveInt(input.knowledge_item_id, "knowledge_item_id")
             ?? validateString(input.notes, "notes", MAX_LENGTHS.notes)
             ?? validateString(input.date, "date", MAX_LENGTHS.date);
@@ -1151,7 +1165,8 @@ export function createToolHandler(deps: {
           }
 
           {
-            const err = validateString(input.text, "text", MAX_LENGTHS.text);
+            const err = validateRequired(input.text, "text", "string")
+              ?? validateString(input.text, "text", MAX_LENGTHS.text);
             if (err) return validationError(err);
           }
 
@@ -1167,7 +1182,8 @@ export function createToolHandler(deps: {
         }
 
         case "import_from_url": {
-          const err = validateString(input.url, "url", MAX_LENGTHS.url);
+          const err = validateRequired(input.url, "url", "string")
+            ?? validateString(input.url, "url", MAX_LENGTHS.url);
           if (err) return validationError(err);
 
           const url = input.url as string;

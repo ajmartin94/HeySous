@@ -55,12 +55,13 @@ None.
 ### Roadmap Evolution
 
 5 milestones shipped: v1.0 (10 phases), v1.1 (4 phases), v1.2 (5 phases), v1.3 (5 phases), v1.4 (7 phases).
-v1.5 planned: 8 phases (32-39), 26 requirements mapped.
-Total: 39 phases across 6 milestones.
+v1.5 planned: 9 phases (32-40), 26 requirements mapped.
+Total: 40 phases across 6 milestones.
+- Phase 40 added: Reminder Resilience & Recipe Time Extraction (45min fallback, plan-recipe linking guard, structured time metadata)
 
 ## Session Continuity
 
-Last session: 2026-02-24
-Stopped at: Completed 38-02-PLAN.md (Phase 38 complete)
-Next action: Begin Phase 39 planning/execution
-Resume file: .planning/phases/38-mini-app-theme-accessibility/38-02-SUMMARY.md
+Last session: 2026-02-23
+Stopped at: Phase 40 context gathered
+Next action: Plan Phase 40 (or Phase 39)
+Resume file: .planning/phases/40-reminder-resilience-recipe-time-extraction/40-CONTEXT.md

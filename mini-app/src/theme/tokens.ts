@@ -1,8 +1,8 @@
 export const colors = {
-  accent: '#5B8C5A',
-  accentLight: '#7DB87C',
-  accentDark: '#3D6B3C',
-  accentSubtle: 'rgba(91, 140, 90, 0.12)',
+  accent: '#4A7FB5',
+  accentLight: '#6BA3D6',
+  accentDark: '#365F8C',
+  accentSubtle: 'rgba(74, 127, 181, 0.12)',
 } as const;
 
 export const fontSizePresets = {

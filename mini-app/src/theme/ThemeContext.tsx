@@ -13,6 +13,49 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 const THEME_KEY = 'hs-theme';
 const FONT_SIZE_KEY = 'hs-font-size';
 
+// Inline style overrides keyed by theme — must match variables.css values.
+// These are applied as inline styles to override Telegram SDK's bindCssVars().
+const themeInlineVars: Record<Theme, Record<string, string>> = {
+  dark: {
+    '--tg-theme-bg-color': '#1a1a2e',
+    '--tg-theme-text-color': '#e8e8e8',
+    '--tg-theme-hint-color': '#8a8a9a',
+    '--tg-theme-subtitle-text-color': '#8a8a9a',
+    '--tg-theme-secondary-bg-color': '#232340',
+    '--tg-theme-section-bg-color': '#232340',
+    '--tg-theme-section-header-text-color': '#8a8a9a',
+    '--tg-theme-header-bg-color': '#16213e',
+    '--tg-theme-accent-text-color': '#4A7FB5',
+    '--tg-theme-link-color': '#6BA3D6',
+    '--tg-theme-button-color': '#4A7FB5',
+    '--tg-theme-button-text-color': '#ffffff',
+    '--tg-theme-destructive-text-color': '#e53935',
+    '--tgui--bg_color': '#1a1a2e',
+    '--tgui--text_color': '#e8e8e8',
+    '--tgui--secondary_hint_color': '#6a6a7a',
+    '--tgui--section_bg_color': '#232340',
+  },
+  light: {
+    '--tg-theme-bg-color': '#ffffff',
+    '--tg-theme-text-color': '#1a1a1a',
+    '--tg-theme-hint-color': '#999999',
+    '--tg-theme-subtitle-text-color': '#999999',
+    '--tg-theme-secondary-bg-color': '#f5f5f5',
+    '--tg-theme-section-bg-color': '#ffffff',
+    '--tg-theme-section-header-text-color': '#999999',
+    '--tg-theme-header-bg-color': '#f5f5f5',
+    '--tg-theme-accent-text-color': '#365F8C',
+    '--tg-theme-link-color': '#365F8C',
+    '--tg-theme-button-color': '#4A7FB5',
+    '--tg-theme-button-text-color': '#ffffff',
+    '--tg-theme-destructive-text-color': '#e53935',
+    '--tgui--bg_color': '#ffffff',
+    '--tgui--text_color': '#1a1a1a',
+    '--tgui--secondary_hint_color': '#bbbbbb',
+    '--tgui--section_bg_color': '#ffffff',
+  },
+};
+
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(() => {
     const stored = localStorage.getItem(THEME_KEY);
@@ -26,8 +69,15 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   // Apply to DOM immediately when state changes
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
+    const root = document.documentElement;
+    root.setAttribute('data-theme', theme);
     localStorage.setItem(THEME_KEY, theme);
+
+    // Set as inline styles to override Telegram SDK's bindCssVars()
+    const vars = themeInlineVars[theme];
+    for (const [prop, val] of Object.entries(vars)) {
+      root.style.setProperty(prop, val);
+    }
   }, [theme]);
 
   useEffect(() => {

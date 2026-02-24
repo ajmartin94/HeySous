@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-21)
 
 **Core value:** The recipe brain -- an AI agent that remembers everything about your meals and reasons over that knowledge to help you plan.
-**Current focus:** v1.5 Agent Hardening & Polish -- Phase 37: Streaming
+**Current focus:** v1.5 Agent Hardening & Polish -- Phase 38: Mini App Theme & Accessibility
 
 ## Current Position
 
-Phase: 37 of 39 (Streaming)
-Plan: 2 of 2 in current phase
-Status: Executing Phase 37
-Last activity: 2026-02-23 -- Completed 37-02 streaming pipeline integration plan
+Phase: 38 of 39 (Mini App Theme & Accessibility)
+Plan: 1 of 2 in current phase
+Status: Executing Phase 38
+Last activity: 2026-02-24 -- Completed 38-01 theme infrastructure plan
 
-Progress: [=====================================...] 92% (81/88 plans complete through Phase 37-02)
+Progress: [======================================..] 93% (82/88 plans complete through Phase 38-01)
 
 ## Performance Metrics
 
@@ -41,6 +41,7 @@ All decisions documented in PROJECT.md Key Decisions table.
 - Phase 36-03: Content-aware dedup with 85% Jaccard threshold; ingredient overlap for recipes, word-level similarity for preferences; content-weighted BM25 search
 - Phase 37-01: Plain text parse_mode during streaming, HTML only on final edit; 300ms edit interval; short replies as fresh messages; onText fires every iteration
 - Phase 37-02: Remove 30s timeout timer for streaming; non-streaming fallback on placeholder failure; finalize with marker-stripped clean text; partial text saved on stream error
+- Phase 38-01: Override Telegram --tg-theme-* and --tgui--* CSS variables per theme so existing component CSS works unchanged; default Dark theme with Small font size
 
 ### Pending Todos
 
@@ -58,7 +59,7 @@ Total: 39 phases across 6 milestones.
 
 ## Session Continuity
 
-Last session: 2026-02-23
-Stopped at: Phase 38 planned (2 plans, 2 waves, verified)
-Next action: Execute Phase 38
-Resume file: .planning/phases/38-mini-app-theme-accessibility/38-01-PLAN.md
+Last session: 2026-02-24
+Stopped at: Completed 38-01-PLAN.md
+Next action: Execute 38-02-PLAN.md
+Resume file: .planning/phases/38-mini-app-theme-accessibility/38-02-PLAN.md

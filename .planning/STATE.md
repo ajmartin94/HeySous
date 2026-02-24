@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-21)
 
 **Core value:** The recipe brain -- an AI agent that remembers everything about your meals and reasons over that knowledge to help you plan.
-**Current focus:** v1.5 Agent Hardening & Polish -- Phase 39: Admin Dashboard
+**Current focus:** v1.5 Agent Hardening & Polish -- Phase 40: Reminder Resilience & Recipe Time Extraction
 
 ## Current Position
 
-Phase: 39 of 40 (Admin Dashboard)
-Plan: 2 of 2 in current phase
-Status: Phase 39 Complete
-Last activity: 2026-02-24 -- Completed 39-02 admin dashboard frontend
+Phase: 40 of 40 (Reminder Resilience & Recipe Time Extraction)
+Plan: 1 of 2 in current phase
+Status: Plan 40-01 Complete
+Last activity: 2026-02-24 -- Completed 40-01 recipe time extraction
 
-Progress: [========================================] 97% (86/88 plans complete through Phase 39-02)
+Progress: [========================================] 98% (87/88 plans complete through Phase 40-01)
 
 ## Performance Metrics
 
@@ -45,6 +45,7 @@ All decisions documented in PROJECT.md Key Decisions table.
 - Phase 38-02: Dark tag text #a3d4a2 (~5:1 contrast), light #2d5a2c (~7:1); help page organized by workflow with Try: examples in Sous voice; font sizes use CSS var() for setting responsiveness
 - Phase 39-01: Admin guard uses config.adminUserIds inline check (no DB lookup); activity feed uses separate queries per event type merged in JS rather than UNION ALL
 - Phase 39-02: Admin Hub section rendered outside loading conditional for immediate visibility; SVG BarChart uses viewBox-based responsive sizing; budget line computed as weighted cost-per-token projection
+- Phase 40-01: Exported parseTimeToMinutes from generator.ts for reuse; non-blocking linking guard returns unlinked_recipes warning alongside successful save; time auto-extraction with explicit param override
 
 ### Pending Todos
 
@@ -64,6 +65,6 @@ Total: 40 phases across 6 milestones.
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: Completed 39-02-PLAN.md
-Next action: Execute Phase 40 (Reminder Resilience & Recipe Time Extraction)
-Resume file: .planning/phases/39-admin-dashboard/39-02-SUMMARY.md
+Stopped at: Completed 40-01-PLAN.md
+Next action: Execute 40-02-PLAN.md (Reminder Resilience)
+Resume file: .planning/phases/40-reminder-resilience-recipe-time-extraction/40-01-SUMMARY.md

@@ -54,7 +54,7 @@ Requirements for v1.5 Agent Hardening & Polish. Sourced from comprehensive 3-age
 ### UI/UX
 
 - [x] **UX-01**: Mini App offers theme selection, font size adjustment, and improved tag contrast
-- [ ] **UX-02**: Admin dashboard shows activity feed, usage stats, cost trends, and feedback overview
+- [x] **UX-02**: Admin dashboard shows activity feed, usage stats, cost trends, and feedback overview
 
 ### Documentation
 
@@ -101,7 +101,7 @@ None deferred -- all audit findings scoped into v1.5.
 | DATA-01 | Phase 34 | Complete |
 | CFG-01 | Phase 36 | Complete |
 | UX-01 | Phase 38 | Complete |
-| UX-02 | Phase 39 | Pending |
+| UX-02 | Phase 39 | Complete |
 | DOCS-01 | Phase 38 | Complete |
 
 **Coverage:**

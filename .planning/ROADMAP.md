@@ -7,7 +7,7 @@
 - [x] **v1.2 Onboarding and Feedback** - Phases 15-19 (shipped 2026-02-11)
 - [x] **v1.3 AI Polish & UX** - Phases 20-24 (shipped 2026-02-19)
 - [x] **v1.4 Backlog Sweep** - Phases 25-31 (shipped 2026-02-21)
-- [ ] **v1.5 Agent Hardening & Polish** - Phases 32-39 (in progress)
+- [ ] **v1.5 Agent Hardening & Polish** - Phases 32-40 (in progress)
 
 ## Phases
 
@@ -63,6 +63,7 @@ See .planning/milestones/v1.4-ROADMAP.md for full phase history.
 - [x] **Phase 37: Streaming** - Stream Claude responses to Telegram for lower perceived latency (completed 2026-02-23)
 - [x] **Phase 38: Mini App Theme & Accessibility** - Theme selection, font size, tag contrast, help page update (completed 2026-02-24)
 - [ ] **Phase 39: Admin Dashboard** - Activity feed, usage stats, cost trends, feedback overview
+- [ ] **Phase 40: Reminder Resilience & Recipe Time Extraction** - 45min fallback offset, plan-recipe linking guard, structured time metadata
 
 ## Phase Details
 
@@ -178,8 +179,9 @@ Plans:
 
 ## Progress
 
-**Execution Order:** 32 -> 33 -> 34 -> 35 -> 36 -> 37 -> 38 -> 39
+**Execution Order:** 32 -> 33 -> 34 -> 35 -> 36 -> 37 -> 38 -> 39 -> 40
 Note: Phase 38 (Mini App Theme) has no backend dependencies and can be parallelized with phases 33-37.
+Note: Phase 40 (Reminder Resilience) has no dependencies and can be parallelized with Phase 39.
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -195,6 +197,22 @@ Note: Phase 38 (Mini App Theme) has no backend dependencies and can be paralleli
 | 36. Pipeline Efficiency | 3/3 | Complete    | 2026-02-23 | - |
 | 37. Streaming | 2/2 | Complete    | 2026-02-23 | - |
 | 38. Mini App Theme & Accessibility | 2/2 | Complete    | 2026-02-24 | - |
-| 39. Admin Dashboard | v1.5 | 0/0 | Not started | - |
+| 39. Admin Dashboard | 1/2 | In Progress|  | - |
+| 40. Reminder Resilience & Recipe Time Extraction | v1.5 | 0/0 | Not started | - |
 
-**Total: 32 phases complete (68 plans), 7 phases remaining for v1.5**
+**Total: 32 phases complete (68 plans), 8 phases remaining for v1.5**
+
+### Phase 40: Reminder Resilience & Recipe Time Extraction
+
+**Goal:** Start-cooking reminders fire at the right time by default, recipe time data is reliably extractable, and plan entries without linked recipes are flagged before save
+**Depends on:** Nothing (bugfix phase, independent of Phase 39)
+**Success Criteria** (what must be TRUE):
+  1. Start-cooking reminders default to 45 minutes before dinner time when recipe prep/cook time cannot be determined, instead of firing at dinner time
+  2. When Claude saves a meal plan entry without a `knowledge_item_id` for a recipe that exists in the knowledge base, the tool handler warns Claude to search and link the recipe
+  3. Recipe time fields (prep, cook, total) are stored as structured metadata alongside the unstructured recipe content so time extraction does not depend on regex parsing of free text
+  4. `parseRecipeTotalMinutes` falls back to structured metadata when free-text parsing fails, and logs when neither source yields a result
+  5. Silent `catch {}` in reminder generation is replaced with observability logging
+**Plans:** 1/2 plans executed
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 40 to break down)

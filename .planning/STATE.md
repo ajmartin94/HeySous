@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-21)
 
 **Core value:** The recipe brain -- an AI agent that remembers everything about your meals and reasons over that knowledge to help you plan.
-**Current focus:** v1.5 Agent Hardening & Polish -- Phase 38: Mini App Theme & Accessibility
+**Current focus:** v1.5 Agent Hardening & Polish -- Phase 39: Admin Dashboard
 
 ## Current Position
 
-Phase: 38 of 39 (Mini App Theme & Accessibility)
-Plan: 2 of 2 in current phase (COMPLETE)
-Status: Phase 38 Complete
-Last activity: 2026-02-24 -- Completed 38-02 tag contrast and help page plan
+Phase: 39 of 40 (Admin Dashboard)
+Plan: 1 of 2 in current phase
+Status: Executing Phase 39
+Last activity: 2026-02-24 -- Completed 39-01 admin dashboard API routes
 
-Progress: [=======================================.] 94% (83/88 plans complete through Phase 38-02)
+Progress: [=======================================.] 95% (84/88 plans complete through Phase 39-01)
 
 ## Performance Metrics
 
@@ -43,6 +43,7 @@ All decisions documented in PROJECT.md Key Decisions table.
 - Phase 37-02: Remove 30s timeout timer for streaming; non-streaming fallback on placeholder failure; finalize with marker-stripped clean text; partial text saved on stream error
 - Phase 38-01: Override Telegram --tg-theme-* and --tgui--* CSS variables per theme so existing component CSS works unchanged; default Dark theme with Small font size
 - Phase 38-02: Dark tag text #a3d4a2 (~5:1 contrast), light #2d5a2c (~7:1); help page organized by workflow with Try: examples in Sous voice; font sizes use CSS var() for setting responsiveness
+- Phase 39-01: Admin guard uses config.adminUserIds inline check (no DB lookup); activity feed uses separate queries per event type merged in JS rather than UNION ALL
 
 ### Pending Todos
 
@@ -61,7 +62,7 @@ Total: 40 phases across 6 milestones.
 
 ## Session Continuity
 
-Last session: 2026-02-23
-Stopped at: Phase 40 context gathered
-Next action: Plan Phase 40 (or Phase 39)
-Resume file: .planning/phases/40-reminder-resilience-recipe-time-extraction/40-CONTEXT.md
+Last session: 2026-02-24
+Stopped at: Completed 39-01-PLAN.md
+Next action: Execute 39-02-PLAN.md (Admin Dashboard Frontend)
+Resume file: .planning/phases/39-admin-dashboard/39-01-SUMMARY.md

@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-02-21)
 Phase: 40 of 40 (Reminder Resilience & Recipe Time Extraction)
 Plan: 2 of 2 in current phase
 Status: Phase 40 Complete -- All plans executed
-Last activity: 2026-02-24 -- Completed 40-02 reminder resilience
+Last activity: 2026-02-24 - Completed quick task 2: Update color scheme — green to soft blue for accessibility
 
 Progress: [========================================] 100% (88/88 plans complete through Phase 40-02)
 
@@ -42,7 +42,7 @@ All decisions documented in PROJECT.md Key Decisions table.
 - Phase 37-01: Plain text parse_mode during streaming, HTML only on final edit; 300ms edit interval; short replies as fresh messages; onText fires every iteration
 - Phase 37-02: Remove 30s timeout timer for streaming; non-streaming fallback on placeholder failure; finalize with marker-stripped clean text; partial text saved on stream error
 - Phase 38-01: Override Telegram --tg-theme-* and --tgui--* CSS variables per theme so existing component CSS works unchanged; default Dark theme with Small font size
-- Phase 38-02: Dark tag text #a3d4a2 (~5:1 contrast), light #2d5a2c (~7:1); help page organized by workflow with Try: examples in Sous voice; font sizes use CSS var() for setting responsiveness
+- Phase 38-02: Dark tag text #8DC4F0 (~5.1:1 contrast), light #2A5278 (~7.3:1); help page organized by workflow with Try: examples in Sous voice; font sizes use CSS var() for setting responsiveness
 - Phase 39-01: Admin guard uses config.adminUserIds inline check (no DB lookup); activity feed uses separate queries per event type merged in JS rather than UNION ALL
 - Phase 39-02: Admin Hub section rendered outside loading conditional for immediate visibility; SVG BarChart uses viewBox-based responsive sizing; budget line computed as weighted cost-per-token projection
 - Phase 40-01: Exported parseTimeToMinutes from generator.ts for reuse; non-blocking linking guard returns unlinked_recipes warning alongside successful save; time auto-extraction with explicit param override
@@ -55,6 +55,12 @@ All decisions documented in PROJECT.md Key Decisions table.
 ### Blockers/Concerns
 
 None.
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 2 | Update color scheme — green to soft blue for accessibility | 2026-02-24 | 3cc3293 | [2-update-color-scheme-for-better-accessibi](./quick/2-update-color-scheme-for-better-accessibi/) |
 
 ### Roadmap Evolution
 

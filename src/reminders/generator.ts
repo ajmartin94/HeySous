@@ -117,8 +117,10 @@ export function generateReminders(deps: {
 }): void {
   const { reminderRepository, planRepository, householdId, settings, clock } = deps;
 
-  // 1. Delete existing future pending reminders for this household
-  reminderRepository.deleteFutureReminders(householdId);
+  // 1. Delete ALL pending reminders for this household (not just future ones).
+  // Using deleteAllPending ensures past-due-but-unsent reminders with stale
+  // meal data are also removed when regenerating after a plan change.
+  reminderRepository.deleteAllPending(householdId);
 
   // 2. Get active plans (current week + next week)
   const plans = planRepository.getActivePlans(householdId);

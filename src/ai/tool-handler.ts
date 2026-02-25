@@ -701,6 +701,11 @@ export function createToolHandler(deps: {
             });
           }
 
+          // Regenerate reminders after plan change to avoid stale reminder context
+          if (generateRemindersFn) {
+            generateRemindersFn(householdId);
+          }
+
           const response: Record<string, unknown> = {
             message: `Saved plan for week of ${weekStartDate}`,
             plan: {

@@ -201,6 +201,11 @@ export function Help() {
       <p style={paragraphStyle}>
         - <b>Settings</b> -- Theme (light/dark) and font size preferences
       </p>
+      {isAdmin && (
+        <p style={paragraphStyle}>
+          - <b>Admin</b> -- Activity feed, usage stats, cost trends, and feedback overview
+        </p>
+      )}
 
       {/* Commands */}
       <div style={{ ...sectionHeaderStyle, marginTop: '32px' }}>Commands</div>

@@ -222,7 +222,8 @@ Plans:
 
 **Goal:** Reminders always reflect the current meal plan by regenerating after every successful plan save
 **Depends on:** Phase 40
-**Plans:** 1/1 plans complete
+**Plans:** 2 plans
 
 Plans:
-- [ ] 41-01-PLAN.md -- Call generateRemindersFn after save_meal_plan to prevent stale reminders
+- [x] 41-01-PLAN.md -- Call generateRemindersFn after save_meal_plan to prevent stale reminders
+- [ ] 41-02-PLAN.md -- Fix phantom reminders: delete all statuses on regeneration (gap closure from UAT)

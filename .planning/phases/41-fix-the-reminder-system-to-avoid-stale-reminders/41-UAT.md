@@ -1,9 +1,9 @@
 ---
-status: diagnosed
+status: resolved
 phase: 41-fix-the-reminder-system-to-avoid-stale-reminders
 source: [41-01-SUMMARY.md]
 started: 2026-02-25T02:30:00Z
-updated: 2026-02-25T03:00:00Z
+updated: 2026-02-25T04:00:00Z
 ---
 
 ## Current Test
@@ -37,7 +37,7 @@ skipped: 0
 ## Gaps
 
 - truth: "After modifying a meal plan, only reminders for the current plan meals should fire — no phantom reminders for replaced meals"
-  status: failed
+  status: resolved
   reason: "User reported: Got a morning summary for the correct meal, but a prep alert for the wrong (old) meal"
   severity: major
   test: 3

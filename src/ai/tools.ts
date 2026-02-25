@@ -496,7 +496,7 @@ export const REMINDER_TOOLS: Anthropic.Tool[] = [
         },
         prep_alerts_enabled: {
           type: "boolean",
-          description: "Enable or disable day-before prep alert reminders",
+          description: "Enable or disable tomorrow's prep guidance in morning summaries (thawing, marinating, etc.)",
         },
         muted_until: {
           type: "string",

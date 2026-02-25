@@ -99,10 +99,11 @@ export function parseRecipeTotalMinutes(content: string): number | null {
 /**
  * Generate reminder rows from active meal plan data.
  *
- * Creates three types of reminders:
- * 1. morning_summary -- daily overview of planned meals (or nudge if no meals)
- * 2. prep_alert -- day-before morning alert for recipes with knowledge items
- * 3. start_cooking -- dinner-time nudge to start cooking (adjusted for total recipe prep+cook time)
+ * Creates two types of reminders:
+ * 1. morning_summary -- daily overview of planned meals (or nudge if no meals).
+ *    When prepAlertsEnabled, includes tomorrow's meal data so Claude can mention
+ *    any advance prep (thawing, marinating, etc.) in the same message.
+ * 2. start_cooking -- dinner-time nudge to start cooking (adjusted for total recipe prep+cook time)
  *
  * On days with no meal plan, a "no_plan_nudge" morning summary is generated
  * instead of silence.
@@ -193,17 +194,34 @@ export function generateReminders(deps: {
         ) {
           if (meals && meals.length > 0) {
             // Day has meals planned
+            const contextData: Record<string, unknown> = {
+              date: currentDate,
+              meals: meals.map((m) => ({
+                mealType: m.mealType,
+                recipeName: m.recipeName,
+              })),
+            };
+
+            // Include tomorrow's meals for advance prep guidance
+            if (settings.prepAlertsEnabled) {
+              const tomorrow = addDays(currentDate, 1);
+              const tomorrowMeals = dateMeals.get(tomorrow);
+              if (tomorrowMeals && tomorrowMeals.length > 0) {
+                contextData.tomorrowMeals = tomorrowMeals
+                  .filter((m) => m.knowledgeItemId)
+                  .map((m) => ({
+                    mealType: m.mealType,
+                    recipeName: m.recipeName,
+                    knowledgeItemId: m.knowledgeItemId,
+                  }));
+              }
+            }
+
             reminderRepository.createReminder({
               householdId,
               type: "morning_summary",
               dueAt,
-              contextJson: JSON.stringify({
-                date: currentDate,
-                meals: meals.map((m) => ({
-                  mealType: m.mealType,
-                  recipeName: m.recipeName,
-                })),
-              }),
+              contextJson: JSON.stringify(contextData),
             });
           } else {
             // No meals -- nudge reminder
@@ -221,52 +239,7 @@ export function generateReminders(deps: {
       }
     }
 
-    // b. Prep alerts: for each recipe with a knowledgeItemId
-    if (settings.prepAlertsEnabled && meals) {
-      for (const meal of meals) {
-        if (meal.knowledgeItemId && currentDate !== today) {
-          // Prep alert fires the morning BEFORE the meal
-          const prepDate = addDays(currentDate, -1);
-
-          // Only if prep date is today or later
-          if (prepDate >= today) {
-            const dueAt = localTimeToUtc(
-              prepDate,
-              settings.morningTime,
-              settings.timezone,
-            );
-
-            if (dueAt.getTime() > clock.now()) {
-              const windowStart = new Date(dueAt.getTime() - 60_000);
-              const windowEnd = new Date(dueAt.getTime() + 60_000);
-
-              if (
-                !reminderRepository.hasPendingReminder(
-                  householdId,
-                  "prep_alert",
-                  windowStart,
-                  windowEnd,
-                )
-              ) {
-                reminderRepository.createReminder({
-                  householdId,
-                  type: "prep_alert",
-                  dueAt,
-                  contextJson: JSON.stringify({
-                    recipeName: meal.recipeName,
-                    knowledgeItemId: meal.knowledgeItemId,
-                    mealDate: currentDate,
-                    mealType: meal.mealType,
-                  }),
-                });
-              }
-            }
-          }
-        }
-      }
-    }
-
-    // c. Start-cooking nudge: for each dinner entry
+    // b. Start-cooking nudge: for each dinner entry
     // Adjusted for total recipe prep+cook time when available
     // Fallback chain: structured metadata -> content parsing -> 45-min default
     if (meals) {

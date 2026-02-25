@@ -42,7 +42,7 @@ export function createRemindersHandler(
     const text = `<b>Reminder Settings</b>
 
 Morning summary: ${morningStatus} (at ${settings.morningTime})
-Prep alerts: ${prepStatus}
+Tomorrow's prep guidance: ${prepStatus}
 Dinner time: ${settings.dinnerTime}
 Timezone: ${settings.timezone}${mutedLine}
 

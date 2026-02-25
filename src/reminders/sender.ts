@@ -102,13 +102,32 @@ function buildReminderPrompt(
       const meals = context.meals as
         | Array<{ mealType: string; recipeName: string }>
         | undefined;
+      let prompt: string;
       if (meals && meals.length > 0) {
         const mealList = meals
           .map((m) => `- ${m.mealType}: ${m.recipeName}`)
           .join("\n");
-        return `Generate a morning summary reminder. Today's meal plan:\n${mealList}\n\nGive a cheerful overview of the day's meals.`;
+        prompt = `Generate a morning summary reminder. Today's meal plan:\n${mealList}\n\nGive a cheerful overview of the day's meals.`;
+      } else {
+        prompt = "Generate a morning greeting. The user has a meal plan but no specific meals are listed for today.";
       }
-      return "Generate a morning greeting. The user has a meal plan but no specific meals are listed for today.";
+
+      // Include tomorrow's meals with advance prep guidance
+      const tomorrowMeals = context.tomorrowMeals as
+        | Array<{ mealType: string; recipeName: string; knowledgeItemId?: number }>
+        | undefined;
+      if (tomorrowMeals && tomorrowMeals.length > 0) {
+        const tomorrowList = tomorrowMeals
+          .map((m) => `- ${m.mealType}: ${m.recipeName}`)
+          .join("\n");
+        prompt += `\n\nTomorrow's meals:\n${tomorrowList}`;
+        if (recipeContent) {
+          prompt += `\n\nTomorrow's recipe details:\n${recipeContent}`;
+        }
+        prompt += `\n\nAt the end, add a brief heads-up about tomorrow's meal. If the recipe needs advance prep today (thawing frozen items, starting a marinade, soaking beans, brining, etc.), mention it specifically and practically. If nothing needs advance prep, just give a quick friendly mention of what's coming tomorrow.`;
+      }
+
+      return prompt;
     }
 
     case "prep_alert": {
@@ -196,7 +215,7 @@ export function createReminderSender(deps: ReminderSenderDeps) {
           );
         }
 
-        // 2. For prep_alert: fetch recipe content
+        // 2. Fetch recipe content when needed
         let recipeContent: string | undefined;
         if (
           reminder.type === "prep_alert" &&
@@ -214,6 +233,37 @@ export function createReminderSender(deps: ReminderSenderDeps) {
             logger.warn(
               { reminderId: reminder.id, knowledgeItemId: context.knowledgeItemId, error },
               "Failed to fetch recipe content for prep alert",
+            );
+          }
+        } else if (
+          reminder.type === "morning_summary" &&
+          context.tomorrowMeals
+        ) {
+          // Fetch recipe content for tomorrow's meals so Claude can analyze advance prep
+          try {
+            const tomorrowMeals = context.tomorrowMeals as Array<{
+              knowledgeItemId?: number;
+              recipeName: string;
+            }>;
+            const contents: string[] = [];
+            for (const meal of tomorrowMeals) {
+              if (meal.knowledgeItemId) {
+                const item = retrievalService.getItem(
+                  meal.knowledgeItemId,
+                  reminder.householdId,
+                );
+                if (item) {
+                  contents.push(`### ${meal.recipeName}\n${item.content}`);
+                }
+              }
+            }
+            if (contents.length > 0) {
+              recipeContent = contents.join("\n\n");
+            }
+          } catch (error) {
+            logger.warn(
+              { reminderId: reminder.id, error },
+              "Failed to fetch recipe content for tomorrow's prep guidance",
             );
           }
         }

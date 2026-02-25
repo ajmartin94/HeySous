@@ -217,3 +217,12 @@ Note: Phase 40 (Reminder Resilience) has no dependencies and can be parallelized
 Plans:
 - [ ] 40-01-PLAN.md -- Structured time columns, migration+backfill, auto-extraction on save/update, plan-recipe linking guard
 - [ ] 40-02-PLAN.md -- Generator fixes: 45-min fallback, structured metadata lookup, error logging (TDD)
+
+### Phase 41: Fix the reminder system to avoid stale reminders
+
+**Goal:** Reminders always reflect the current meal plan by regenerating after every successful plan save
+**Depends on:** Phase 40
+**Plans:** 1 plan
+
+Plans:
+- [ ] 41-01-PLAN.md -- Call generateRemindersFn after save_meal_plan to prevent stale reminders

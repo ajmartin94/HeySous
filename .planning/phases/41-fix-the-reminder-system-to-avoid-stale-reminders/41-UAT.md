@@ -1,5 +1,5 @@
 ---
-status: complete
+status: diagnosed
 phase: 41-fix-the-reminder-system-to-avoid-stale-reminders
 source: [41-01-SUMMARY.md]
 started: 2026-02-25T02:30:00Z
@@ -41,6 +41,15 @@ skipped: 0
   reason: "User reported: Got a morning summary for the correct meal, but a prep alert for the wrong (old) meal"
   severity: major
   test: 3
-  artifacts: []
-  missing: []
-  debug_session: ""
+  root_cause: "Prep alerts fire the day BEFORE the meal (prepDate = addDays(currentDate, -1)). When a user changes tomorrow's dinner after today's 08:00 prep_alert time, the old alert was already delivered (status='sent'). deleteAllPending only clears 'pending' reminders, so the sent stale alert remains. The future-only guard (dueAt > now) prevents creating a replacement since the slot is past. Morning summaries work because they fire the same day as the meal — still in the future."
+  artifacts:
+    - path: "src/reminders/generator.ts"
+      issue: "Line 229: prep_alert fires day before meal; Line 239: past-due guard prevents replacement"
+    - path: "src/reminders/repository.ts"
+      issue: "Lines 291-298: deleteAllPending only deletes status='pending', not 'sent'"
+    - path: "src/reminders/poller.ts"
+      issue: "Line 80: markSent before delivery creates secondary race condition"
+  missing:
+    - "Delete ALL future reminders (pending AND sent) on regeneration, or delete by householdId regardless of status"
+    - "Consider also deleting 'sent' reminders whose dueAt is still in the future (queued but not yet delivered)"
+  debug_session: ".planning/debug/phantom-prep-alert.md"

@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-21)
 
 **Core value:** The recipe brain -- an AI agent that remembers everything about your meals and reasons over that knowledge to help you plan.
-**Current focus:** v1.5 Agent Hardening & Polish -- Phase 40: Reminder Resilience & Recipe Time Extraction
+**Current focus:** v1.5 Agent Hardening & Polish -- Phase 41: Fix the Reminder System to Avoid Stale Reminders
 
 ## Current Position
 
-Phase: 40 of 40 (Reminder Resilience & Recipe Time Extraction)
-Plan: 2 of 2 in current phase
-Status: Phase 40 Complete -- All plans executed
-Last activity: 2026-02-24 - Completed quick task 2: Update color scheme — green to soft blue for accessibility
+Phase: 41 of 41 (Fix the Reminder System to Avoid Stale Reminders)
+Plan: 1 of 1 in current phase
+Status: Phase 41 Complete -- All plans executed
+Last activity: 2026-02-24 - Completed 41-01-PLAN.md (reminder regeneration after plan save)
 
-Progress: [========================================] 100% (88/88 plans complete through Phase 40-02)
+Progress: [========================================] 100% (89/89 plans complete through Phase 41-01)
 
 ## Performance Metrics
 
@@ -47,6 +47,7 @@ All decisions documented in PROJECT.md Key Decisions table.
 - Phase 39-02: Admin Hub section rendered outside loading conditional for immediate visibility; SVG BarChart uses viewBox-based responsive sizing; budget line computed as weighted cost-per-token projection
 - Phase 40-01: Exported parseTimeToMinutes from generator.ts for reuse; non-blocking linking guard returns unlinked_recipes warning alongside successful save; time auto-extraction with explicit param override
 - Phase 40-02: DEFAULT_COOKING_MINUTES = 45 as universal fallback; structured metadata strict priority over content parsing; three distinct info-level log paths for fallback observability
+- Phase 41-01: Reused existing generateRemindersFn guard pattern from update_reminder_settings for post-save reminder regeneration in save_meal_plan
 
 ### Pending Todos
 
@@ -68,10 +69,11 @@ None.
 v1.5 planned: 9 phases (32-40), 26 requirements mapped.
 Total: 40 phases across 6 milestones.
 - Phase 40 added: Reminder Resilience & Recipe Time Extraction (45min fallback, plan-recipe linking guard, structured time metadata)
+- Phase 41 added: Fix the reminder system to avoid stale reminders
 
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: Completed 40-02-PLAN.md (Phase 40 complete)
-Next action: Phase 40 complete -- all v1.5 phases executed
-Resume file: .planning/phases/40-reminder-resilience-recipe-time-extraction/40-02-SUMMARY.md
+Stopped at: Completed 41-01-PLAN.md (Phase 41 complete)
+Next action: Phase 41 complete -- stale reminder fix shipped
+Resume file: .planning/phases/41-fix-the-reminder-system-to-avoid-stale-reminders/41-01-SUMMARY.md

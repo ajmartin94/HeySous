@@ -222,7 +222,7 @@ Plans:
 
 **Goal:** Reminders always reflect the current meal plan by regenerating after every successful plan save
 **Depends on:** Phase 40
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
 - [ ] 41-01-PLAN.md -- Call generateRemindersFn after save_meal_plan to prevent stale reminders

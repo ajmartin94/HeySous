@@ -81,10 +81,11 @@ async function main(): Promise<void> {
   const startHandler = createStartHandler({ sqlite, db, addToCache });
   const inviteHandler = createInviteHandler({ sqlite, botUsername });
 
-  // Initialize Claude client
+  // Initialize Claude client (with logger for structured retry logging)
   const claudeClient = createClaudeClient(
     config.anthropicApiKey,
     config.anthropicModel,
+    logger,
   );
   logger.info({ model: config.anthropicModel }, "Claude client initialized");
 

@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Section, Cell } from '@telegram-apps/telegram-ui';
-import { ChefHat, ShoppingCart, CookingPot, CalendarDays, MessageSquare, HelpCircle } from 'lucide-react';
+import { ChefHat, ShoppingCart, CookingPot, CalendarDays, MessageSquare, HelpCircle, Settings, Shield } from 'lucide-react';
 import { apiFetch } from '../api';
 import { SkeletonCard } from '../components/SkeletonCard';
+import { useUserRole } from '../hooks/useUserRole';
 import { colors } from '../theme/tokens';
 
 interface SummaryData {
@@ -35,6 +36,7 @@ function formatPlanSubtitle(data: SummaryData | null, loading: boolean, error: b
 
 export function Hub() {
   const navigate = useNavigate();
+  const { isAdmin } = useUserRole();
   const [summary, setSummary] = useState<SummaryData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -83,7 +85,24 @@ export function Hub() {
         }}
       >
         <ChefHat size={28} style={iconStyle} />
-        HeySous
+        <span style={{ flex: 1 }}>HeySous</span>
+        <button
+          onClick={() => navigate('/settings')}
+          style={{
+            background: 'none',
+            border: 'none',
+            padding: 8,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'var(--tg-theme-hint-color, #999)',
+            WebkitTapHighlightColor: 'transparent',
+          }}
+          aria-label="Settings"
+        >
+          <Settings size={22} />
+        </button>
       </div>
 
       {/* Dashboard cards */}
@@ -134,6 +153,19 @@ export function Hub() {
             style={cellStyle}
           >
             Help
+          </Cell>
+        </Section>
+      )}
+
+      {isAdmin && (
+        <Section style={{ marginTop: 'var(--hs-spacing-section)' }}>
+          <Cell
+            before={<Shield size={24} style={iconStyle} />}
+            subtitle="System overview"
+            onClick={() => navigate('/admin')}
+            style={cellStyle}
+          >
+            Admin Dashboard
           </Cell>
         </Section>
       )}

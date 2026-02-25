@@ -14,9 +14,9 @@ export interface PreferenceSummary {
 /**
  * Retrieve all preference-tagged knowledge items for a chat.
  *
- * Uses raw SQLite (same pattern as fts.ts) with an efficient JOIN query
- * to find knowledge items tagged "preference", ordered by most recently
- * accessed first.
+ * Uses raw SQLite with a single GROUP_CONCAT query (same pattern as
+ * recipes.ts) to find knowledge items tagged "preference" and load all
+ * their tags in one pass. Ordered by most recently accessed first.
  *
  * @param sqlite - Raw better-sqlite3 database instance
  * @param householdId - Household ID for per-household isolation
@@ -31,10 +31,13 @@ export function getPreferenceSummaries(
   const rows = sqlite
     .prepare(
       `
-      SELECT DISTINCT ki.id, ki.title, ki.summary
+      SELECT ki.id, ki.title, ki.summary, GROUP_CONCAT(kt_all.tag, ',') AS tags
       FROM knowledge_items ki
       JOIN knowledge_tags kt ON kt.knowledge_item_id = ki.id
-      WHERE ki.household_id = ? AND (kt.tag = 'preference' OR kt.tag LIKE 'pref:%' OR kt.tag LIKE 'severity:%')
+      JOIN knowledge_tags kt_all ON kt_all.knowledge_item_id = ki.id
+      WHERE ki.household_id = ?
+        AND (kt.tag = 'preference' OR kt.tag LIKE 'pref:%' OR kt.tag LIKE 'severity:%')
+      GROUP BY ki.id
       ORDER BY ki.last_accessed_at DESC
       LIMIT ?
       `,
@@ -43,22 +46,13 @@ export function getPreferenceSummaries(
     id: number;
     title: string;
     summary: string;
+    tags: string | null;
   }>;
 
-  // Fetch tags for each preference item (same pattern as searchFts in fts.ts)
-  const tagStmt = sqlite.prepare(
-    `SELECT tag FROM knowledge_tags WHERE knowledge_item_id = ?`,
-  );
-
-  return rows.map((row) => {
-    const tags = (tagStmt.all(row.id) as Array<{ tag: string }>).map(
-      (t) => t.tag,
-    );
-    return {
-      id: row.id,
-      title: row.title,
-      summary: row.summary,
-      tags,
-    };
-  });
+  return rows.map((row) => ({
+    id: row.id,
+    title: row.title,
+    summary: row.summary,
+    tags: row.tags ? row.tags.split(",") : [],
+  }));
 }

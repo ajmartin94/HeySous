@@ -69,9 +69,33 @@ The LLM is the product. It reasons, decides what to look up, and acts on what it
 - ✓ Bot update notifications: lazy-delivery "what's new" per household — v1.4 Phase 30
 - ✓ Audit defect fixes: migration fresh-install guard, source_url end-to-end, BM25 threshold — v1.4 Phase 31
 
+- ✓ Unified Sous persona across all Claude interactions (single SOUS_PERSONA constant) — v1.5 Phase 32
+- ✓ System prompt structured for Anthropic API prompt caching (static/dynamic split) — v1.5 Phase 32
+- ✓ Input sanitization: user-controlled text stripped before system prompt injection — v1.5 Phase 33
+- ✓ Tool handler bounds validation (string length, array size, number ranges) — v1.5 Phase 33
+- ✓ Message length limit (4K chars) with in-character rejection — v1.5 Phase 33
+- ✓ Tool call observability: structured logging with name, duration, household, status — v1.5 Phase 34
+- ✓ Error sanitization: no stack traces, file paths, or SQL leaked to Claude — v1.5 Phase 34
+- ✓ Recipe completeness validation before save (title, ingredients, steps) — v1.5 Phase 34
+- ✓ 429 exponential backoff with jitter and Retry-After header support — v1.5 Phase 35
+- ✓ Optimistic locking on knowledge, meal plans, and grocery lists — v1.5 Phase 35
+- ✓ Context overflow detection with oldest-first trimming and truncation notice — v1.5 Phase 35
+- ✓ Per-household daily token budget and rate limiting — v1.5 Phase 36
+- ✓ N+1 preference query fix (single GROUP_CONCAT query) — v1.5 Phase 36
+- ✓ Byte-based token estimation replacing 4-chars heuristic — v1.5 Phase 36
+- ✓ Content-aware knowledge dedup (ingredient overlap, word Jaccard) — v1.5 Phase 36
+- ✓ Streaming Claude responses to Telegram with progressive delivery — v1.5 Phase 37
+- ✓ Mini App theme selection (light/dark) with localStorage persistence — v1.5 Phase 38
+- ✓ Mini App font size adjustment and WCAG AA tag contrast — v1.5 Phase 38
+- ✓ Help page rewritten covering all v1.0-v1.4 features in Sous voice — v1.5 Phase 38
+- ✓ Admin dashboard: activity feed, usage stats, cost trends, feedback — v1.5 Phase 39
+- ✓ Structured recipe time metadata with migration backfill — v1.5 Phase 40
+- ✓ 45-minute default fallback for start-cooking reminders — v1.5 Phase 40
+- ✓ Automatic reminder regeneration after meal plan changes — v1.5 Phase 41
+
 ### Active
 
-None -- all requirements for v1.0-v1.4 validated.
+No active requirements. Planning next milestone.
 
 ### Out of Scope
 
@@ -83,7 +107,7 @@ None -- all requirements for v1.0-v1.4 validated.
 
 ## Context
 
-- **Current state:** v1.4 shipped. All 31 phases across 5 milestones. 66 plans total. ~13,177 LOC TypeScript.
+- **Current state:** v1.5 shipped. 41 phases across 6 milestones shipped. 89 plans total. ~16,308 LOC TypeScript.
 - **Tech stack:** Node.js 22, TypeScript (ESM), grammY, better-sqlite3/Drizzle, Anthropic SDK, Pino, Express, React+Vite (Mini App SPA), @telegram-apps SDK, cheerio (URL import)
 - **Primary user:** Home cook who loves cooking, time-constrained on weekdays, more flexible weekends
 - **Household:** Partner + 9-month-old. Partner now has access via invite system (v1.2).
@@ -93,14 +117,14 @@ None -- all requirements for v1.0-v1.4 validated.
 - **First-run flow:** Onboarding guides new users through preferences → tour → seed 3-5 go-to recipes (v1.3 refinement)
 - **Mini App model:** Hybrid — bot stays primary, Mini Apps open from chat buttons for visual tasks
 - **Frontend:** React+Vite SPA inside Telegram Web Apps, served by existing Express server at /app/*
-- **Known issues:** None current
-- **Next step:** Create PR to main, deploy
+- **Known issues:** 4 minor tech debt items from v1.5 audit (see .planning/milestones/v1.5-MILESTONE-AUDIT.md)
+- **Next step:** Planning next milestone
 
-## Latest Milestone: v1.4 Backlog Sweep — SHIPPED 2026-02-21
+## Previous Milestone: v1.5 Agent Hardening & Polish — SHIPPED 2026-02-25
 
-**Delivered:** Recipe import (URL + photo), knowledge dedup, Sous-personality notifications, update notifications, migration framework.
+**Delivered:** Streaming responses, security hardening, resilience, observability, admin dashboard, Mini App theming, prompt quality, reminder fixes. 26/26 audit requirements satisfied.
 
-See .planning/MILESTONES.md for full history of all 5 milestones.
+See .planning/MILESTONES.md for full history of all 6 milestones.
 
 ## Constraints
 
@@ -155,6 +179,17 @@ See .planning/MILESTONES.md for full history of all 5 milestones.
 | Centralized message module with pickRandom variants | All bot-initiated messages in src/bot/messages.ts, each with 3-5 Sous-personality variants, random selection at runtime | ✓ Good -- single source of truth, natural variation, easy to extend |
 
 | Migration 001 sqlite_master guard for fresh installs | Migrations targeting tables created by init functions must check table existence first -- skip if table doesn't exist, init function handles fresh DBs | ✓ Good -- pattern reusable for future migrations that ALTER init-created tables |
+| Static/dynamic system prompt split for caching | `buildStaticPrompt()` (stable instructions) and `buildDynamicContext()` (per-request) with `cache_control` on static block only | ✓ Good -- Anthropic API caches the ~7,400 token stable prefix across requests |
+| Dual-layer sanitization (processor + prompt builder) | `sanitizeAndLog` in processor for logging + `sanitizeForPrompt` in system prompt builder as defense-in-depth | ✓ Good -- sanitization events are observable; double-sanitization is harmless |
+| Tool handler bounds validation at case entry | Every tool case validates inputs before processing; `validationError()` returns `is_error: true` for Claude self-correction | ✓ Good -- prevents crashes from malformed/adversarial inputs |
+| Instrumented tool handler wrapper | `createInstrumentedToolHandler` wraps raw handler with Pino structured logging (timing, status, household) | ✓ Good -- all tool calls traceable without modifying individual handlers |
+| Optimistic locking via version columns | `expectedVersion` param on all stateful writes; conflict returns structured error to Claude | ✓ Good -- prevents silent overwrites in multi-user households |
+| 429 backoff internal to Claude client | `retryWithBackoff` wraps all `client.messages.create/stream()` calls; only 429 errors retried | ✓ Good -- transparent to processor; thinking-longer message sent on first retry |
+| Streaming with plain text pacing | Plain text parse_mode during streaming, HTML only on final edit; 300ms edit interval | ✓ Good -- avoids HTML parse errors during progressive delivery |
+| Daily token budget before DB save | Budget check fires before message persistence; exhausted budget means message not stored | ✓ Good -- prevents budget exhaustion from consuming conversation history |
+| Content-aware dedup with 85% Jaccard threshold | Ingredient overlap for recipes, word-level similarity for preferences; BM25 content search fallback | ✓ Good -- catches duplicates that title-only matching misses |
+| Admin guard via config.adminUserIds | Inline check of env var rather than DB role lookup; frontend uses DB role for nav visibility | ⚠️ Revisit -- aligned for seeded admin only; extra admin chat IDs need DB role update |
+| Automatic reminder regeneration after plan save | `generateRemindersFn(householdId)` called in save_meal_plan handler after success; status-agnostic deletion prevents phantoms | ✓ Good -- mirrors existing pattern from update_reminder_settings |
 
 ---
-*Last updated: 2026-02-21 after Phase 31 (v1.4 complete)*
+*Last updated: 2026-02-25 after v1.5 milestone completion (Agent Hardening & Polish)*

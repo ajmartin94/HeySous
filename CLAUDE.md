@@ -104,9 +104,10 @@ mini-app/src/       React SPA (Vite, React Router, @tma.js/sdk-react)
 
 1. Complete the GSD milestone (`/gsd:complete-milestone`)
 2. Write release notes in `src/notifications/release-notes.ts` as part of the milestone (HTML format, keyed by version)
-3. Create PR from milestone branch → `main`, squash-merge manually
-4. Tag the release on main: `git tag v1.X`
-5. Deploy -- on startup, `seedNotifications()` inserts new release notes and users see them on next interaction
+3. Update help docs if needed (`src/bot/handlers/help.ts`)
+4. Create PR from milestone branch → `main`, squash-merge manually
+5. Tag the release on main: `git tag v1.X`
+6. Deploy -- on startup, `seedNotifications()` inserts new release notes and users see them on next interaction
 
 Release notes auto-deliver once per household via the `notifications` / `notification_deliveries` tables. No manual notification step needed.
 

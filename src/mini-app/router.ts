@@ -7,6 +7,7 @@ import { createRecipeRoutes } from "./routes/recipes.js";
 import { createMealPlanRoutes } from "./routes/meal-plan.js";
 import { createAppFeedbackRoutes } from "./routes/app-feedback.js";
 import { createMeRoute } from "./routes/me.js";
+import { createAdminRoutes } from "./routes/admin.js";
 
 /**
  * Dependencies for the API router.
@@ -56,6 +57,13 @@ export function createApiRouter(deps: ApiRouterDeps): Router {
   // App feedback endpoint
   const appFeedback = createAppFeedbackRoutes(deps.sqlite);
   router.post("/feedback", appFeedback.submit);
+
+  // Admin dashboard endpoints
+  const admin = createAdminRoutes(deps.sqlite);
+  router.get("/admin/activity", admin.getActivity);
+  router.get("/admin/stats", admin.getStats);
+  router.get("/admin/costs", admin.getCosts);
+  router.get("/admin/feedback", admin.getFeedback);
 
   return router;
 }

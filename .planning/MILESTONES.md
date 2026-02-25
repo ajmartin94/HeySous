@@ -129,3 +129,33 @@
 
 ---
 
+
+## v1.5 Agent Hardening & Polish (Shipped: 2026-02-25)
+
+**Delivered:** Comprehensive hardening of the Sous agent against security, cost, and resilience gaps identified by a 3-agent audit. Added streaming responses, observability, admin dashboard, Mini App theming, and reminder fixes.
+
+**Phases completed:** 32-41 (23 plans total)
+
+**Key accomplishments:**
+- Streaming Claude responses to Telegram with progressive delivery, tool status labels, and 300ms pacing
+- Security hardening: input sanitization, tool bounds validation, 4K message limit, per-household rate limiting and daily token budget
+- Resilience: 429 exponential backoff with jitter, optimistic locking on all stateful tables, context overflow detection with graceful trimming
+- Observability: instrumented tool calls with timing/status logging, error sanitization, accurate byte-based token estimation
+- Admin dashboard Mini App with activity feed, usage stats, cost trends, and feedback overview
+- Mini App theming (light/dark), font size scale, WCAG AA tag contrast, and comprehensive help page rewrite
+- Prompt quality: unified Sous persona, caching-optimized static/dynamic prompt split, content-aware knowledge dedup
+- Reminder resilience: 45min fallback timing, structured time metadata, auto-regeneration on plan change, phantom fix
+
+**Stats:**
+- 128 files modified
+- 16,780 insertions, 644 deletions (~16,308 total LOC)
+- 10 phases, 23 plans
+- 5 days execution (2026-02-21 → 2026-02-25)
+- 26/26 audit requirements satisfied
+
+**Git range:** `9b2a5e6` (feat(32-01)) → `f40945a` (milestone audit)
+
+**What's next:** Planning next milestone
+
+---
+

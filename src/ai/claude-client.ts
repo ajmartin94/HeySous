@@ -1,15 +1,56 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { APIError } from "@anthropic-ai/sdk";
+import type { Logger } from "pino";
 import { buildSystemPrompt } from "./system-prompt.js";
 import type { ClaudeResponse, TokenUsage } from "./types.js";
 import { MODEL_PRICING } from "./types.js";
+
+/**
+ * System prompt input -- either a single string (backward compatible) or
+ * a static/dynamic split for two-block prompt caching.
+ *
+ * When an object is provided:
+ * - static: Stable instruction content, cached via cache_control
+ * - dynamic: Per-request context (preferences, plans, etc.), NOT cached
+ */
+export type SystemPromptInput = string | { static: string; dynamic: string };
+
+/**
+ * Build Anthropic system content blocks from a SystemPromptInput.
+ *
+ * - String input: single block with cache_control (backward compatible)
+ * - Object input: two blocks -- static with cache_control, dynamic without
+ */
+function buildSystemBlocks(input: SystemPromptInput): Anthropic.TextBlockParam[] {
+  if (typeof input === "string") {
+    return [
+      {
+        type: "text" as const,
+        text: input,
+        cache_control: { type: "ephemeral" as const },
+      },
+    ];
+  }
+  return [
+    {
+      type: "text" as const,
+      text: input.static,
+      cache_control: { type: "ephemeral" as const },
+    },
+    {
+      type: "text" as const,
+      text: input.dynamic,
+    },
+  ];
+}
 
 /**
  * Calculate estimated USD cost from token usage and model pricing.
  * Returns 0 for unknown models.
  */
 export function calculateCost(model: string, usage: TokenUsage): number {
-  const pricing = MODEL_PRICING[model];
-  if (!pricing) return 0;
+  const pricing = MODEL_PRICING[model] ?? MODEL_PRICING._fallback;
+  if (!pricing) return 0; // defensive -- _fallback should always exist
 
   const inputCost = (usage.inputTokens / 1_000_000) * pricing.inputPerMTok;
   const outputCost = (usage.outputTokens / 1_000_000) * pricing.outputPerMTok;
@@ -21,8 +62,127 @@ export function calculateCost(model: string, usage: TokenUsage): number {
   return inputCost + outputCost + cacheWriteCost + cacheReadCost;
 }
 
+/**
+ * Sanitize an error message before returning it to Claude via tool_result.
+ * Strips stack traces, file paths, and SQL statements so no internal
+ * implementation details leak to the LLM.
+ */
+export function sanitizeToolError(error: unknown): string {
+  const raw = error instanceof Error ? error.message : String(error);
+  // Strip stack traces, file paths, and SQL from the message
+  const sanitized = raw
+    .replace(/\s+at\s+.+/g, "")           // stack trace lines
+    .replace(/\/[\w/.-]+\.\w+/g, "[path]") // file paths like /src/foo/bar.ts
+    .replace(/(SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER|DROP)\s+.*/gi, "[sql]") // SQL statements
+    .trim();
+  return sanitized || "An internal error occurred";
+}
+
+/**
+ * Callbacks for progressive delivery of a streaming Claude response.
+ * All callbacks are optional; callers register only what they need.
+ */
+export interface StreamCallbacks {
+  /** Fired on each text delta (incremental chunk). */
+  onText?: (textDelta: string, textSnapshot: string) => void;
+  /** Fired when a tool call begins execution. */
+  onToolUseStart?: (toolName: string) => void;
+  /** Fired when a tool call finishes execution. */
+  onToolUseEnd?: (toolName: string) => void;
+}
+
 /** Default max tool use iterations before forcing a text response. */
 const DEFAULT_MAX_ITERATIONS = 5;
+
+/** Default max retries for 429 rate-limit errors. */
+const DEFAULT_MAX_RETRIES = 3;
+
+/** Base delay in milliseconds for exponential backoff. */
+const BASE_DELAY_MS = 1_000;
+
+/**
+ * Retry a function with exponential backoff and jitter on 429 errors.
+ *
+ * Only retries Anthropic API 429 (rate limit) errors. All other errors
+ * are re-thrown immediately. Respects the Retry-After header when present.
+ *
+ * @param fn - The async function to retry
+ * @param options.maxRetries - Maximum number of retry attempts
+ * @param options.onRetry - Optional callback invoked before each retry sleep
+ * @param options.logger - Optional pino logger for structured retry logging
+ * @param options.context - Optional context fields for structured logging
+ */
+async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  options: {
+    maxRetries: number;
+    onRetry?: (attempt: number, delayMs: number) => void | Promise<void>;
+    logger?: Logger;
+    context?: Record<string, unknown>;
+  },
+): Promise<T> {
+  const { maxRetries, onRetry, logger, context } = options;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      // Only retry on 429 rate-limit errors
+      const is429 = error instanceof APIError && error.status === 429;
+      if (!is429) {
+        throw error;
+      }
+
+      // Exhausted all retries
+      if (attempt >= maxRetries) {
+        logger?.error(
+          { ...context, attempt, maxRetries, error: (error as Error).message },
+          "All retry attempts exhausted for 429 rate limit",
+        );
+        throw error;
+      }
+
+      // Calculate delay: exponential backoff with jitter
+      const exponentialDelay = BASE_DELAY_MS * Math.pow(2, attempt);
+      const jitter = Math.random() * 0.5 * exponentialDelay; // 0-50% jitter
+      let delayMs = exponentialDelay + jitter;
+
+      // Respect Retry-After header if present
+      const apiError = error as APIError;
+      const retryAfterHeader = apiError.headers?.get?.("retry-after");
+      if (retryAfterHeader) {
+        const retryAfterSeconds = parseFloat(retryAfterHeader);
+        if (!isNaN(retryAfterSeconds)) {
+          const retryAfterMs = retryAfterSeconds * 1_000;
+          delayMs = Math.max(retryAfterMs, delayMs);
+        }
+      }
+
+      logger?.warn(
+        {
+          ...context,
+          attempt: attempt + 1,
+          maxRetries,
+          delayMs: Math.round(delayMs),
+          retryAfterHeader: retryAfterHeader ?? null,
+          error: (error as Error).message,
+        },
+        "Retrying after 429 rate limit",
+      );
+
+      // Call onRetry callback before sleeping
+      if (onRetry) {
+        await onRetry(attempt + 1, Math.round(delayMs));
+      }
+
+      // Sleep
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+
+  // Should be unreachable, but TypeScript needs it
+  throw new Error("retryWithBackoff: unexpected code path");
+}
 
 /**
  * Create a Claude API client with the given credentials.
@@ -31,7 +191,7 @@ const DEFAULT_MAX_ITERATIONS = 5;
  * maxRetries: 0 -- we handle retries ourselves for user-facing messaging.
  * timeout: 60_000 -- 60 second timeout per request.
  */
-export function createClaudeClient(apiKey: string, model: string) {
+export function createClaudeClient(apiKey: string, model: string, clientLogger?: Logger) {
   const client = new Anthropic({
     apiKey,
     maxRetries: 0,
@@ -43,28 +203,31 @@ export function createClaudeClient(apiKey: string, model: string) {
      * Send a message to Claude and return the structured response.
      * Simple single-turn call without tool support (backward compatible).
      *
+     * Wraps the API call with retryWithBackoff to handle 429 rate limits.
+     *
      * @param userMessages - Array of user message strings, joined with double newlines
+     * @param systemPrompt - Optional system prompt override
+     * @param onRetry - Optional callback invoked before each retry sleep
      * @returns ClaudeResponse with text, usage, model, and stopReason
      */
     async sendMessage(
       userMessages: string[],
-      systemPrompt?: string,
+      systemPrompt?: SystemPromptInput,
+      onRetry?: (attempt: number, delayMs: number) => void | Promise<void>,
     ): Promise<ClaudeResponse> {
       const prompt = systemPrompt ?? buildSystemPrompt();
+      const systemBlocks = buildSystemBlocks(prompt);
       const combinedUserText = userMessages.join("\n\n");
 
-      const response = await client.messages.create({
-        model,
-        max_tokens: 2048,
-        system: [
-          {
-            type: "text" as const,
-            text: prompt,
-            cache_control: { type: "ephemeral" as const },
-          },
-        ],
-        messages: [{ role: "user" as const, content: combinedUserText }],
-      });
+      const response = await retryWithBackoff(
+        () => client.messages.create({
+          model,
+          max_tokens: 2048,
+          system: systemBlocks,
+          messages: [{ role: "user" as const, content: combinedUserText }],
+        }),
+        { maxRetries: DEFAULT_MAX_RETRIES, onRetry, logger: clientLogger },
+      );
 
       const textContent = response.content
         .filter(
@@ -98,12 +261,17 @@ export function createClaudeClient(apiKey: string, model: string) {
      * 5. Loop back to (1) until max iterations
      * 6. Safety: if max iterations reached, do one final call WITHOUT tools
      *
+     * All client.messages.create() calls are wrapped with retryWithBackoff
+     * to handle 429 rate limits with exponential backoff and jitter.
+     *
      * Token usage is aggregated across all iterations.
      *
      * @param messages - Full message array including conversation history
      * @param tools - Anthropic tool definitions
      * @param onToolCall - Callback to handle tool calls (sync or async)
      * @param maxIterations - Maximum tool use iterations (default 5)
+     * @param systemPrompt - Optional system prompt override
+     * @param onRetry - Optional callback invoked before each retry sleep (for user notifications)
      * @returns ClaudeResponse with aggregated usage from all iterations
      */
     async sendMessageWithTools(
@@ -111,16 +279,11 @@ export function createClaudeClient(apiKey: string, model: string) {
       tools: Anthropic.Tool[],
       onToolCall: (name: string, input: Record<string, unknown>) => string | Promise<string>,
       maxIterations: number = DEFAULT_MAX_ITERATIONS,
-      systemPrompt?: string,
+      systemPrompt?: SystemPromptInput,
+      onRetry?: (attempt: number, delayMs: number) => void | Promise<void>,
     ): Promise<ClaudeResponse> {
       const prompt = systemPrompt ?? buildSystemPrompt();
-      const systemBlock = [
-        {
-          type: "text" as const,
-          text: prompt,
-          cache_control: { type: "ephemeral" as const },
-        },
-      ];
+      const systemBlock = buildSystemBlocks(prompt);
 
       // Aggregate token usage across all iterations
       const totalUsage: TokenUsage = {
@@ -136,13 +299,16 @@ export function createClaudeClient(apiKey: string, model: string) {
       let finalStopReason = "unknown";
 
       for (let iteration = 0; iteration < maxIterations; iteration++) {
-        const response = await client.messages.create({
-          model,
-          max_tokens: 2048,
-          system: systemBlock,
-          messages: loopMessages,
-          tools,
-        });
+        const response = await retryWithBackoff(
+          () => client.messages.create({
+            model,
+            max_tokens: 2048,
+            system: systemBlock,
+            messages: loopMessages,
+            tools,
+          }),
+          { maxRetries: DEFAULT_MAX_RETRIES, onRetry, logger: clientLogger },
+        );
 
         // Aggregate usage
         totalUsage.inputTokens += response.usage.input_tokens;
@@ -208,12 +374,10 @@ export function createClaudeClient(apiKey: string, model: string) {
                 content: result,
               };
             } catch (error) {
-              const errorMessage =
-                error instanceof Error ? error.message : String(error);
               return {
                 type: "tool_result" as const,
                 tool_use_id: block.id,
-                content: JSON.stringify({ error: errorMessage }),
+                content: JSON.stringify({ error: sanitizeToolError(error) }),
                 is_error: true,
               };
             }
@@ -232,12 +396,214 @@ export function createClaudeClient(apiKey: string, model: string) {
       }
 
       // Max iterations reached -- do one final call WITHOUT tools to force text response
-      const finalResponse = await client.messages.create({
-        model,
-        max_tokens: 2048,
-        system: systemBlock,
-        messages: loopMessages,
-      });
+      const finalResponse = await retryWithBackoff(
+        () => client.messages.create({
+          model,
+          max_tokens: 2048,
+          system: systemBlock,
+          messages: loopMessages,
+        }),
+        { maxRetries: DEFAULT_MAX_RETRIES, onRetry, logger: clientLogger },
+      );
+
+      totalUsage.inputTokens += finalResponse.usage.input_tokens;
+      totalUsage.outputTokens += finalResponse.usage.output_tokens;
+      totalUsage.cacheCreationInputTokens +=
+        finalResponse.usage.cache_creation_input_tokens ?? 0;
+      totalUsage.cacheReadInputTokens +=
+        finalResponse.usage.cache_read_input_tokens ?? 0;
+
+      const textContent = finalResponse.content
+        .filter(
+          (block): block is Anthropic.TextBlock => block.type === "text",
+        )
+        .map((block) => block.text)
+        .join("\n");
+
+      return {
+        text: textContent,
+        usage: totalUsage,
+        model: finalResponse.model,
+        stopReason: finalResponse.stop_reason ?? "unknown",
+      };
+    },
+
+    /**
+     * Stream a message to Claude with tool support, firing callbacks for
+     * progressive text delivery and tool lifecycle events.
+     *
+     * Uses the Anthropic SDK's `client.messages.stream()` API for incremental
+     * text delivery. Implements the same multi-iteration tool use loop as
+     * `sendMessageWithTools`, but each iteration streams text via callbacks.
+     *
+     * The `onText` callback fires on EVERY iteration (including ones that end
+     * with tool_use). The caller (stream sender / bridge) decides how to handle
+     * partial text before tool calls vs final text.
+     *
+     * Token usage is aggregated across all stream iterations.
+     *
+     * @param messages - Full message array including conversation history
+     * @param tools - Anthropic tool definitions
+     * @param onToolCall - Callback to handle tool calls (sync or async)
+     * @param callbacks - Stream event callbacks (onText, onToolUseStart, onToolUseEnd)
+     * @param maxIterations - Maximum tool use iterations (default 5)
+     * @param systemPrompt - Optional system prompt override
+     * @param onRetry - Optional callback invoked before each retry sleep
+     * @returns ClaudeResponse with aggregated usage from all iterations
+     */
+    async streamMessageWithTools(
+      messages: Anthropic.MessageParam[],
+      tools: Anthropic.Tool[],
+      onToolCall: (name: string, input: Record<string, unknown>) => string | Promise<string>,
+      callbacks: StreamCallbacks,
+      maxIterations: number = DEFAULT_MAX_ITERATIONS,
+      systemPrompt?: SystemPromptInput,
+      onRetry?: (attempt: number, delayMs: number) => void | Promise<void>,
+    ): Promise<ClaudeResponse> {
+      const prompt = systemPrompt ?? buildSystemPrompt();
+      const systemBlock = buildSystemBlocks(prompt);
+
+      // Aggregate token usage across all iterations
+      const totalUsage: TokenUsage = {
+        inputTokens: 0,
+        outputTokens: 0,
+        cacheCreationInputTokens: 0,
+        cacheReadInputTokens: 0,
+      };
+
+      // Mutable copy of messages for the loop
+      const loopMessages: Anthropic.MessageParam[] = [...messages];
+      let finalModel = model;
+      let finalStopReason = "unknown";
+
+      for (let iteration = 0; iteration < maxIterations; iteration++) {
+        // Wrap the entire stream lifecycle in retryWithBackoff for 429 handling
+        const response = await retryWithBackoff(
+          async () => {
+            const stream = client.messages.stream({
+              model,
+              max_tokens: 2048,
+              system: systemBlock,
+              messages: loopMessages,
+              tools,
+            });
+
+            // Register text delta callback -- fires on every iteration
+            stream.on("text", (delta, snapshot) => {
+              callbacks.onText?.(delta, snapshot);
+            });
+
+            // Wait for the complete message
+            return await stream.finalMessage();
+          },
+          { maxRetries: DEFAULT_MAX_RETRIES, onRetry, logger: clientLogger },
+        );
+
+        // Aggregate usage
+        totalUsage.inputTokens += response.usage.input_tokens;
+        totalUsage.outputTokens += response.usage.output_tokens;
+        totalUsage.cacheCreationInputTokens +=
+          response.usage.cache_creation_input_tokens ?? 0;
+        totalUsage.cacheReadInputTokens +=
+          response.usage.cache_read_input_tokens ?? 0;
+
+        finalModel = response.model;
+        finalStopReason = response.stop_reason ?? "unknown";
+
+        // Check if Claude is done (no tool use)
+        if (response.stop_reason === "end_turn") {
+          const textContent = response.content
+            .filter(
+              (block): block is Anthropic.TextBlock => block.type === "text",
+            )
+            .map((block) => block.text)
+            .join("\n");
+
+          return {
+            text: textContent,
+            usage: totalUsage,
+            model: finalModel,
+            stopReason: finalStopReason,
+          };
+        }
+
+        // Extract tool_use blocks
+        const toolUseBlocks = response.content.filter(
+          (block): block is Anthropic.ToolUseBlock => block.type === "tool_use",
+        );
+
+        if (toolUseBlocks.length === 0) {
+          // No tool use and not end_turn -- extract text and return
+          const textContent = response.content
+            .filter(
+              (block): block is Anthropic.TextBlock => block.type === "text",
+            )
+            .map((block) => block.text)
+            .join("\n");
+
+          return {
+            text: textContent,
+            usage: totalUsage,
+            model: finalModel,
+            stopReason: finalStopReason,
+          };
+        }
+
+        // Handle tool calls with callbacks and error resilience
+        const toolResults: Anthropic.ToolResultBlockParam[] =
+          await Promise.all(toolUseBlocks.map(async (block) => {
+            callbacks.onToolUseStart?.(block.name);
+            try {
+              const result = await onToolCall(
+                block.name,
+                block.input as Record<string, unknown>,
+              );
+              callbacks.onToolUseEnd?.(block.name);
+              return {
+                type: "tool_result" as const,
+                tool_use_id: block.id,
+                content: result,
+              };
+            } catch (error) {
+              callbacks.onToolUseEnd?.(block.name);
+              return {
+                type: "tool_result" as const,
+                tool_use_id: block.id,
+                content: JSON.stringify({ error: sanitizeToolError(error) }),
+                is_error: true,
+              };
+            }
+          }));
+
+        // Append assistant response + all tool results in ONE user message
+        loopMessages.push({
+          role: "assistant" as const,
+          content: response.content,
+        });
+        loopMessages.push({
+          role: "user" as const,
+          content: toolResults,
+        });
+      }
+
+      // Max iterations reached -- do one final stream WITHOUT tools to force text response
+      const finalResponse = await retryWithBackoff(
+        async () => {
+          const stream = client.messages.stream({
+            model,
+            max_tokens: 2048,
+            system: systemBlock,
+            messages: loopMessages,
+          });
+
+          stream.on("text", (delta, snapshot) => {
+            callbacks.onText?.(delta, snapshot);
+          });
+
+          return await stream.finalMessage();
+        },
+        { maxRetries: DEFAULT_MAX_RETRIES, onRetry, logger: clientLogger },
+      );
 
       totalUsage.inputTokens += finalResponse.usage.input_tokens;
       totalUsage.outputTokens += finalResponse.usage.output_tokens;

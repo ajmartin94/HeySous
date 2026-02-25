@@ -3,8 +3,8 @@
  *
  * Orchestrates the full knowledge-augmented message processing pipeline:
  * save incoming message -> load conversation history -> build context ->
- * typing indicator -> Claude call with tools + retry -> 30s timeout messaging ->
- * formatted response delivery -> save outgoing message ->
+ * typing indicator -> streaming Claude call with tools + retry ->
+ * progressive message delivery -> save outgoing message ->
  * token usage logged to database and pino.
  *
  * The processor NEVER throws -- it's called from the debounce queue's
@@ -24,6 +24,7 @@ import { messages, tokenUsage } from "../db/schema.js";
 import { createToolHandler } from "../ai/tool-handler.js";
 import { KNOWLEDGE_TOOLS, PLAN_TOOLS, GROCERY_TOOLS, REMINDER_TOOLS, FEEDBACK_TOOLS, APP_FEEDBACK_TOOLS } from "../ai/tools.js";
 import { buildConversationContext } from "../conversation/context-builder.js";
+import { estimateTokens, estimateMessageTokens } from "../knowledge/token-budget.js";
 import type { ConversationTurn } from "../conversation/types.js";
 import type { createRetrievalService } from "../knowledge/retrieval.js";
 import { createKnowledgeRepository } from "../knowledge/repository.js";
@@ -43,28 +44,107 @@ import { buildGroceryKeyboard } from "../grocery/buttons.js";
 import { getPreferenceSummaries } from "../knowledge/preferences.js";
 import { checkPendingNotification } from "../notifications/update-notifier.js";
 import { config } from "../config.js";
-import { buildSystemPrompt } from "../ai/system-prompt.js";
+import { buildStaticPrompt, buildDynamicContext } from "../ai/system-prompt.js";
+import { sanitizeAndLog } from "../ai/sanitize.js";
+import type { SystemPromptInput, StreamCallbacks } from "../ai/claude-client.js";
 import { extractOnboardingMarker, getNextOnboardingState } from "../onboarding/state.js";
 import { buildOnboardingPrompt } from "../onboarding/prompt.js";
 import { updateOnboardingState } from "../users/repository.js";
 import type { User } from "../users/types.js";
 import type { DrizzleDatabase } from "../db/index.js";
 import type { Logger } from "pino";
-import { getErrorMessage, getTimeoutMessage } from "../bot/messages.js";
+import { getErrorMessage, getMessageTooLongResponse, getThinkingLongerMessage, getResilienceFailureMessage, getDailyLimitMessage } from "../bot/messages.js";
+import { createTelegramStreamSender } from "../telegram/stream-sender.js";
+import { getToolStatusLabel } from "../ai/tool-status.js";
+import { checkDailyTokenBudget } from "../pipeline/token-budget-guard.js";
 
-const TIMEOUT_WARNING_MS = 30_000;
+/**
+ * Create an instrumented wrapper around a tool call handler.
+ * Logs structured data (tool_name, duration_ms, household_id, status) for every
+ * tool call. On error, always includes tool_input; on success, only if
+ * config.logToolInputs is true.
+ */
+export function createInstrumentedToolHandler(
+  handler: (name: string, input: Record<string, unknown>) => string | Promise<string>,
+  householdId: string,
+  log: Logger,
+): (name: string, input: Record<string, unknown>) => Promise<string> {
+  return async (name: string, input: Record<string, unknown>): Promise<string> => {
+    const startTime = Date.now();
+    try {
+      const result = await handler(name, input);
+      const duration_ms = Date.now() - startTime;
+
+      const logData: Record<string, unknown> = {
+        tool_name: name,
+        duration_ms,
+        household_id: householdId,
+        status: "success",
+      };
+      if (config.logToolInputs) {
+        logData.tool_input = input;
+      }
+
+      log.info(logData, "Tool call completed");
+      return result;
+    } catch (error) {
+      const duration_ms = Date.now() - startTime;
+      const errorMessage = error instanceof Error ? error.message : String(error);
+
+      log.error(
+        {
+          tool_name: name,
+          duration_ms,
+          household_id: householdId,
+          status: "error",
+          error: errorMessage,
+          tool_input: input,
+        },
+        "Tool call completed",
+      );
+
+      throw error;
+    }
+  };
+}
+
+/**
+ * Maximum combined character length for debounced messages.
+ * Messages exceeding this limit are rejected before entering the AI pipeline.
+ * Applies to all message types including photo captions.
+ */
+const MAX_MESSAGE_LENGTH = 4_000;
 
 /** Default conversation history token budget. */
 const CONVERSATION_TOKEN_BUDGET = 2000;
 
+/** Anthropic context window size in tokens. Model-specific but 200k is the standard. */
+const CONTEXT_WINDOW_TOKENS = 200_000;
+/** Trigger trimming when estimated tokens exceed this percentage of the context window. */
+const CONTEXT_TRIM_THRESHOLD = 0.8; // 80%
+
 interface ClaudeClient {
-  sendMessage(userMessages: string[], systemPrompt?: string): Promise<ClaudeResponse>;
+  sendMessage(
+    userMessages: string[],
+    systemPrompt?: SystemPromptInput,
+    onRetry?: (attempt: number, delayMs: number) => void | Promise<void>,
+  ): Promise<ClaudeResponse>;
   sendMessageWithTools(
     messages: Anthropic.MessageParam[],
     tools: Anthropic.Tool[],
     onToolCall: (name: string, input: Record<string, unknown>) => string | Promise<string>,
     maxIterations?: number,
-    systemPrompt?: string,
+    systemPrompt?: SystemPromptInput,
+    onRetry?: (attempt: number, delayMs: number) => void | Promise<void>,
+  ): Promise<ClaudeResponse>;
+  streamMessageWithTools(
+    messages: Anthropic.MessageParam[],
+    tools: Anthropic.Tool[],
+    onToolCall: (name: string, input: Record<string, unknown>) => string | Promise<string>,
+    callbacks: StreamCallbacks,
+    maxIterations?: number,
+    systemPrompt?: SystemPromptInput,
+    onRetry?: (attempt: number, delayMs: number) => void | Promise<void>,
   ): Promise<ClaudeResponse>;
 }
 
@@ -110,7 +190,29 @@ export function createProcessor(deps: ProcessorDeps) {
       // b. Build user message from batch
       const userText = batch.messages.map((m) => m.text).filter(Boolean).join("\n\n");
 
-      // b2. Collect images from batch (for multimodal messages)
+      // b1. Reject messages exceeding length limit (before saving to DB)
+      if (userText.length > MAX_MESSAGE_LENGTH) {
+        log.info(
+          { chatId, userId, messageLength: userText.length, limit: MAX_MESSAGE_LENGTH },
+          "Message rejected: exceeds length limit",
+        );
+        try {
+          await ctx.reply(getMessageTooLongResponse());
+        } catch {
+          // Best-effort rejection message
+        }
+        return; // Discard -- do not save to conversation history or process
+      }
+
+      // b2. Check daily token budget before processing
+      const budgetCheck = checkDailyTokenBudget(deps.sqlite, householdId, config.dailyTokenBudget, config.sessionTimezone);
+      if (!budgetCheck.allowed) {
+        log.info({ chatId, householdId, tokensUsed: budgetCheck.tokensUsed, budget: budgetCheck.budgetTokens }, "Daily token budget exhausted");
+        try { await ctx.reply(getDailyLimitMessage()); } catch { /* best-effort */ }
+        return;
+      }
+
+      // b3. Collect images from batch (for multimodal messages)
       const batchImages = batch.messages.filter((m) => m.imageBase64 && m.imageMimeType);
 
       // c. Save incoming user message to messages table BEFORE Claude call
@@ -154,9 +256,10 @@ export function createProcessor(deps: ProcessorDeps) {
       }));
 
       // e. Build conversation context (sliding window within token budget)
-      const priorMessages = buildConversationContext(
+      const { messages: priorMessages, wasTruncated, originalTurnCount, includedTurnCount } = buildConversationContext(
         turns,
         CONVERSATION_TOKEN_BUDGET,
+        config.sessionTimezone,
       );
 
       // f. Construct full messages array: prior history + current user message
@@ -253,7 +356,15 @@ export function createProcessor(deps: ProcessorDeps) {
 
       // h. Load user preferences for system prompt injection
       const preferences = getPreferenceSummaries(deps.sqlite, householdId);
-      const userName = ctx.user?.displayName;
+      const rawUserName = ctx.user?.displayName;
+
+      // h1. Sanitize user-controlled text with logging (per security policy)
+      const userName = rawUserName ? sanitizeAndLog(rawUserName, "userName", log) : undefined;
+      const sanitizedPreferences = preferences.map((pref) => ({
+        ...pref,
+        title: sanitizeAndLog(pref.title, "preference.title", log),
+        summary: sanitizeAndLog(pref.summary, "preference.summary", log),
+      }));
 
       // h2. Build onboarding context if user is in onboarding
       const onboardingContext = ctx.user && ctx.user.onboardingState !== "complete"
@@ -271,67 +382,254 @@ export function createProcessor(deps: ProcessorDeps) {
         }
       }
 
-      const systemPrompt = buildSystemPrompt(preferences, planContext, groceryContext, reminderContext, feedbackContext, userName, onboardingContext, appFeedbackContext, dateContext, config.miniAppUrl);
+      const staticPrompt = buildStaticPrompt(config.miniAppUrl);
+      const dynamicContext = buildDynamicContext({
+        preferences: sanitizedPreferences,
+        planContext,
+        groceryContext,
+        reminderContext,
+        feedbackContext,
+        userName,
+        onboardingContext,
+        appFeedbackContext,
+        dateContext,
+      });
 
-      // i. 30-second timeout warning timer
-      let timeoutFired = false;
-      const timeoutTimer = setTimeout(async () => {
-        timeoutFired = true;
-        try {
-          await ctx.reply(getTimeoutMessage());
-        } catch {
-          // Best-effort timeout message
+      // i0. Estimate total token count and check for context overflow
+      const estimatedSystemTokens = estimateTokens(staticPrompt) + estimateTokens(dynamicContext);
+      const estimatedMsgTokens = estimateMessageTokens(fullMessages);
+      const estimatedTotalTokens = estimatedSystemTokens + estimatedMsgTokens;
+
+      let contextTrimmed = wasTruncated;
+
+      if (estimatedTotalTokens > CONTEXT_WINDOW_TOKENS * CONTEXT_TRIM_THRESHOLD) {
+        // Context approaching limit -- aggressively trim conversation history
+        log.warn(
+          {
+            chatId,
+            householdId,
+            estimatedTotalTokens,
+            threshold: CONTEXT_WINDOW_TOKENS * CONTEXT_TRIM_THRESHOLD,
+            priorMessageCount: priorMessages.length,
+          },
+          "Context approaching window limit, trimming conversation history",
+        );
+
+        // Remove oldest messages from fullMessages until under threshold
+        // Always keep at least the current user message (last element)
+        while (fullMessages.length > 1) {
+          const currentEstimate = estimateTokens(staticPrompt) + estimateTokens(dynamicContext) + estimateMessageTokens(fullMessages);
+          if (currentEstimate <= CONTEXT_WINDOW_TOKENS * CONTEXT_TRIM_THRESHOLD) {
+            break;
+          }
+          // Remove the oldest message (first element, which is oldest conversation history)
+          fullMessages.shift();
+          contextTrimmed = true;
         }
-      }, TIMEOUT_WARNING_MS);
 
-      // j. Call Claude with tools and one silent retry
+        // If still over after removing all history, log and proceed anyway
+        // (the API will handle it, or the request is genuinely too large)
+        const finalEstimate = estimateTokens(staticPrompt) + estimateTokens(dynamicContext) + estimateMessageTokens(fullMessages);
+        if (finalEstimate > CONTEXT_WINDOW_TOKENS * CONTEXT_TRIM_THRESHOLD) {
+          log.warn(
+            {
+              chatId,
+              householdId,
+              estimatedTokens: finalEstimate,
+              threshold: CONTEXT_WINDOW_TOKENS * CONTEXT_TRIM_THRESHOLD,
+            },
+            "Context still over threshold after trimming all history -- proceeding with current message only",
+          );
+        }
+      }
+
+      // i1. Inject truncation notice into dynamic context if history was trimmed
+      let finalDynamicContext = dynamicContext;
+      if (contextTrimmed) {
+        const trimNotice = `\n<conversation_note>\nEarlier messages in this conversation have been omitted to fit the context window. Continue the conversation naturally based on what's visible. Do not mention this to the user.\n</conversation_note>`;
+        finalDynamicContext = dynamicContext + trimNotice;
+      }
+      const systemPrompt: SystemPromptInput = { static: staticPrompt, dynamic: finalDynamicContext };
+
+      // i2. Log context trimming metadata
+      if (contextTrimmed) {
+        log.info(
+          {
+            chatId,
+            householdId,
+            originalTurnCount,
+            includedTurnCount,
+            estimatedTotalTokens,
+            contextTrimmed,
+          },
+          "Context trimmed for Claude API call",
+        );
+      }
+
+      // i. Set up streaming infrastructure
+      // Streaming provides visual progress, so the 30-second timeout timer is removed.
+      // The "thinking longer" message is only sent on 429 retries (via onRetry callback).
+
+      // j. Call Claude with streaming tools and retry via retryWithBackoff (inside claude-client)
       let response: ClaudeResponse;
       const startTime = Date.now();
 
       const allTools = [...KNOWLEDGE_TOOLS, ...PLAN_TOOLS, ...GROCERY_TOOLS, ...REMINDER_TOOLS, ...FEEDBACK_TOOLS, ...APP_FEEDBACK_TOOLS];
 
-      try {
-        response = await claudeClient.sendMessageWithTools(
-          fullMessages,
-          allTools,
-          toolHandler.handleToolCall,
-          10, // Increased from 5 for grocery list generation (plan + recipe lookups + save)
-          systemPrompt,
-        );
-      } catch (firstError) {
+      const instrumentedHandler = createInstrumentedToolHandler(
+        toolHandler.handleToolCall,
+        householdId,
+        log,
+      );
+
+      // Track whether user has been notified about retry (only once per request)
+      let retryNotificationSent = false;
+
+      const onRetry = async (attempt: number, delayMs: number): Promise<void> => {
         log.warn(
           {
-            error: firstError instanceof Error ? firstError.message : String(firstError),
-            stack: firstError instanceof Error ? firstError.stack : undefined,
             chatId,
             userId,
+            householdId,
+            attempt,
+            delayMs,
             timestamp: new Date().toISOString(),
           },
-          "Claude API call failed (attempt 1), retrying",
+          "Claude API retry in progress",
         );
 
+        // Send "thinking longer" message to user on first retry only
+        // This goes through ctx.reply (not stream sender) since it's a separate notification
+        if (!retryNotificationSent) {
+          retryNotificationSent = true;
+          try {
+            await ctx.reply(getThinkingLongerMessage());
+          } catch {
+            // Best-effort notification
+          }
+        }
+      };
+
+      // Create stream sender for progressive message delivery
+      const streamSender = createTelegramStreamSender(ctx, log);
+      let streamingActive = false;
+
+      try {
+        await streamSender.sendPlaceholder();
+        streamingActive = true;
+      } catch (placeholderError) {
+        log.warn(
+          { error: placeholderError instanceof Error ? placeholderError.message : String(placeholderError), chatId },
+          "Stream placeholder failed, falling back to non-streaming",
+        );
+      }
+
+      if (streamingActive) {
+        // Streaming path -- progressive delivery via stream sender
+        const streamCallbacks = {
+          onText: (delta: string, _snapshot: string) => {
+            streamSender.appendText(delta);
+          },
+          onToolUseStart: (toolName: string) => {
+            streamSender.showToolStatus(getToolStatusLabel(toolName));
+          },
+          onToolUseEnd: (_toolName: string) => {
+            streamSender.clearToolStatus();
+          },
+        };
+
+        try {
+          response = await claudeClient.streamMessageWithTools(
+            fullMessages,
+            allTools,
+            instrumentedHandler,
+            streamCallbacks,
+            10, // max iterations for grocery list generation (plan + recipe lookups + save)
+            systemPrompt,
+            onRetry,
+          );
+        } catch (streamError) {
+          // Handle stream failure
+          const is429Exhausted = streamError instanceof Error &&
+            streamError.message.includes("429");
+
+          if (is429Exhausted) {
+            // Finalize stream with error note
+            await streamSender.handleError();
+            log.error(
+              {
+                error: streamError instanceof Error ? streamError.message : String(streamError),
+                stack: streamError instanceof Error ? streamError.stack : undefined,
+                chatId,
+                userId,
+                householdId,
+                failureType: "429_exhausted",
+                retryCount: 3,
+                timestamp: new Date().toISOString(),
+              },
+              "Claude API streaming call failed after all retries, sending resilience failure to user",
+            );
+            try {
+              await ctx.reply(getResilienceFailureMessage());
+            } catch {
+              // Best-effort error message
+            }
+            return;
+          }
+
+          // Generic stream error -- keep partial text, append error note
+          const partialText = await streamSender.handleError();
+          log.error(
+            {
+              error: streamError instanceof Error ? streamError.message : String(streamError),
+              chatId,
+              userId,
+              householdId,
+              partialTextLength: partialText.length,
+            },
+            "Stream error, partial text preserved",
+          );
+
+          // Save partial text to conversation history if meaningful
+          if (partialText.trim()) {
+            db.insert(messages)
+              .values({
+                chatId,
+                userId,
+                text: partialText,
+                direction: "out" as const,
+              })
+              .run();
+          }
+          return;
+        }
+      } else {
+        // Non-streaming fallback -- original sendMessageWithTools path
         try {
           response = await claudeClient.sendMessageWithTools(
             fullMessages,
             allTools,
-            toolHandler.handleToolCall,
-            10, // Increased from 5 for grocery list generation (plan + recipe lookups + save)
+            instrumentedHandler,
+            10,
             systemPrompt,
+            onRetry,
           );
-        } catch (secondError) {
-          clearTimeout(timeoutTimer);
+        } catch (retryExhaustedError) {
           log.error(
             {
-              error: secondError instanceof Error ? secondError.message : String(secondError),
-              stack: secondError instanceof Error ? secondError.stack : undefined,
+              error: retryExhaustedError instanceof Error ? retryExhaustedError.message : String(retryExhaustedError),
+              stack: retryExhaustedError instanceof Error ? retryExhaustedError.stack : undefined,
               chatId,
               userId,
+              householdId,
+              failureType: "429_exhausted",
+              retryCount: 3,
               timestamp: new Date().toISOString(),
             },
-            "Claude API call failed (attempt 2), sending error to user",
+            "Claude API call failed after all retries, sending resilience failure to user",
           );
           try {
-            await ctx.reply(getErrorMessage());
+            await ctx.reply(getResilienceFailureMessage());
           } catch {
             // Best-effort error message
           }
@@ -340,9 +638,8 @@ export function createProcessor(deps: ProcessorDeps) {
       }
 
       const requestDurationMs = Date.now() - startTime;
-      clearTimeout(timeoutTimer);
 
-      // k. Extract onboarding marker (if any) BEFORE sending to user
+      // k. Extract onboarding marker (if any) BEFORE finalizing
       const { text: cleanText, completedPhase } = extractOnboardingMarker(response.text);
 
       // k2. Advance onboarding state if marker was found
@@ -360,20 +657,40 @@ export function createProcessor(deps: ProcessorDeps) {
         }
       }
 
-      // k3. Send cleaned response via formatted sender (marker stripped)
-      // Skip sending if text is empty after marker extraction (Claude sent only the marker)
-      if (cleanText.trim()) {
-        await sendFormattedMessage(ctx, cleanText);
+      // k3. Finalize the message and save to conversation history
+      if (streamingActive) {
+        // Streaming path: finalize the stream sender with clean text (markers stripped)
+        if (cleanText.trim()) {
+          await streamSender.finalize(cleanText);
 
-        // l. Save outgoing response to messages table for conversation continuity
-        db.insert(messages)
-          .values({
-            chatId,
-            userId,
-            text: cleanText,
-            direction: "out" as const,
-          })
-          .run();
+          // l. Save outgoing response to messages table for conversation continuity
+          db.insert(messages)
+            .values({
+              chatId,
+              userId,
+              text: cleanText,
+              direction: "out" as const,
+            })
+            .run();
+        } else {
+          // Empty after marker extraction -- clean up the streamed message
+          await streamSender.finalize();
+        }
+      } else {
+        // Non-streaming fallback: use sendFormattedMessage as before
+        if (cleanText.trim()) {
+          await sendFormattedMessage(ctx, cleanText);
+
+          // l. Save outgoing response to messages table for conversation continuity
+          db.insert(messages)
+            .values({
+              chatId,
+              userId,
+              text: cleanText,
+              direction: "out" as const,
+            })
+            .run();
+        }
       }
 
       // l2. Edit grocery list message if tools modified it

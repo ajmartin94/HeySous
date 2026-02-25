@@ -10,6 +10,9 @@ interface CreateKnowledgeInput {
   source?: string;
   sourceUrl?: string;
   tags: string[];
+  prepTimeMinutes?: number | null;
+  cookTimeMinutes?: number | null;
+  totalTimeMinutes?: number | null;
 }
 
 interface UpdateKnowledgeInput {
@@ -18,6 +21,9 @@ interface UpdateKnowledgeInput {
   content?: string;
   source?: string;
   tags?: string[];
+  prepTimeMinutes?: number | null;
+  cookTimeMinutes?: number | null;
+  totalTimeMinutes?: number | null;
 }
 
 /**
@@ -41,6 +47,11 @@ export function createKnowledgeRepository(db: DrizzleDatabase) {
       createdAt: item.createdAt,
       updatedAt: item.updatedAt,
       lastAccessedAt: item.lastAccessedAt,
+      version: item.version,
+      updatedBy: item.updatedBy ?? null,
+      prepTimeMinutes: item.prepTimeMinutes ?? null,
+      cookTimeMinutes: item.cookTimeMinutes ?? null,
+      totalTimeMinutes: item.totalTimeMinutes ?? null,
     };
   }
 
@@ -58,6 +69,9 @@ export function createKnowledgeRepository(db: DrizzleDatabase) {
           content: input.content,
           source: input.source ?? null,
           sourceUrl: input.sourceUrl ?? null,
+          prepTimeMinutes: input.prepTimeMinutes ?? null,
+          cookTimeMinutes: input.cookTimeMinutes ?? null,
+          totalTimeMinutes: input.totalTimeMinutes ?? null,
         })
         .returning()
         .get();
@@ -107,11 +121,14 @@ export function createKnowledgeRepository(db: DrizzleDatabase) {
 
     /**
      * Update a knowledge item. If tags provided, replaces all tags.
+     * Supports optimistic locking: if expectedVersion is provided, the update
+     * only succeeds when the current version matches. Returns null on conflict.
      */
     update(
       id: number,
       householdId: string,
-      changes: UpdateKnowledgeInput
+      changes: UpdateKnowledgeInput,
+      options?: { expectedVersion?: number; updatedBy?: string },
     ): KnowledgeItem | null {
       // Verify item exists and belongs to householdId
       const existing = db
@@ -124,14 +141,24 @@ export function createKnowledgeRepository(db: DrizzleDatabase) {
 
       if (!existing) return null;
 
+      // Optimistic locking: check version matches expected
+      if (options?.expectedVersion !== undefined && existing.version !== options.expectedVersion) {
+        return null; // Conflict detected
+      }
+
       // Build update values (only specified fields)
       const updateValues: Record<string, unknown> = {
         updatedAt: new Date(),
+        version: existing.version + 1,
       };
+      if (options?.updatedBy !== undefined) updateValues.updatedBy = options.updatedBy;
       if (changes.title !== undefined) updateValues.title = changes.title;
       if (changes.summary !== undefined) updateValues.summary = changes.summary;
       if (changes.content !== undefined) updateValues.content = changes.content;
       if (changes.source !== undefined) updateValues.source = changes.source;
+      if (changes.prepTimeMinutes !== undefined) updateValues.prepTimeMinutes = changes.prepTimeMinutes;
+      if (changes.cookTimeMinutes !== undefined) updateValues.cookTimeMinutes = changes.cookTimeMinutes;
+      if (changes.totalTimeMinutes !== undefined) updateValues.totalTimeMinutes = changes.totalTimeMinutes;
 
       db.update(knowledgeItems)
         .set(updateValues)

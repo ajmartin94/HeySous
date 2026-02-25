@@ -17,6 +17,11 @@ export const knowledgeItems = sqliteTable("knowledge_items", {
   lastAccessedAt: integer("last_accessed_at", { mode: "timestamp" })
     .notNull()
     .$defaultFn(() => new Date()),
+  version: integer("version").notNull().default(1),
+  updatedBy: text("updated_by"),
+  prepTimeMinutes: integer("prep_time_minutes"),
+  cookTimeMinutes: integer("cook_time_minutes"),
+  totalTimeMinutes: integer("total_time_minutes"),
 });
 
 export const knowledgeTags = sqliteTable("knowledge_tags", {

@@ -5,12 +5,16 @@ import type { ReminderSettings, ReminderType } from "./types.js";
 import type { Clock } from "../clock.js";
 import { addDays } from "../planning/date-utils.js";
 import { localTimeToUtc, getTodayInTimezone } from "../clock.js";
+import { logger } from "../logger.js";
+
+/** Default cooking time (minutes) when recipe time cannot be determined. */
+const DEFAULT_COOKING_MINUTES = 45;
 
 /**
  * Parse a time string like "30 minutes", "1 hour 30 minutes", "1 hr", "45 min", "1:30" into minutes.
  * Returns null if unparseable.
  */
-function parseTimeToMinutes(timeStr: string): number | null {
+export function parseTimeToMinutes(timeStr: string): number | null {
   const s = timeStr.trim().toLowerCase();
 
   // Handle "H:MM" format (e.g., "1:30")
@@ -95,10 +99,11 @@ export function parseRecipeTotalMinutes(content: string): number | null {
 /**
  * Generate reminder rows from active meal plan data.
  *
- * Creates three types of reminders:
- * 1. morning_summary -- daily overview of planned meals (or nudge if no meals)
- * 2. prep_alert -- day-before morning alert for recipes with knowledge items
- * 3. start_cooking -- dinner-time nudge to start cooking (adjusted for total recipe prep+cook time)
+ * Creates two types of reminders:
+ * 1. morning_summary -- daily overview of planned meals (or nudge if no meals).
+ *    When prepAlertsEnabled, includes tomorrow's meal data so Claude can mention
+ *    any advance prep (thawing, marinating, etc.) in the same message.
+ * 2. start_cooking -- dinner-time nudge to start cooking (adjusted for total recipe prep+cook time)
  *
  * On days with no meal plan, a "no_plan_nudge" morning summary is generated
  * instead of silence.
@@ -113,8 +118,10 @@ export function generateReminders(deps: {
 }): void {
   const { reminderRepository, planRepository, householdId, settings, clock } = deps;
 
-  // 1. Delete existing future pending reminders for this household
-  reminderRepository.deleteFutureReminders(householdId);
+  // 1. Delete ALL reminders for this household regardless of status.
+  // This ensures reminders already marked 'sent' by the poller (but not yet
+  // delivered) are also removed when regenerating after a plan change.
+  reminderRepository.deleteAllForRegeneration(householdId);
 
   // 2. Get active plans (current week + next week)
   const plans = planRepository.getActivePlans(householdId);
@@ -187,17 +194,34 @@ export function generateReminders(deps: {
         ) {
           if (meals && meals.length > 0) {
             // Day has meals planned
+            const contextData: Record<string, unknown> = {
+              date: currentDate,
+              meals: meals.map((m) => ({
+                mealType: m.mealType,
+                recipeName: m.recipeName,
+              })),
+            };
+
+            // Include tomorrow's meals for advance prep guidance
+            if (settings.prepAlertsEnabled) {
+              const tomorrow = addDays(currentDate, 1);
+              const tomorrowMeals = dateMeals.get(tomorrow);
+              if (tomorrowMeals && tomorrowMeals.length > 0) {
+                contextData.tomorrowMeals = tomorrowMeals
+                  .filter((m) => m.knowledgeItemId)
+                  .map((m) => ({
+                    mealType: m.mealType,
+                    recipeName: m.recipeName,
+                    knowledgeItemId: m.knowledgeItemId,
+                  }));
+              }
+            }
+
             reminderRepository.createReminder({
               householdId,
               type: "morning_summary",
               dueAt,
-              contextJson: JSON.stringify({
-                date: currentDate,
-                meals: meals.map((m) => ({
-                  mealType: m.mealType,
-                  recipeName: m.recipeName,
-                })),
-              }),
+              contextJson: JSON.stringify(contextData),
             });
           } else {
             // No meals -- nudge reminder
@@ -215,81 +239,81 @@ export function generateReminders(deps: {
       }
     }
 
-    // b. Prep alerts: for each recipe with a knowledgeItemId
-    if (settings.prepAlertsEnabled && meals) {
-      for (const meal of meals) {
-        if (meal.knowledgeItemId && currentDate !== today) {
-          // Prep alert fires the morning BEFORE the meal
-          const prepDate = addDays(currentDate, -1);
-
-          // Only if prep date is today or later
-          if (prepDate >= today) {
-            const dueAt = localTimeToUtc(
-              prepDate,
-              settings.morningTime,
-              settings.timezone,
-            );
-
-            if (dueAt.getTime() > clock.now()) {
-              const windowStart = new Date(dueAt.getTime() - 60_000);
-              const windowEnd = new Date(dueAt.getTime() + 60_000);
-
-              if (
-                !reminderRepository.hasPendingReminder(
-                  householdId,
-                  "prep_alert",
-                  windowStart,
-                  windowEnd,
-                )
-              ) {
-                reminderRepository.createReminder({
-                  householdId,
-                  type: "prep_alert",
-                  dueAt,
-                  contextJson: JSON.stringify({
-                    recipeName: meal.recipeName,
-                    knowledgeItemId: meal.knowledgeItemId,
-                    mealDate: currentDate,
-                    mealType: meal.mealType,
-                  }),
-                });
-              }
-            }
-          }
-        }
-      }
-    }
-
-    // c. Start-cooking nudge: for each dinner entry
+    // b. Start-cooking nudge: for each dinner entry
     // Adjusted for total recipe prep+cook time when available
+    // Fallback chain: structured metadata -> content parsing -> 45-min default
     if (meals) {
       for (const meal of meals) {
         if (meal.mealType === "dinner") {
-          // Calculate start time: dinner time minus total recipe time
-          let reminderTime = settings.dinnerTime; // default fallback
+          // Calculate start time: dinner time minus recipe total time
+          let recipeTotalMinutes: number | null = null;
 
           if (meal.knowledgeItemId && deps.sqlite) {
             try {
+              // Query both content and structured time columns
               const row = deps.sqlite
-                .prepare("SELECT content FROM knowledge_items WHERE id = ? AND household_id = ?")
-                .get(meal.knowledgeItemId, householdId) as { content: string } | undefined;
+                .prepare("SELECT content, prep_time_minutes, cook_time_minutes, total_time_minutes FROM knowledge_items WHERE id = ? AND household_id = ?")
+                .get(meal.knowledgeItemId, householdId) as {
+                  content: string;
+                  prep_time_minutes: number | null;
+                  cook_time_minutes: number | null;
+                  total_time_minutes: number | null;
+                } | undefined;
 
               if (row) {
-                const recipeTotalMinutes = parseRecipeTotalMinutes(row.content);
-                if (recipeTotalMinutes !== null && recipeTotalMinutes > 0) {
-                  // Parse dinner time and subtract total recipe minutes
-                  const [dinnerHours, dinnerMinutes] = settings.dinnerTime.split(":").map(Number);
-                  const dinnerTotalMin = dinnerHours * 60 + dinnerMinutes;
-                  const startMin = Math.max(0, dinnerTotalMin - recipeTotalMinutes);
-                  const startHours = Math.floor(startMin / 60);
-                  const startMins = startMin % 60;
-                  reminderTime = `${String(startHours).padStart(2, "0")}:${String(startMins).padStart(2, "0")}`;
+                // Priority 1: Structured metadata columns
+                if (row.prep_time_minutes !== null && row.cook_time_minutes !== null) {
+                  recipeTotalMinutes = row.prep_time_minutes + row.cook_time_minutes;
+                } else if (row.total_time_minutes !== null) {
+                  recipeTotalMinutes = row.total_time_minutes;
+                } else if (row.prep_time_minutes !== null) {
+                  recipeTotalMinutes = row.prep_time_minutes;
+                } else if (row.cook_time_minutes !== null) {
+                  recipeTotalMinutes = row.cook_time_minutes;
                 }
+
+                // Priority 2: Fall back to content parsing
+                if (recipeTotalMinutes === null) {
+                  recipeTotalMinutes = parseRecipeTotalMinutes(row.content);
+                }
+
+                // Log when neither source yields a result
+                if (recipeTotalMinutes === null) {
+                  logger.info(
+                    { householdId, recipeName: meal.recipeName, knowledgeItemId: meal.knowledgeItemId, reason: "no_time_data" },
+                    "No recipe time found in content or metadata, using default fallback",
+                  );
+                }
+              } else {
+                logger.info(
+                  { householdId, recipeName: meal.recipeName, knowledgeItemId: meal.knowledgeItemId, reason: "knowledge_item_not_found" },
+                  "Knowledge item not found for start-cooking reminder, using default fallback",
+                );
               }
-            } catch {
-              // On any error, fall back to dinner time
+            } catch (err) {
+              logger.error(
+                { err, householdId, recipeName: meal.recipeName, knowledgeItemId: meal.knowledgeItemId },
+                "Error querying recipe time for start-cooking reminder",
+              );
             }
+          } else if (!meal.knowledgeItemId) {
+            logger.info(
+              { householdId, recipeName: meal.recipeName, reason: "no_knowledge_item_id" },
+              "No knowledge item linked to dinner entry, using default fallback",
+            );
           }
+
+          // Apply time offset: use recipe total or default 45 minutes
+          const offsetMinutes = recipeTotalMinutes !== null && recipeTotalMinutes > 0
+            ? recipeTotalMinutes
+            : DEFAULT_COOKING_MINUTES;
+
+          const [dinnerHours, dinnerMinutes] = settings.dinnerTime.split(":").map(Number);
+          const dinnerTotalMin = dinnerHours * 60 + dinnerMinutes;
+          const startMin = Math.max(0, dinnerTotalMin - offsetMinutes);
+          const startHours = Math.floor(startMin / 60);
+          const startMins = startMin % 60;
+          const reminderTime = `${String(startHours).padStart(2, "0")}:${String(startMins).padStart(2, "0")}`;
 
           const dueAt = localTimeToUtc(
             currentDate,

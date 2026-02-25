@@ -28,7 +28,9 @@ interface ClaudeClient {
   }>;
 }
 
-/** Focused system prompt for feedback extraction. */
+/** Focused system prompt for feedback extraction -- intentionally no Sous persona.
+ * This is a structured JSON extraction task, not a conversational interaction.
+ * The SOUS_PERSONA constant is NOT used here by design. */
 const EXTRACTION_SYSTEM_PROMPT = `You extract structured feedback from a user's free-text response about a meal.
 Return a JSON object with two fields:
 - sentiment: one of "positive", "neutral", "negative", "skipped"

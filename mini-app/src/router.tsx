@@ -6,6 +6,8 @@ import { Recipes } from './pages/Recipes';
 import { MealPlan } from './pages/MealPlan';
 import { Feedback } from './pages/Feedback';
 import { Help } from './pages/Help';
+import { Settings } from './pages/Settings';
+import { Admin } from './pages/Admin';
 
 export const router = createBrowserRouter(
   [
@@ -19,6 +21,8 @@ export const router = createBrowserRouter(
         { path: 'plan', element: <MealPlan /> },
         { path: 'feedback', element: <Feedback /> },
         { path: 'help', element: <Help /> },
+        { path: 'settings', element: <Settings /> },
+        { path: 'admin', element: <Admin /> },
       ],
     },
   ],

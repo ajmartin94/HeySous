@@ -285,14 +285,15 @@ export function createReminderRepository(sqlite: BetterSqlite3.Database, clock?:
     },
 
     /**
-     * Delete all pending reminders for a chat.
-     * Used on full regeneration.
+     * Delete ALL reminders for a household regardless of status.
+     * Used on full regeneration after plan changes -- ensures no stale
+     * 'sent' reminders (marked by poller before delivery) survive cleanup.
      */
-    deleteAllPending(householdId: string): void {
+    deleteAllForRegeneration(householdId: string): void {
       sqlite
         .prepare(
           `DELETE FROM reminders
-           WHERE household_id = ? AND status = 'pending'`,
+           WHERE household_id = ?`,
         )
         .run(householdId);
     },

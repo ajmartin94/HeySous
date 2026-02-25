@@ -7,6 +7,7 @@
 - [x] **v1.2 Onboarding and Feedback** - Phases 15-19 (shipped 2026-02-11)
 - [x] **v1.3 AI Polish & UX** - Phases 20-24 (shipped 2026-02-19)
 - [x] **v1.4 Backlog Sweep** - Phases 25-31 (shipped 2026-02-21)
+- [x] **v1.5 Agent Hardening & Polish** - Phases 32-41 (shipped 2026-02-25)
 
 ## Phases
 
@@ -50,9 +51,15 @@ See .planning/milestones/v1.4-ROADMAP.md for full phase history.
 
 </details>
 
-## Progress
+<details>
+<summary>v1.5 Agent Hardening & Polish (Phases 32-41) - SHIPPED 2026-02-25</summary>
 
-**Execution Order:** 1 -> 10 (v1.0) -> 11 -> 14 (v1.1) -> 15 -> 19 (v1.2) -> 20 -> 24 (v1.3) -> 25 -> 31 (v1.4)
+See .planning/milestones/v1.5-ROADMAP.md for full phase history.
+23 plans completed across 10 phases. Streaming, security, resilience, observability, admin dashboard, theming, prompt quality, reminder fixes.
+
+</details>
+
+## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -61,5 +68,6 @@ See .planning/milestones/v1.4-ROADMAP.md for full phase history.
 | 15-19. Onboarding Phases | v1.2 | 10/10 | Complete | 2026-02-11 |
 | 20-24. AI Polish Phases | v1.3 | 9/9 | Complete | 2026-02-19 |
 | 25-31. Backlog Sweep Phases | v1.4 | 7/7 | Complete | 2026-02-21 |
+| 32-41. Agent Hardening Phases | v1.5 | 23/23 | Complete | 2026-02-25 |
 
-**Total: 31 phases, 66 plans across 5 milestones**
+**Total: 41 phases complete (89 plans) across 6 milestones**

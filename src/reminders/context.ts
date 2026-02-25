@@ -53,6 +53,6 @@ export function buildReminderContext(
 
   return `
 <reminder_context>
-Reminder settings: timezone ${row.timezone}, morning summary at ${row.morning_time} (${morningStatus}), prep alerts (${prepStatus}), dinner time ${row.dinner_time}${mutedInfo}.
+Reminder settings: timezone ${row.timezone}, morning summary at ${row.morning_time} (${morningStatus}), tomorrow's prep guidance (${prepStatus}), dinner time ${row.dinner_time}${mutedInfo}.
 </reminder_context>`;
 }

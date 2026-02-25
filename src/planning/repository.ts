@@ -34,6 +34,8 @@ export interface SavedPlan {
   id: number;
   weekStartDate: string;
   entries: SavedPlanEntry[];
+  version: number;
+  updatedBy: string | null;
 }
 
 /**
@@ -46,12 +48,15 @@ export function createPlanRepository(db: DrizzleDatabase) {
      * Save a meal plan for a specific week.
      * Find-or-create: if plan exists for this householdId + weekStartDate,
      * delete all entries and replace with new ones.
+     * Supports optimistic locking: if expectedVersion is provided and the
+     * existing plan's version differs, returns null (conflict detected).
      */
     savePlan(
       householdId: string,
       weekStartDate: string,
       entries: PlanEntry[],
-    ): SavedPlan {
+      options?: { expectedVersion?: number; updatedBy?: string },
+    ): SavedPlan | null {
       // Check for existing plan
       const existing = db
         .select()
@@ -65,21 +70,36 @@ export function createPlanRepository(db: DrizzleDatabase) {
         .get();
 
       let planId: number;
+      let newVersion: number;
 
       if (existing) {
+        // Optimistic locking: check version matches expected
+        if (options?.expectedVersion !== undefined && existing.version !== options.expectedVersion) {
+          return null; // Conflict detected
+        }
+
         planId = existing.id;
+        newVersion = existing.version + 1;
 
         // Delete existing entries (will be replaced)
         db.delete(mealPlanEntries)
           .where(eq(mealPlanEntries.planId, planId))
           .run();
 
-        // Update timestamp
+        // Update timestamp, version, and updatedBy
+        const updateValues: Record<string, unknown> = {
+          updatedAt: new Date(),
+          version: newVersion,
+        };
+        if (options?.updatedBy !== undefined) updateValues.updatedBy = options.updatedBy;
+
         db.update(mealPlans)
-          .set({ updatedAt: new Date() })
+          .set(updateValues)
           .where(eq(mealPlans.id, planId))
           .run();
       } else {
+        newVersion = 1;
+
         // Create new plan
         const inserted = db
           .insert(mealPlans)
@@ -121,6 +141,8 @@ export function createPlanRepository(db: DrizzleDatabase) {
         id: planId,
         weekStartDate,
         entries: savedEntries,
+        version: newVersion,
+        updatedBy: options?.updatedBy ?? null,
       };
     },
 
@@ -159,6 +181,8 @@ export function createPlanRepository(db: DrizzleDatabase) {
           recipeName: e.recipeName,
           knowledgeItemId: e.knowledgeItemId,
         })),
+        version: plan.version,
+        updatedBy: plan.updatedBy ?? null,
       };
     },
 

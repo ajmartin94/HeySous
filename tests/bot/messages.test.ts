@@ -20,6 +20,8 @@ import {
   getReminderFallbackCooking,
   getReminderFallbackCheckin,
   getReminderFallbackGeneric,
+  getThinkingLongerMessage,
+  getResilienceFailureMessage,
 } from "../../src/bot/messages.js";
 
 describe("pickRandom", () => {
@@ -91,6 +93,14 @@ describe("message functions return non-empty strings", () => {
 
   it("getReminderFallbackGeneric", () => {
     expect(getReminderFallbackGeneric().length).toBeGreaterThan(0);
+  });
+
+  it("getThinkingLongerMessage", () => {
+    expect(getThinkingLongerMessage().length).toBeGreaterThan(0);
+  });
+
+  it("getResilienceFailureMessage", () => {
+    expect(getResilienceFailureMessage().length).toBeGreaterThan(0);
   });
 });
 

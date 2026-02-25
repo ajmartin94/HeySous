@@ -15,6 +15,9 @@ interface Config {
   adminUserIds: string[];
   adminUserId: string;
   miniAppUrl: string;
+  logToolInputs: boolean;
+  dailyTokenBudget: number;
+  sessionTimezone: string;
 }
 
 const botToken = process.env.BOT_TOKEN;
@@ -54,8 +57,12 @@ export const config: Config = {
   logLevel: process.env.LOG_LEVEL ?? "info",
   isDev: process.env.NODE_ENV !== "production",
   anthropicApiKey,
-  anthropicModel: process.env.ANTHROPIC_MODEL ?? "claude-haiku-4-5-20251001",
+  anthropicModel: process.env.ANTHROPIC_MODEL ?? "claude-sonnet-4-6",
+  // Available models: claude-haiku-4-5-20251001, claude-sonnet-4-6, claude-opus-4-6
   adminUserIds: (process.env.ADMIN_USER_IDS ?? "").split(",").filter(Boolean),
   adminUserId: (process.env.ADMIN_USER_IDS ?? "").split(",").filter(Boolean)[0] ?? "",
   miniAppUrl: process.env.MINI_APP_URL ?? "",
+  logToolInputs: process.env.LOG_TOOL_INPUTS === "true",
+  dailyTokenBudget: Number(process.env.DAILY_TOKEN_BUDGET) || 500_000,
+  sessionTimezone: process.env.SESSION_TIMEZONE ?? "America/New_York",
 };

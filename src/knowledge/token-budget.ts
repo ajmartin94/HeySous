@@ -1,4 +1,35 @@
+import type Anthropic from "@anthropic-ai/sdk";
 import type { TokenBudgetConfig } from "./types.js";
+
+/**
+ * Estimate total tokens for an array of Anthropic MessageParam objects.
+ * Handles both string content and content block arrays.
+ * Adds ~4 tokens overhead per message for role/structure.
+ */
+export function estimateMessageTokens(messages: Anthropic.MessageParam[]): number {
+  let total = 0;
+
+  for (const message of messages) {
+    // ~4 tokens per message for role/formatting overhead
+    total += 4;
+
+    if (typeof message.content === "string") {
+      total += estimateTokens(message.content);
+    } else if (Array.isArray(message.content)) {
+      for (const block of message.content) {
+        if (block.type === "text") {
+          total += estimateTokens((block as { type: "text"; text: string }).text);
+        } else if (block.type === "image") {
+          // Flat estimate for image blocks -- actual token counting is model-dependent
+          total += 1000;
+        }
+        // Skip other block types (tool_use, tool_result, etc.) -- minor overhead
+      }
+    }
+  }
+
+  return total;
+}
 
 const DEFAULT_CONFIG: TokenBudgetConfig = {
   knowledgeSoftLimit: 4000,
@@ -8,10 +39,16 @@ const DEFAULT_CONFIG: TokenBudgetConfig = {
 
 /**
  * Estimate token count for a text string.
- * Uses the 4 chars/token heuristic (reasonable for English text).
+ * Uses byte-length / 3.3 which is empirically closer to actual BPE
+ * tokenization than the simpler text.length / 4 heuristic. This accounts for:
+ * - Multi-byte UTF-8 characters consuming more tokens
+ * - Structured content (XML, JSON) being more token-dense
+ * - Common English words averaging ~4 chars but ~3.3 bytes per token
  */
 export function estimateTokens(text: string): number {
-  return Math.ceil(text.length / 4);
+  if (!text) return 0;
+  const byteLength = Buffer.byteLength(text, "utf-8");
+  return Math.ceil(byteLength / 3.3);
 }
 
 /**

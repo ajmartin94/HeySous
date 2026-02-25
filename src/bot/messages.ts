@@ -38,6 +38,15 @@ export function getTimeoutMessage(): string {
   ]);
 }
 
+export function getMessageTooLongResponse(): string {
+  return pickRandom([
+    "Whoa, that's a novel! I can handle messages up to about 4,000 characters -- mind breaking it up a bit?",
+    "That's a lot to take in! I work best with messages under 4,000 characters. Could you split it up?",
+    "I appreciate the detail, but that's more than I can chew at once! Try keeping messages under about 4,000 characters.",
+    "That message is a bit too long for me to digest -- I'm best with under 4,000 characters. Mind breaking it into smaller bites?",
+  ]);
+}
+
 // ---------------------------------------------------------------------------
 // Access gate messages
 // ---------------------------------------------------------------------------
@@ -241,5 +250,45 @@ export function getReminderFallbackGeneric(): string {
     "Reminder from Sous!",
     "Hey, just a quick reminder!",
     "Friendly reminder from your kitchen pal!",
+  ]);
+}
+
+// ---------------------------------------------------------------------------
+// Daily token budget messages
+// ---------------------------------------------------------------------------
+
+export function getDailyLimitMessage(): string {
+  return pickRandom([
+    "You've reached your daily message limit. Your limit resets at midnight -- feel free to keep using commands, the Mini App, and your grocery list in the meantime!",
+    "You've hit your daily message cap! It'll reset at midnight. Commands, the Mini App, and your grocery list still work in the meantime.",
+    "Daily message limit reached! Everything resets at midnight. You can still use commands, the Mini App, and your grocery list until then.",
+  ]);
+}
+
+// ---------------------------------------------------------------------------
+// Resilience messages (retry / rate-limit)
+// ---------------------------------------------------------------------------
+
+export function getThinkingLongerMessage(): string {
+  return pickRandom([
+    "I'm thinking a little longer on this one -- hang tight!",
+    "Taking an extra moment to get this right for you...",
+    "Still on it! Just need a bit more time...",
+    "Bear with me -- putting a little extra thought into this one...",
+    "Working through this one carefully, just a moment more...",
+  ]);
+}
+
+export function getStreamInterruptedMessage(): string {
+  return "(response interrupted -- try again)";
+}
+
+export function getResilienceFailureMessage(): string {
+  return pickRandom([
+    "I got a bit overwhelmed there -- mind sending that again when you're ready?",
+    "Sorry, I couldn't quite pull that together. Try again in a moment?",
+    "My brain's a little overloaded right now. Send it again when you're ready!",
+    "Hit a snag on that one -- give me another shot when you have a sec?",
+    "I tripped up on that request. Mind trying once more in a minute?",
   ]);
 }

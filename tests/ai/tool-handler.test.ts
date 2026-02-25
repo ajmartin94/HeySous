@@ -110,6 +110,44 @@ function createMockDeps() {
   return { handler, mockPlanRepository };
 }
 
+function createMockDepsWithReminders() {
+  const mockPlanRepository = {
+    savePlan: vi.fn(
+      (
+        _householdId: string,
+        weekStartDate: string,
+        entries: PlanEntry[],
+      ): SavedPlan | null => ({
+        id: 1,
+        weekStartDate,
+        entries: entries.map((e, i) => ({
+          id: i + 1,
+          dayOfWeek: e.day,
+          mealType: e.mealType ?? "dinner",
+          recipeName: e.recipeName,
+          knowledgeItemId: e.knowledgeItemId ?? null,
+        })),
+      }),
+    ),
+    getPlan: vi.fn(),
+    getActivePlans: vi.fn(),
+  };
+
+  const generateRemindersFn = vi.fn();
+
+  const handler = createToolHandler({
+    retrievalService: {} as any,
+    knowledgeRepository: {} as any,
+    db: {} as any,
+    householdId: "test-household",
+    planRepository: mockPlanRepository as any,
+    clock: createTestClock(new Date("2026-02-18")),
+    generateRemindersFn,
+  });
+
+  return { handler, mockPlanRepository, generateRemindersFn };
+}
+
 describe("tool-handler save_meal_plan", () => {
   it("includes knowledgeItemId in result when provided", async () => {
     const { handler, mockPlanRepository } = createMockDeps();
@@ -148,6 +186,35 @@ describe("tool-handler save_meal_plan", () => {
     );
 
     expect(result.plan.entries[0].knowledgeItemId).toBeNull();
+  });
+
+  it("calls generateRemindersFn after successful save", async () => {
+    const { handler, generateRemindersFn } = createMockDepsWithReminders();
+
+    await handler.handleToolCall("save_meal_plan", {
+      week_start_date: "2026-02-16",
+      entries: [{ day: 0, recipe_name: "Tacos" }],
+    });
+
+    expect(generateRemindersFn).toHaveBeenCalledTimes(1);
+    expect(generateRemindersFn).toHaveBeenCalledWith("test-household");
+  });
+
+  it("does not call generateRemindersFn on conflict", async () => {
+    const { handler, mockPlanRepository, generateRemindersFn } = createMockDepsWithReminders();
+
+    // Simulate a conflict -- savePlan returns null
+    mockPlanRepository.savePlan.mockReturnValue(null);
+
+    const result = JSON.parse(
+      await handler.handleToolCall("save_meal_plan", {
+        week_start_date: "2026-02-16",
+        entries: [{ day: 0, recipe_name: "Tacos" }],
+      }),
+    );
+
+    expect(result.conflict).toBe(true);
+    expect(generateRemindersFn).not.toHaveBeenCalled();
   });
 });
 

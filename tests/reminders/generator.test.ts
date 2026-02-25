@@ -625,4 +625,85 @@ describe("generateReminders start_cooking behavior", () => {
     );
     expect(fallbackCall).toBeDefined();
   });
+
+  it("deletes sent reminders during regeneration (no phantom alerts)", () => {
+    // 1. Create a knowledge item
+    createKnowledgeItem(sqlite, {
+      id: 5,
+      title: "Old Chicken Recipe",
+      content: "Cook Time: 30 minutes\n\nIngredients:\n- chicken\n\nSteps:\n1. Cook",
+    });
+
+    // 2. Create a dinner plan for day 1 (Tuesday) of week 2026-02-23
+    createDinnerPlan(sqlite, {
+      weekStartDate: "2026-02-23",
+      dayOfWeek: 1,
+      recipeName: "Old Chicken Recipe",
+      knowledgeItemId: 5,
+    });
+
+    // 3. Create repositories
+    const reminderRepo = createReminderRepository(sqlite, clock);
+    const planRepo = createMockPlanRepo(sqlite);
+
+    // 4. Call generateReminders once to create initial reminders
+    generateReminders({
+      reminderRepository: reminderRepo,
+      planRepository: planRepo as ReturnType<typeof import("../../src/planning/repository.js").createPlanRepository>,
+      sqlite,
+      householdId: HOUSEHOLD_ID,
+      settings: {
+        id: 1,
+        householdId: HOUSEHOLD_ID,
+        timezone: "America/New_York",
+        morningTime: "08:00",
+        dinnerTime: "17:30",
+        morningEnabled: true,
+        prepAlertsEnabled: true,
+        mutedUntil: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      clock,
+    });
+
+    // 5. Manually mark one of the created reminders as 'sent'
+    //    (simulates the poller having already picked up the reminder)
+    sqlite
+      .prepare("UPDATE reminders SET status = 'sent' WHERE household_id = ?")
+      .run(HOUSEHOLD_ID);
+
+    // 6. Sanity check: at least one reminder now has status='sent'
+    const sentBefore = sqlite
+      .prepare("SELECT * FROM reminders WHERE household_id = ? AND status = 'sent'")
+      .all(HOUSEHOLD_ID);
+    expect(sentBefore.length).toBeGreaterThan(0);
+
+    // 7. Call generateReminders again (simulating regeneration after plan change)
+    generateReminders({
+      reminderRepository: reminderRepo,
+      planRepository: planRepo as ReturnType<typeof import("../../src/planning/repository.js").createPlanRepository>,
+      sqlite,
+      householdId: HOUSEHOLD_ID,
+      settings: {
+        id: 1,
+        householdId: HOUSEHOLD_ID,
+        timezone: "America/New_York",
+        morningTime: "08:00",
+        dinnerTime: "17:30",
+        morningEnabled: true,
+        prepAlertsEnabled: true,
+        mutedUntil: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      clock,
+    });
+
+    // Assert: no reminders with status='sent' should remain
+    const sentAfter = sqlite
+      .prepare("SELECT * FROM reminders WHERE household_id = ? AND status = 'sent'")
+      .all(HOUSEHOLD_ID) as Array<Record<string, unknown>>;
+    expect(sentAfter).toHaveLength(0);
+  });
 });

@@ -3,7 +3,7 @@ status: complete
 phase: 41-fix-the-reminder-system-to-avoid-stale-reminders
 source: [41-01-SUMMARY.md]
 started: 2026-02-25T02:30:00Z
-updated: 2026-02-25T02:30:00Z
+updated: 2026-02-25T03:00:00Z
 ---
 
 ## Current Test
@@ -22,16 +22,25 @@ result: pass
 
 ### 3. No duplicate or phantom reminders after plan change
 expected: After modifying a meal plan, you should NOT receive reminders for the old meal that was replaced. Only reminders for the current plan meals should fire.
-result: pass
+result: issue
+reported: "Got a morning summary for the correct meal, but a prep alert for the wrong (old) meal"
+severity: major
 
 ## Summary
 
 total: 3
-passed: 3
-issues: 0
+passed: 2
+issues: 1
 pending: 0
 skipped: 0
 
 ## Gaps
 
-[none yet]
+- truth: "After modifying a meal plan, only reminders for the current plan meals should fire — no phantom reminders for replaced meals"
+  status: failed
+  reason: "User reported: Got a morning summary for the correct meal, but a prep alert for the wrong (old) meal"
+  severity: major
+  test: 3
+  artifacts: []
+  missing: []
+  debug_session: ""

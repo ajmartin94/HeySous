@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-21)
 ## Current Position
 
 Phase: 41 of 41 (Fix the Reminder System to Avoid Stale Reminders)
-Plan: 1 of 1 in current phase
+Plan: 2 of 2 in current phase
 Status: Phase 41 Complete -- All plans executed
-Last activity: 2026-02-24 - Completed 41-01-PLAN.md (reminder regeneration after plan save)
+Last activity: 2026-02-25 - Completed 41-02-PLAN.md (phantom reminder fix)
 
-Progress: [========================================] 100% (89/89 plans complete through Phase 41-01)
+Progress: [========================================] 100% (90/90 plans complete through Phase 41-02)
 
 ## Performance Metrics
 
@@ -48,6 +48,7 @@ All decisions documented in PROJECT.md Key Decisions table.
 - Phase 40-01: Exported parseTimeToMinutes from generator.ts for reuse; non-blocking linking guard returns unlinked_recipes warning alongside successful save; time auto-extraction with explicit param override
 - Phase 40-02: DEFAULT_COOKING_MINUTES = 45 as universal fallback; structured metadata strict priority over content parsing; three distinct info-level log paths for fallback observability
 - Phase 41-01: Reused existing generateRemindersFn guard pattern from update_reminder_settings for post-save reminder regeneration in save_meal_plan
+- [Phase 41]: Renamed deleteAllPending to deleteAllForRegeneration (no other callers); status-agnostic deletion ensures no phantom reminders survive plan changes
 
 ### Pending Todos
 
@@ -73,7 +74,7 @@ Total: 40 phases across 6 milestones.
 
 ## Session Continuity
 
-Last session: 2026-02-24
-Stopped at: Completed 41-01-PLAN.md (Phase 41 complete)
-Next action: Phase 41 complete -- stale reminder fix shipped
-Resume file: .planning/phases/41-fix-the-reminder-system-to-avoid-stale-reminders/41-01-SUMMARY.md
+Last session: 2026-02-25
+Stopped at: Completed 41-02-PLAN.md (Phase 41 complete -- phantom reminder fix shipped)
+Next action: Phase 41 fully complete -- all gap closure plans executed
+Resume file: .planning/phases/41-fix-the-reminder-system-to-avoid-stale-reminders/41-02-SUMMARY.md

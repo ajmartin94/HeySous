@@ -32,7 +32,7 @@ All decisions documented in PROJECT.md Key Decisions table (consolidated at mile
 
 ### Pending Todos
 
-36 pending todos in `.planning/todos/pending/`. Previously scoped into v1.5 requirements (all addressed). 4 new UX/UI items added (deep-link buttons, large screen layout, quick recipe access, multi-recipe meal slots). Review for next milestone.
+5 pending todos in `.planning/todos/pending/`. 31 completed todos closed (shipped in v1.4/v1.5). Remaining: emoji ban, deep-link buttons, large screen layout, quick recipe access, multi-recipe meal slots.
 
 ### Blockers/Concerns
 

@@ -247,8 +247,8 @@ export const PLAN_TOOLS: Anthropic.Tool[] = [
               },
               meal_type: {
                 type: "string",
-                enum: ["breakfast", "lunch", "dinner"],
-                description: "Meal type, default: dinner",
+                enum: ["breakfast", "lunch", "snack", "dinner", "dessert", "other"],
+                description: "Meal type (breakfast, lunch, snack, dinner, dessert, other). Default: dinner",
               },
               recipe_name: {
                 type: "string",
@@ -305,8 +305,8 @@ export const PLAN_TOOLS: Anthropic.Tool[] = [
         },
         meal_type: {
           type: "string",
-          enum: ["breakfast", "lunch", "dinner"],
-          description: "Meal type (default: dinner)",
+          enum: ["breakfast", "lunch", "snack", "dinner", "dessert", "other"],
+          description: "Meal type (breakfast, lunch, snack, dinner, dessert, other). Default: dinner",
         },
         knowledge_item_id: {
           type: "number",

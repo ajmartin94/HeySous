@@ -95,7 +95,18 @@ The LLM is the product. It reasons, decides what to look up, and acts on what it
 
 ### Active
 
-No active requirements. Planning next milestone.
+#### Current Milestone: v1.6 All-Day Meals & UX
+
+**Goal:** Expand from dinner-only to full-day meal planning (breakfast, lunch, dinner, snack, dessert) with multi-recipe slots, add deep-link navigation from chat to Mini App, and polish the Mini App experience.
+
+**Target features:**
+- Full meal types per day (breakfast, lunch, dinner, snack, dessert)
+- Multiple recipes per meal slot (main + sides/components)
+- Deep-link inline buttons in Sous responses to Mini App content
+- Quick recipe access from cooking reminders
+- New readable font family for Mini App
+- Fix Mini App layout on large screens (iPad)
+- Ban emojis from Sous responses
 
 ### Out of Scope
 
@@ -107,18 +118,17 @@ No active requirements. Planning next milestone.
 
 ## Context
 
-- **Current state:** v1.5 shipped. 41 phases across 6 milestones shipped. 89 plans total. ~16,308 LOC TypeScript.
+- **Current state:** v1.6 in progress. 41 phases across 6 milestones shipped. 89 plans total. ~16,308 LOC TypeScript.
 - **Tech stack:** Node.js 22, TypeScript (ESM), grammY, better-sqlite3/Drizzle, Anthropic SDK, Pino, Express, React+Vite (Mini App SPA), @telegram-apps SDK, cheerio (URL import)
 - **Primary user:** Home cook who loves cooking, time-constrained on weekdays, more flexible weekends
 - **Household:** Partner + 9-month-old. Partner now has access via invite system (v1.2).
-- **Dinner target:** 6pm daily
+- **Meal planning:** Expanding from dinner-only to all-day meals (breakfast, lunch, dinner, snack, dessert). Dinner target 6pm daily.
 - **Shopping:** Kroger (primary), Costco (bulk) -- store preferences now factored into grocery lists (v1.3)
 - **Devices:** Apple ecosystem (iPhone, iPad) -- Telegram works cross-platform
 - **First-run flow:** Onboarding guides new users through preferences → tour → seed 3-5 go-to recipes (v1.3 refinement)
 - **Mini App model:** Hybrid — bot stays primary, Mini Apps open from chat buttons for visual tasks
 - **Frontend:** React+Vite SPA inside Telegram Web Apps, served by existing Express server at /app/*
 - **Known issues:** 4 minor tech debt items from v1.5 audit (see .planning/milestones/v1.5-MILESTONE-AUDIT.md)
-- **Next step:** Planning next milestone
 
 ## Previous Milestone: v1.5 Agent Hardening & Polish — SHIPPED 2026-02-25
 
@@ -192,4 +202,4 @@ See .planning/MILESTONES.md for full history of all 6 milestones.
 | Automatic reminder regeneration after plan save | `generateRemindersFn(householdId)` called in save_meal_plan handler after success; status-agnostic deletion prevents phantoms | ✓ Good -- mirrors existing pattern from update_reminder_settings |
 
 ---
-*Last updated: 2026-02-25 after v1.5 milestone completion (Agent Hardening & Polish)*
+*Last updated: 2026-03-02 after v1.6 milestone start (All-Day Meals & UX)*

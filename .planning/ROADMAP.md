@@ -82,7 +82,10 @@ See .planning/milestones/v1.5-ROADMAP.md for full phase history.
   2. A single meal slot (e.g., Tuesday dinner) can hold more than one recipe (main + sides/components)
   3. Existing dinner-only meal plans are migrated to the new schema with meal_type = "dinner" and continue to display correctly
   4. The meal plan API endpoints return meal type and multi-recipe data for Mini App consumption
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 42-01-PLAN.md -- Expand Drizzle schema enums, TypeScript MealType, and add migration v7
+- [ ] 42-02-PLAN.md -- Update Claude tool definitions and Mini App API sort order
 
 ### Phase 43: Agent Tools & Meal Time Config
 **Goal**: Claude can plan, query, and modify meals for any meal type throughout the day, and users can set preferred times per meal type
@@ -152,7 +155,7 @@ Note: Phase 47 has no dependencies and can execute in parallel with earlier phas
 | 20-24. AI Polish Phases | v1.3 | 9/9 | Complete | 2026-02-19 |
 | 25-31. Backlog Sweep Phases | v1.4 | 7/7 | Complete | 2026-02-21 |
 | 32-41. Agent Hardening Phases | v1.5 | 23/23 | Complete | 2026-02-25 |
-| 42. Meal Plan Schema & Migration | v1.6 | 0/? | Not started | - |
+| 42. Meal Plan Schema & Migration | v1.6 | 0/2 | Not started | - |
 | 43. Agent Tools & Meal Time Config | v1.6 | 0/? | Not started | - |
 | 44. Mini App Meal Plan View | v1.6 | 0/? | Not started | - |
 | 45. Grocery & Reminders | v1.6 | 0/? | Not started | - |

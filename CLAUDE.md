@@ -103,17 +103,18 @@ mini-app/src/       React SPA (Vite, React Router, @tma.js/sdk-react)
 ## Releasing
 
 1. Complete the GSD milestone (`/gsd:complete-milestone`)
-2. Write release notes in `src/notifications/release-notes.ts` as part of the milestone (HTML format, keyed by version)
-3. Update help docs if needed (`src/bot/handlers/help.ts`)
-4. Create PR from milestone branch → `main`, squash-merge manually
-5. Tag the release on main: `git tag v1.X`
-6. Deploy -- on startup, `seedNotifications()` inserts new release notes and users see them on next interaction
+2. Review pending todos in `.planning/todos/pending/` -- close completed items, fold relevant ones into the next milestone's requirements
+3. Write release notes in `src/notifications/release-notes.ts` as part of the milestone (HTML format, keyed by version)
+4. Update help docs if needed (`src/bot/handlers/help.ts`)
+5. Create PR from milestone branch → `main`, squash-merge manually
+6. Tag the release on main: `git tag v1.X`
+7. Deploy -- on startup, `seedNotifications()` inserts new release notes and users see them on next interaction
 
 Release notes auto-deliver once per household via the `notifications` / `notification_deliveries` tables. No manual notification step needed.
 
 ## Git
 
-Branching is managed by the GSD workflow (`.claude/get-shit-done/`). Feature work happens on milestone branches (e.g. `gsd/v1.2-onboarding-and-feedback`). All merges to `main` must go through a pull request -- never push directly to main.
+Branching is managed by the GSD workflow (`.claude/get-shit-done/`). Feature work happens on milestone branches (e.g. `gsd/v1.2-onboarding-and-feedback`). Never commit directly to `main` -- all changes reach `main` via pull request only.
 
 ## Environment
 

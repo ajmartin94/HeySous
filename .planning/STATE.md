@@ -5,14 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-02)
 
 **Core value:** The recipe brain -- an AI agent that remembers everything about your meals and reasons over that knowledge to help you plan.
-**Current focus:** v1.6 All-Day Meals & UX
+**Current focus:** v1.6 All-Day Meals & UX -- Phase 42: Meal Plan Schema & Migration
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 42 (1 of 6 in v1.6) — Meal Plan Schema & Migration
 Plan: —
-Status: Defining requirements
-Last activity: 2026-03-02 — Milestone v1.6 started
+Status: Ready to plan
+Last activity: 2026-03-02 — Roadmap created for v1.6
+
+Progress: [░░░░░░░░░░] 0% (0/6 v1.6 phases)
 
 ## Performance Metrics
 
@@ -22,15 +24,20 @@ Last activity: 2026-03-02 — Milestone v1.6 started
 - Total milestones: 6
 - Total LOC: ~16,308 TypeScript
 
+**v1.6:**
+- Plans completed: 0
+- Phases completed: 0/6
+
 ## Accumulated Context
 
 ### Decisions
 
 All decisions documented in PROJECT.md Key Decisions table (consolidated at milestone completion).
+No new decisions yet for v1.6.
 
 ### Pending Todos
 
-5 pending todos in `.planning/todos/pending/` — all scoped into v1.6 requirements.
+5 pending todos in `.planning/todos/pending/` -- all scoped into v1.6 requirements.
 
 ### Blockers/Concerns
 
@@ -40,15 +47,15 @@ None.
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
-| 2 | Update color scheme — green to soft blue for accessibility | 2026-02-24 | 3cc3293 | [2-update-color-scheme-for-better-accessibi](./quick/2-update-color-scheme-for-better-accessibi/) |
+| 2 | Update color scheme -- green to soft blue for accessibility | 2026-02-24 | 3cc3293 | [2-update-color-scheme-for-better-accessibi](./quick/2-update-color-scheme-for-better-accessibi/) |
 
 ### Roadmap Evolution
 
 6 milestones shipped: v1.0 (10 phases), v1.1 (4 phases), v1.2 (5 phases), v1.3 (5 phases), v1.4 (7 phases), v1.5 (10 phases).
-Total: 41 phases, 89 plans across 6 milestones.
+Total: 41 phases, 89 plans across 6 milestones. v1.6 adds 6 phases (42-47).
 
 ## Session Continuity
 
 Last session: 2026-03-02
-Stopped at: v1.6 milestone initialization
-Next action: Define requirements and create roadmap
+Stopped at: Roadmap created for v1.6 milestone
+Next action: Plan Phase 42 (Meal Plan Schema & Migration)

@@ -52,26 +52,26 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PLAN-01 | — | Pending |
-| PLAN-02 | — | Pending |
-| PLAN-03 | — | Pending |
-| PLAN-04 | — | Pending |
-| PLAN-05 | — | Pending |
-| PLAN-06 | — | Pending |
-| PLAN-07 | — | Pending |
-| NAV-01 | — | Pending |
-| NAV-02 | — | Pending |
-| NAV-03 | — | Pending |
-| NAV-04 | — | Pending |
-| UI-01 | — | Pending |
-| UI-02 | — | Pending |
-| PROMPT-01 | — | Pending |
+| PLAN-01 | Phase 42 | Pending |
+| PLAN-02 | Phase 42 | Pending |
+| PLAN-03 | Phase 43 | Pending |
+| PLAN-04 | Phase 44 | Pending |
+| PLAN-05 | Phase 45 | Pending |
+| PLAN-06 | Phase 45 | Pending |
+| PLAN-07 | Phase 43 | Pending |
+| NAV-01 | Phase 46 | Pending |
+| NAV-02 | Phase 46 | Pending |
+| NAV-03 | Phase 46 | Pending |
+| NAV-04 | Phase 46 | Pending |
+| UI-01 | Phase 47 | Pending |
+| UI-02 | Phase 47 | Pending |
+| PROMPT-01 | Phase 47 | Pending |
 
 **Coverage:**
 - v1.6 requirements: 14 total
-- Mapped to phases: 0
-- Unmapped: 14
+- Mapped to phases: 14
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-02*
-*Last updated: 2026-03-02 after initial definition*
+*Last updated: 2026-03-02 after roadmap creation*

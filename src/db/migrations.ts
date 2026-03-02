@@ -209,6 +209,17 @@ export const migrations: Migration[] = [
       logger.info({ recipeCount: recipes.length }, "Backfilled recipe time columns");
     },
   },
+  {
+    version: 7,
+    name: "expand-meal-type-enum",
+    up: (_sqlite) => {
+      // App-level change only: expanded MealType enum from 3 values
+      // (breakfast, lunch, dinner) to 6 values (breakfast, lunch, snack,
+      // dinner, dessert, other) in Drizzle schema and TypeScript types.
+      // SQLite TEXT columns accept any string, so no DDL is needed.
+      // Existing 'dinner' default entries remain valid.
+    },
+  },
 ];
 
 export function runMigrations(sqlite: BetterSqlite3.Database): void {

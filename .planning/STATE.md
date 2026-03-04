@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: All-Day Meals & UX
 status: executing
-last_updated: "2026-03-04T13:44:47.000Z"
+last_updated: "2026-03-04T13:49:51.000Z"
 progress:
   total_phases: 10
-  completed_phases: 9
+  completed_phases: 10
   total_plans: 16
-  completed_plans: 17
+  completed_plans: 18
 ---
 
 # Project State
@@ -23,11 +23,11 @@ See: .planning/PROJECT.md (updated 2026-03-02)
 ## Current Position
 
 Phase: 46 (5 of 6 in v1.6) — Deep-Link Navigation
-Plan: 1 of 2 complete
-Status: Executing
-Last activity: 2026-03-04 — Completed 46-01 (deep-link builder and tool)
+Plan: 2 of 2 complete
+Status: Phase Complete
+Last activity: 2026-03-04 — Completed 46-02 (pipeline buttons and reminder deep-links)
 
-Progress: [████████░░] 83% (5/6 v1.6 phases)
+Progress: [█████████░] 83% (5/6 v1.6 phases)
 
 ## Performance Metrics
 
@@ -38,8 +38,8 @@ Progress: [████████░░] 83% (5/6 v1.6 phases)
 - Total LOC: ~16,308 TypeScript
 
 **v1.6:**
-- Plans completed: 7
-- Phases completed: 4/6
+- Plans completed: 8
+- Phases completed: 5/6
 
 ## Accumulated Context
 
@@ -63,6 +63,9 @@ All decisions documented in PROJECT.md Key Decisions table (consolidated at mile
 - 46-01: Deep-link builder returns null when miniAppUrl not configured, graceful no-op
 - 46-01: attach_deep_link returns marker JSON for processor to pick up, not direct button sending
 - 46-01: Button density: single recipe -> specific link, multiple recipes -> generic /recipes
+- 46-02: "Open in app:" text for button follow-up (Telegram requires non-empty text with inline keyboards)
+- 46-02: Explicit attach_deep_link targets take deduplication priority over auto-detected
+- 46-02: Only single-recipe reminders get deep-link buttons; morning_summary skipped for simplicity
 
 ### Pending Todos
 
@@ -86,5 +89,5 @@ Total: 41 phases, 89 plans across 6 milestones. v1.6 adds 6 phases (42-47).
 ## Session Continuity
 
 Last session: 2026-03-04
-Stopped at: Completed 46-01-PLAN.md (deep-link builder and tool)
-Next action: Execute 46-02-PLAN.md (automatic post-response button injection)
+Stopped at: Completed 46-02-PLAN.md (pipeline buttons and reminder deep-links)
+Next action: Execute phase 47 (final v1.6 phase)

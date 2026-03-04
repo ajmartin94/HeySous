@@ -20,9 +20,9 @@ Requirements for v1.6 All-Day Meals & UX. Each maps to roadmap phases.
 ### Navigation
 
 - [x] **NAV-01**: Sous responses include inline keyboard buttons to open referenced recipes in Mini App
-- [ ] **NAV-02**: Sous responses include inline keyboard buttons to open meal plan view in Mini App
+- [x] **NAV-02**: Sous responses include inline keyboard buttons to open meal plan view in Mini App
 - [x] **NAV-03**: Sous responses include inline keyboard buttons to open grocery list in Mini App
-- [ ] **NAV-04**: Cooking reminders include a button to open the relevant recipe directly
+- [x] **NAV-04**: Cooking reminders include a button to open the relevant recipe directly
 
 ### Mini App
 
@@ -60,9 +60,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PLAN-06 | Phase 45 | Complete |
 | PLAN-07 | Phase 43 | Complete |
 | NAV-01 | Phase 46 | Complete |
-| NAV-02 | Phase 46 | Pending |
+| NAV-02 | Phase 46 | Complete |
 | NAV-03 | Phase 46 | Complete |
-| NAV-04 | Phase 46 | Pending |
+| NAV-04 | Phase 46 | Complete |
 | UI-01 | Phase 47 | Pending |
 | UI-02 | Phase 47 | Pending |
 | PROMPT-01 | Phase 47 | Pending |

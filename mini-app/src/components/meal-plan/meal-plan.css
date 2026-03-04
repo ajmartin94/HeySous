@@ -63,6 +63,44 @@
   font-weight: 600;
   color: var(--tg-theme-text-color, #000);
   margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.day-row__header--tappable {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Chevron indicator */
+.day-row__chevron {
+  color: var(--tg-theme-hint-color, #999);
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.day-row__chevron--collapsed {
+  transform: rotate(-90deg);
+}
+
+/* Collapsed summary */
+.day-row__summary {
+  font-size: var(--hs-font-size-small);
+  color: var(--tg-theme-hint-color, #999);
+  padding: 2px 0 4px;
+}
+
+/* Meal sections container for collapse animation */
+.day-row__sections {
+  overflow: hidden;
+  transition: max-height 0.2s ease, opacity 0.15s ease;
+}
+
+.day-row__sections--collapsed {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
 }
 
 .day-row__empty {

@@ -67,7 +67,7 @@ See .planning/milestones/v1.5-ROADMAP.md for full phase history.
 - [x] **Phase 42: Meal Plan Schema & Migration** - Database foundation for multi-meal-type, multi-recipe meal plans (completed 2026-03-02)
 - [x] **Phase 43: Agent Tools & Meal Time Config** - Claude understands and creates all-day meal plans with configurable times (completed 2026-03-04)
 - [x] **Phase 44: Mini App Meal Plan View** - Visual display of all meal types per day with expandable sections (completed 2026-03-04)
-- [ ] **Phase 45: Grocery & Reminders** - Downstream systems aggregate and remind across all meal types
+- [x] **Phase 45: Grocery & Reminders** - Downstream systems aggregate and remind across all meal types (completed 2026-03-04)
 - [ ] **Phase 46: Deep-Link Navigation** - Inline buttons in Sous responses link directly to Mini App content
 - [ ] **Phase 47: Mini App Polish & Prompt Cleanup** - Font, layout, and emoji ban for a cleaner experience
 
@@ -122,7 +122,7 @@ Plans:
   1. Grocery list generation includes ingredients from breakfast, lunch, snack, and dessert recipes -- not just dinner
   2. Prep reminders fire for non-dinner meals at appropriate times based on configured meal times
   3. Start-cooking reminders adjust timing based on the specific meal type's target time (e.g., breakfast prep reminder in the evening before, lunch reminder in the morning)
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 Plans:
 - [ ] 45-01-PLAN.md -- Extend start-cooking reminders to all meal types, verify grocery aggregation
 
@@ -165,7 +165,7 @@ Note: Phase 47 has no dependencies and can execute in parallel with earlier phas
 | 42. Meal Plan Schema & Migration | 2/2 | Complete    | 2026-03-02 | - |
 | 43. Agent Tools & Meal Time Config | 2/2 | Complete    | 2026-03-04 | - |
 | 44. Mini App Meal Plan View | 1/1 | Complete    | 2026-03-04 | - |
-| 45. Grocery & Reminders | v1.6 | 0/1 | Not started | - |
+| 45. Grocery & Reminders | 1/1 | Complete   | 2026-03-04 | - |
 | 46. Deep-Link Navigation | v1.6 | 0/? | Not started | - |
 | 47. Mini App Polish & Prompt Cleanup | v1.6 | 0/? | Not started | - |
 

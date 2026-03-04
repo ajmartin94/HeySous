@@ -57,6 +57,8 @@ import { getErrorMessage, getMessageTooLongResponse, getThinkingLongerMessage, g
 import { createTelegramStreamSender } from "../telegram/stream-sender.js";
 import { getToolStatusLabel } from "../ai/tool-status.js";
 import { checkDailyTokenBudget } from "../pipeline/token-budget-guard.js";
+import { buildDeepLinksFromToolCalls, buildDeepLinkKeyboard } from "../deep-links/builder.js";
+import type { DeepLinkTarget } from "../deep-links/builder.js";
 
 /**
  * Create an instrumented wrapper around a tool call handler.
@@ -482,6 +484,14 @@ export function createProcessor(deps: ProcessorDeps) {
         log,
       );
 
+      // Track tool calls for deep-link button injection after response
+      const trackedToolCalls: Array<{ name: string; input: Record<string, unknown>; result: string }> = [];
+      const trackingHandler = async (name: string, input: Record<string, unknown>): Promise<string> => {
+        const result = await instrumentedHandler(name, input);
+        trackedToolCalls.push({ name, input, result });
+        return result;
+      };
+
       // Track whether user has been notified about retry (only once per request)
       let retryNotificationSent = false;
 
@@ -542,7 +552,7 @@ export function createProcessor(deps: ProcessorDeps) {
           response = await claudeClient.streamMessageWithTools(
             fullMessages,
             allTools,
-            instrumentedHandler,
+            trackingHandler,
             streamCallbacks,
             10, // max iterations for grocery list generation (plan + recipe lookups + save)
             systemPrompt,
@@ -609,7 +619,7 @@ export function createProcessor(deps: ProcessorDeps) {
           response = await claudeClient.sendMessageWithTools(
             fullMessages,
             allTools,
-            instrumentedHandler,
+            trackingHandler,
             10,
             systemPrompt,
             onRetry,
@@ -712,6 +722,57 @@ export function createProcessor(deps: ProcessorDeps) {
           log.debug(
             { error: editError instanceof Error ? editError.message : String(editError) },
             "Grocery list message edit skipped",
+          );
+        }
+      }
+
+      // l3. Send deep-link buttons as follow-up message
+      if (trackedToolCalls.length > 0) {
+        try {
+          // Check for explicit attach_deep_link tool calls first
+          const explicitLinks: DeepLinkTarget[] = [];
+          for (const tc of trackedToolCalls) {
+            if (tc.name === "attach_deep_link") {
+              try {
+                const parsed = JSON.parse(tc.result) as { deep_link?: boolean; target?: string; recipe_id?: number };
+                if (parsed.deep_link && parsed.target) {
+                  if (parsed.target === "recipe" && parsed.recipe_id) {
+                    explicitLinks.push({ type: "recipe", recipeId: parsed.recipe_id });
+                  } else if (parsed.target === "recipes") {
+                    explicitLinks.push({ type: "recipes" });
+                  } else if (parsed.target === "plan") {
+                    explicitLinks.push({ type: "plan" });
+                  } else if (parsed.target === "grocery") {
+                    explicitLinks.push({ type: "grocery" });
+                  }
+                }
+              } catch { /* ignore parse errors */ }
+            }
+          }
+
+          // Build targets from automatic tool tracking (excludes attach_deep_link)
+          const autoTargets = buildDeepLinksFromToolCalls(
+            trackedToolCalls.filter(tc => tc.name !== "attach_deep_link")
+          );
+
+          // Merge: explicit links take priority, deduplicate by type
+          const allTargets = [...explicitLinks];
+          const existingTypes = new Set(allTargets.map(t => t.type));
+          for (const t of autoTargets) {
+            if (!existingTypes.has(t.type)) {
+              allTargets.push(t);
+              existingTypes.add(t.type);
+            }
+          }
+
+          const keyboard = buildDeepLinkKeyboard(allTargets);
+          if (keyboard) {
+            await ctx.reply("Open in app:", { reply_markup: keyboard });
+          }
+        } catch (deepLinkError) {
+          log.debug(
+            { error: deepLinkError instanceof Error ? deepLinkError.message : String(deepLinkError) },
+            "Deep-link button send skipped",
           );
         }
       }

@@ -96,7 +96,7 @@ Plans:
   2. User can say "I had a salad for lunch today" and Sous records it as a lunch entry
   3. User can configure preferred meal times (e.g., "I eat breakfast at 8am") and Sous persists those preferences
   4. Sensible defaults exist for meal times if user has not configured them (breakfast 7am, lunch 12pm, dinner 6pm)
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 Plans:
 - [ ] 43-01-PLAN.md -- Add meal time columns to DB, extend tool definition/handler, enrich reminder context
 - [ ] 43-02-PLAN.md -- Update system prompt for multi-meal awareness, modify onboarding for meal times
@@ -159,7 +159,7 @@ Note: Phase 47 has no dependencies and can execute in parallel with earlier phas
 | 25-31. Backlog Sweep Phases | v1.4 | 7/7 | Complete | 2026-02-21 |
 | 32-41. Agent Hardening Phases | v1.5 | 23/23 | Complete | 2026-02-25 |
 | 42. Meal Plan Schema & Migration | 2/2 | Complete    | 2026-03-02 | - |
-| 43. Agent Tools & Meal Time Config | v1.6 | 0/2 | Not started | - |
+| 43. Agent Tools & Meal Time Config | 1/2 | In Progress|  | - |
 | 44. Mini App Meal Plan View | v1.6 | 0/? | Not started | - |
 | 45. Grocery & Reminders | v1.6 | 0/? | Not started | - |
 | 46. Deep-Link Navigation | v1.6 | 0/? | Not started | - |

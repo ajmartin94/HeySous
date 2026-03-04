@@ -15,7 +15,7 @@ Requirements for v1.6 All-Day Meals & UX. Each maps to roadmap phases.
 - [ ] **PLAN-04**: Mini App meal plan view displays all meal types per day with expandable sections
 - [ ] **PLAN-05**: Grocery list generation aggregates ingredients from all meal types across the week
 - [ ] **PLAN-06**: Reminders fire for all meal types, not just dinner (prep reminders, start-cooking alerts)
-- [ ] **PLAN-07**: User can configure preferred times for each meal type (sensible defaults: breakfast 7am, lunch 12pm, dinner 6pm)
+- [x] **PLAN-07**: User can configure preferred times for each meal type (sensible defaults: breakfast 7am, lunch 12pm, dinner 6pm)
 
 ### Navigation
 
@@ -58,7 +58,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PLAN-04 | Phase 44 | Pending |
 | PLAN-05 | Phase 45 | Pending |
 | PLAN-06 | Phase 45 | Pending |
-| PLAN-07 | Phase 43 | Pending |
+| PLAN-07 | Phase 43 | Complete |
 | NAV-01 | Phase 46 | Pending |
 | NAV-02 | Phase 46 | Pending |
 | NAV-03 | Phase 46 | Pending |

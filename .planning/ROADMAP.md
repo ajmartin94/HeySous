@@ -110,7 +110,9 @@ Plans:
   2. Each meal section is expandable/collapsible to manage visual density
   3. Multi-recipe meal slots show all component recipes (e.g., main + side) within the meal section
   4. Tapping a recipe within any meal type navigates to the recipe detail view
-**Plans**: TBD
+**Plans:** 1 plan
+Plans:
+- [ ] 44-01-PLAN.md -- Extend meal type support, grouped section rendering, day-level expand/collapse
 
 ### Phase 45: Grocery & Reminders
 **Goal**: Grocery lists and reminders work across all meal types, not just dinner

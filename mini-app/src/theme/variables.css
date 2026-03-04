@@ -1,5 +1,6 @@
 /* HeySous accent colors and layout tokens (shared across themes) */
 :root {
+  font-family: system-ui, sans-serif;
   --hs-accent: #4A7FB5;
   --hs-accent-light: #6BA3D6;
   --hs-accent-dark: #365F8C;

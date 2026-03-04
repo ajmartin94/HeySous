@@ -1,0 +1,29 @@
+.layout-root {
+  min-height: 100vh;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+/* Tablet */
+@media (min-width: 768px) {
+  .layout-root {
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+}
+
+/* Desktop */
+@media (min-width: 1024px) {
+  .layout-root {
+    padding-left: 48px;
+    padding-right: 48px;
+  }
+}
+
+/* Large desktop */
+@media (min-width: 1440px) {
+  .layout-root {
+    padding-left: 80px;
+    padding-right: 80px;
+  }
+}

@@ -102,7 +102,10 @@
 /* Color-code icons by meal type */
 .meal-entry__icon--breakfast { color: #e5a03a; }
 .meal-entry__icon--lunch { color: #e58c3a; }
+.meal-entry__icon--snack { color: #5dab5e; }
 .meal-entry__icon--dinner { color: #7a6fbf; }
+.meal-entry__icon--dessert { color: #d4698a; }
+.meal-entry__icon--other { color: #8a8a8e; }
 
 .meal-entry__label {
   font-size: var(--hs-font-size-small);
@@ -131,6 +134,21 @@
 
 .week-content--transitioning {
   opacity: 0.6;
+}
+
+/* Meal type section */
+.meal-type-section {
+  margin-bottom: 4px;
+}
+
+.meal-type-section__header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0 2px;
+  font-size: var(--hs-font-size-small);
+  color: var(--tg-theme-hint-color, #999);
+  font-weight: 500;
 }
 
 /* Loading skeleton */

@@ -5,7 +5,7 @@ import type { RecipeDetailData } from "./useRecipes.js";
 export interface MealPlanEntry {
   id: number;
   dayOfWeek: number;
-  mealType: "breakfast" | "lunch" | "dinner";
+  mealType: "breakfast" | "lunch" | "snack" | "dinner" | "dessert" | "other";
   recipeName: string;
   knowledgeItemId: number | null;
   hasRecipe: boolean;

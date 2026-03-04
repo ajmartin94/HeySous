@@ -11,7 +11,7 @@ Requirements for v1.6 All-Day Meals & UX. Each maps to roadmap phases.
 
 - [x] **PLAN-01**: User can create meal plans with multiple meal types per day (breakfast, lunch, dinner, snack, dessert)
 - [x] **PLAN-02**: Each meal slot supports multiple recipes (main + sides/components)
-- [ ] **PLAN-03**: User can tell Sous about any meal type and it gets planned into the correct slot
+- [x] **PLAN-03**: User can tell Sous about any meal type and it gets planned into the correct slot
 - [ ] **PLAN-04**: Mini App meal plan view displays all meal types per day with expandable sections
 - [ ] **PLAN-05**: Grocery list generation aggregates ingredients from all meal types across the week
 - [ ] **PLAN-06**: Reminders fire for all meal types, not just dinner (prep reminders, start-cooking alerts)
@@ -54,7 +54,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 | PLAN-01 | Phase 42 | Complete |
 | PLAN-02 | Phase 42 | Complete |
-| PLAN-03 | Phase 43 | Pending |
+| PLAN-03 | Phase 43 | Complete |
 | PLAN-04 | Phase 44 | Pending |
 | PLAN-05 | Phase 45 | Pending |
 | PLAN-06 | Phase 45 | Pending |

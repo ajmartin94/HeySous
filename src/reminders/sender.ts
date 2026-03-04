@@ -10,6 +10,7 @@ import {
   getReminderFallbackGeneric,
 } from "../bot/messages.js";
 import { SOUS_PERSONA } from "../ai/system-prompt.js";
+import { buildDeepLinkKeyboard } from "../deep-links/builder.js";
 
 /**
  * Minimal interface for bot API -- keeps sender decoupled from grammY types.
@@ -19,7 +20,7 @@ interface BotApi {
     sendMessage: (
       chatId: string,
       text: string,
-      options?: { parse_mode?: string },
+      options?: { parse_mode?: string; reply_markup?: unknown },
     ) => Promise<unknown>;
   };
 }
@@ -305,6 +306,17 @@ export function createReminderSender(deps: ReminderSenderDeps) {
           text = getFallbackText(reminder.type, context);
         }
 
+        // 3b. Build deep-link keyboard for recipe-linked reminders
+        let replyMarkup: unknown = undefined;
+        if (context.knowledgeItemId) {
+          const keyboard = buildDeepLinkKeyboard([
+            { type: "recipe", recipeId: context.knowledgeItemId as number },
+          ]);
+          if (keyboard) {
+            replyMarkup = keyboard;
+          }
+        }
+
         // 4. Send via Telegram to all household members
         const members = getHouseholdMembers(sqlite, reminder.householdId);
         let sent = false;
@@ -312,6 +324,7 @@ export function createReminderSender(deps: ReminderSenderDeps) {
           try {
             await bot.api.sendMessage(member.telegramId, text, {
               parse_mode: "HTML",
+              ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
             });
             sent = true;
           } catch (error: unknown) {

@@ -616,3 +616,37 @@ export const FEEDBACK_TOOLS: Anthropic.Tool[] = [
     },
   },
 ];
+
+/**
+ * Anthropic tool definitions for deep-link navigation.
+ *
+ * One on-demand tool for attaching Mini App navigation buttons:
+ * 1. attach_deep_link -- Provide a navigation button when no data-changing tool was triggered
+ */
+export const DEEP_LINK_TOOLS: Anthropic.Tool[] = [
+  {
+    name: "attach_deep_link",
+    description:
+      "Attach an inline button that opens the Mini App to a specific view. Use when the user " +
+      "asks to see a recipe, meal plan, or grocery list but no data-changing tool was triggered. " +
+      "For example: 'show me that recipe', 'open my grocery list', 'let me see the plan'. " +
+      "Do NOT use after save_meal_plan, save_grocery_list, or save_knowledge -- those get " +
+      "buttons automatically.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        target: {
+          type: "string",
+          enum: ["recipe", "recipes", "plan", "grocery"],
+          description: "Which Mini App view to open",
+        },
+        recipe_id: {
+          type: "number",
+          description:
+            "Knowledge item ID of the recipe to open. Required when target is 'recipe'.",
+        },
+      },
+      required: ["target"],
+    },
+  },
+];

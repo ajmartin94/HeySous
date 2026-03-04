@@ -503,12 +503,7 @@ CROSS-RECIPE REASONING:
 - Let the user pick one for full details
 </recipe_management>`;
 
-function buildPantryResponsePrompt(miniAppUrl?: string): string {
-  const groceryLinkInstruction = miniAppUrl
-    ? `\n- When a grocery list exists, include a link to manage it: "You can check your grocery list here: ${miniAppUrl}/grocery"
-- Format the link as a plain URL -- Telegram will make it tappable automatically`
-    : "";
-
+function buildPantryResponsePrompt(): string {
   return `
 <pantry_response>
 When users mention ingredients they have on hand, pantry contents, or what's in their fridge/freezer, respond with ACTIONABLE next steps -- never just acknowledge.
@@ -527,13 +522,12 @@ RESPONSE PATTERNS (pick the most relevant):
 2. Meal plan integration: If they have an active meal plan, connect pantry contents to upcoming meals
    - "You're set for Tuesday's stir fry with that chicken and rice!"
 
-3. Grocery list connection: If they mention having some ingredients, help identify what's MISSING for planned meals${groceryLinkInstruction}
+3. Grocery list connection: If they mention having some ingredients, help identify what's MISSING for planned meals
    - "You've got the chicken -- you'll still need the curry paste and coconut milk for Thursday's curry."
    - Offer to remove items they already have from the grocery list: "Want me to cross those off your grocery list?"
 
 4. Conversational pantry walk-through: When generating or reviewing a grocery list, offer to go through items together
    - "Want to do a quick pantry check? I'll go through the list and you tell me what you already have."
-   - This is the PREFERRED alternative when no Mini App link is available
 
 WHAT TO AVOID:
 - Dead-end responses like "Great, thanks for letting me know!" with no follow-up action
@@ -702,8 +696,16 @@ INFERRED PREFERENCE RULES:
  * @param miniAppUrl - Optional Mini App URL (from config, stable per deployment)
  * @returns Static system prompt string (~7,400 tokens)
  */
+const DEEP_LINK_PROMPT = `
+<deep_links>
+When the user asks to see or open a recipe, meal plan, or grocery list without triggering a data-changing tool, use attach_deep_link to provide a navigation button.
+- "show me that recipe" / "open my grocery list" / "let me see the plan" -> use attach_deep_link
+- Do NOT use attach_deep_link after save_meal_plan, save_grocery_list, or save_knowledge -- buttons are attached automatically for those.
+</deep_links>`;
+
 export function buildStaticPrompt(miniAppUrl?: string): string {
-  return `${SOUS_PERSONA}${TOOLS_PROMPT}${RECIPE_MANAGEMENT_PROMPT}${PREFERENCE_MANAGEMENT_PROMPT}${MEAL_PLANNING_PROMPT}${GROCERY_LIST_PROMPT}${REMINDER_PROMPT}${FEEDBACK_PROMPT}${RECIPE_VARIATIONS_PROMPT}${APP_FEEDBACK_PROMPT}${HELP_PROMPT}${buildPantryResponsePrompt(miniAppUrl)}`;
+  const deepLinks = miniAppUrl ? DEEP_LINK_PROMPT : "";
+  return `${SOUS_PERSONA}${TOOLS_PROMPT}${RECIPE_MANAGEMENT_PROMPT}${PREFERENCE_MANAGEMENT_PROMPT}${MEAL_PLANNING_PROMPT}${GROCERY_LIST_PROMPT}${REMINDER_PROMPT}${FEEDBACK_PROMPT}${RECIPE_VARIATIONS_PROMPT}${APP_FEEDBACK_PROMPT}${HELP_PROMPT}${buildPantryResponsePrompt()}${deepLinks}`;
 }
 
 /**

@@ -1229,6 +1229,28 @@ export function createToolHandler(deps: {
           }
         }
 
+        case "attach_deep_link": {
+          const validTargets = ["recipe", "recipes", "plan", "grocery"];
+          const target = input.target as string;
+
+          if (!target || !validTargets.includes(target)) {
+            return validationError(`target must be one of: ${validTargets.join(", ")}`);
+          }
+
+          if (target === "recipe") {
+            const idErr = validateRequired(input.recipe_id, "recipe_id", "number")
+              ?? validatePositiveInt(input.recipe_id, "recipe_id");
+            if (idErr) return validationError(idErr);
+          }
+
+          // Return a marker JSON -- the processor will read this to attach the button
+          return JSON.stringify({
+            deep_link: true,
+            target,
+            recipe_id: target === "recipe" ? input.recipe_id : undefined,
+          });
+        }
+
         default:
           return `Unknown tool: ${name}`;
       }

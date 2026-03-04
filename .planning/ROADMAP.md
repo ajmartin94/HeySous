@@ -66,7 +66,7 @@ See .planning/milestones/v1.5-ROADMAP.md for full phase history.
 
 - [x] **Phase 42: Meal Plan Schema & Migration** - Database foundation for multi-meal-type, multi-recipe meal plans (completed 2026-03-02)
 - [x] **Phase 43: Agent Tools & Meal Time Config** - Claude understands and creates all-day meal plans with configurable times (completed 2026-03-04)
-- [ ] **Phase 44: Mini App Meal Plan View** - Visual display of all meal types per day with expandable sections
+- [x] **Phase 44: Mini App Meal Plan View** - Visual display of all meal types per day with expandable sections (completed 2026-03-04)
 - [ ] **Phase 45: Grocery & Reminders** - Downstream systems aggregate and remind across all meal types
 - [ ] **Phase 46: Deep-Link Navigation** - Inline buttons in Sous responses link directly to Mini App content
 - [ ] **Phase 47: Mini App Polish & Prompt Cleanup** - Font, layout, and emoji ban for a cleaner experience
@@ -110,7 +110,7 @@ Plans:
   2. Each meal section is expandable/collapsible to manage visual density
   3. Multi-recipe meal slots show all component recipes (e.g., main + side) within the meal section
   4. Tapping a recipe within any meal type navigates to the recipe detail view
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 Plans:
 - [ ] 44-01-PLAN.md -- Extend meal type support, grouped section rendering, day-level expand/collapse
 
@@ -162,7 +162,7 @@ Note: Phase 47 has no dependencies and can execute in parallel with earlier phas
 | 32-41. Agent Hardening Phases | v1.5 | 23/23 | Complete | 2026-02-25 |
 | 42. Meal Plan Schema & Migration | 2/2 | Complete    | 2026-03-02 | - |
 | 43. Agent Tools & Meal Time Config | 2/2 | Complete    | 2026-03-04 | - |
-| 44. Mini App Meal Plan View | v1.6 | 0/? | Not started | - |
+| 44. Mini App Meal Plan View | 1/1 | Complete   | 2026-03-04 | - |
 | 45. Grocery & Reminders | v1.6 | 0/? | Not started | - |
 | 46. Deep-Link Navigation | v1.6 | 0/? | Not started | - |
 | 47. Mini App Polish & Prompt Cleanup | v1.6 | 0/? | Not started | - |

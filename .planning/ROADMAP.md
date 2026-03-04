@@ -122,7 +122,9 @@ Plans:
   1. Grocery list generation includes ingredients from breakfast, lunch, snack, and dessert recipes -- not just dinner
   2. Prep reminders fire for non-dinner meals at appropriate times based on configured meal times
   3. Start-cooking reminders adjust timing based on the specific meal type's target time (e.g., breakfast prep reminder in the evening before, lunch reminder in the morning)
-**Plans**: TBD
+**Plans:** 1 plan
+Plans:
+- [ ] 45-01-PLAN.md -- Extend start-cooking reminders to all meal types, verify grocery aggregation
 
 ### Phase 46: Deep-Link Navigation
 **Goal**: Users can jump directly from Sous chat messages and reminders into the relevant Mini App view
@@ -163,7 +165,7 @@ Note: Phase 47 has no dependencies and can execute in parallel with earlier phas
 | 42. Meal Plan Schema & Migration | 2/2 | Complete    | 2026-03-02 | - |
 | 43. Agent Tools & Meal Time Config | 2/2 | Complete    | 2026-03-04 | - |
 | 44. Mini App Meal Plan View | 1/1 | Complete    | 2026-03-04 | - |
-| 45. Grocery & Reminders | v1.6 | 0/? | Not started | - |
+| 45. Grocery & Reminders | v1.6 | 0/1 | Not started | - |
 | 46. Deep-Link Navigation | v1.6 | 0/? | Not started | - |
 | 47. Mini App Polish & Prompt Cleanup | v1.6 | 0/? | Not started | - |
 

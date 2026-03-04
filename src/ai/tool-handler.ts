@@ -1017,7 +1017,11 @@ export function createToolHandler(deps: {
           return JSON.stringify({
             timezone: settings.timezone,
             morningTime: settings.morningTime,
+            breakfastTime: settings.breakfastTime,
+            lunchTime: settings.lunchTime,
+            snackTime: settings.snackTime,
             dinnerTime: settings.dinnerTime,
+            dessertTime: settings.dessertTime,
             morningEnabled: settings.morningEnabled,
             prepAlertsEnabled: settings.prepAlertsEnabled,
             mutedUntil: settings.mutedUntil
@@ -1034,7 +1038,11 @@ export function createToolHandler(deps: {
           {
             const err = validateString(input.timezone, "timezone", MAX_LENGTHS.timezone)
               ?? validateString(input.morning_time, "morning_time", MAX_LENGTHS.time)
+              ?? validateString(input.breakfast_time, "breakfast_time", MAX_LENGTHS.time)
+              ?? validateString(input.lunch_time, "lunch_time", MAX_LENGTHS.time)
+              ?? validateString(input.snack_time, "snack_time", MAX_LENGTHS.time)
               ?? validateString(input.dinner_time, "dinner_time", MAX_LENGTHS.time)
+              ?? validateString(input.dessert_time, "dessert_time", MAX_LENGTHS.time)
               ?? validateString(input.muted_until, "muted_until", MAX_LENGTHS.date);
             if (err) return validationError(err);
           }
@@ -1047,8 +1055,20 @@ export function createToolHandler(deps: {
           if (input.morning_time !== undefined) {
             updates.morningTime = input.morning_time as string;
           }
+          if (input.breakfast_time !== undefined) {
+            updates.breakfastTime = input.breakfast_time as string;
+          }
+          if (input.lunch_time !== undefined) {
+            updates.lunchTime = input.lunch_time as string;
+          }
+          if (input.snack_time !== undefined) {
+            updates.snackTime = input.snack_time as string;
+          }
           if (input.dinner_time !== undefined) {
             updates.dinnerTime = input.dinner_time as string;
+          }
+          if (input.dessert_time !== undefined) {
+            updates.dessertTime = input.dessert_time as string;
           }
           if (input.morning_enabled !== undefined) {
             updates.morningEnabled = input.morning_enabled as boolean;
@@ -1076,7 +1096,11 @@ export function createToolHandler(deps: {
             message: "Settings updated",
             timezone: updated.timezone,
             morningTime: updated.morningTime,
+            breakfastTime: updated.breakfastTime,
+            lunchTime: updated.lunchTime,
+            snackTime: updated.snackTime,
             dinnerTime: updated.dinnerTime,
+            dessertTime: updated.dessertTime,
             morningEnabled: updated.morningEnabled,
             prepAlertsEnabled: updated.prepAlertsEnabled,
             mutedUntil: updated.mutedUntil

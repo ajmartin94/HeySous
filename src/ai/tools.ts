@@ -459,7 +459,8 @@ export const REMINDER_TOOLS: Anthropic.Tool[] = [
     name: "get_reminder_settings",
     description:
       "Get the current reminder settings for this chat. Returns timezone, " +
-      "morning summary time, dinner time, enabled states, and mute status.",
+      "morning summary time, all meal times (breakfast, lunch, snack, dinner, dessert), " +
+      "enabled states, and mute status.",
     input_schema: {
       type: "object" as const,
       properties: {},
@@ -471,8 +472,9 @@ export const REMINDER_TOOLS: Anthropic.Tool[] = [
     description:
       "Update reminder settings. Provide only the fields you want to change. " +
       "Use this when users say things like 'mute reminders until Monday', " +
-      "'change my morning time to 7am', 'turn off prep alerts', or " +
-      "'set my timezone to Pacific'.",
+      "'change my morning time to 7am', 'turn off prep alerts', " +
+      "'set my timezone to Pacific', 'I eat breakfast at 9am', or " +
+      "'set my lunch time to 1pm'.",
     input_schema: {
       type: "object" as const,
       properties: {
@@ -485,10 +487,30 @@ export const REMINDER_TOOLS: Anthropic.Tool[] = [
           type: "string",
           description: "Morning summary time in HH:MM format (e.g., '07:00')",
         },
+        breakfast_time: {
+          type: "string",
+          description:
+            "Preferred breakfast time in HH:MM format (e.g., '07:00')",
+        },
+        lunch_time: {
+          type: "string",
+          description:
+            "Preferred lunch time in HH:MM format (e.g., '12:00')",
+        },
+        snack_time: {
+          type: "string",
+          description:
+            "Preferred snack time in HH:MM format (e.g., '15:00')",
+        },
         dinner_time: {
           type: "string",
           description:
             "Dinner/cooking reminder time in HH:MM format (e.g., '17:30')",
+        },
+        dessert_time: {
+          type: "string",
+          description:
+            "Preferred dessert time in HH:MM format (e.g., '20:00')",
         },
         morning_enabled: {
           type: "boolean",

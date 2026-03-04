@@ -1,7 +1,7 @@
 import type BetterSqlite3 from "better-sqlite3";
 import type { createReminderRepository } from "./repository.js";
 import type { createPlanRepository } from "../planning/repository.js";
-import type { ReminderSettings, ReminderType } from "./types.js";
+import type { ReminderSettings } from "./types.js";
 import type { Clock } from "../clock.js";
 import { addDays } from "../planning/date-utils.js";
 import { localTimeToUtc, getTodayInTimezone } from "../clock.js";

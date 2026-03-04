@@ -220,6 +220,34 @@ export const migrations: Migration[] = [
       // Existing 'dinner' default entries remain valid.
     },
   },
+  {
+    version: 8,
+    name: "add-meal-time-columns",
+    up: (sqlite) => {
+      // On fresh install, reminder_settings may not exist yet (created later by initializeReminders).
+      const tableExists = sqlite
+        .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='reminder_settings'")
+        .get();
+      if (!tableExists) return;
+
+      const columns = sqlite.pragma("table_info(reminder_settings)") as Array<{ name: string }>;
+
+      const newColumns: Array<{ name: string; defaultValue: string }> = [
+        { name: "breakfast_time", defaultValue: "07:00" },
+        { name: "lunch_time", defaultValue: "12:00" },
+        { name: "snack_time", defaultValue: "15:00" },
+        { name: "dessert_time", defaultValue: "20:00" },
+      ];
+
+      for (const col of newColumns) {
+        if (!columns.some((c) => c.name === col.name)) {
+          sqlite.exec(
+            `ALTER TABLE reminder_settings ADD COLUMN ${col.name} TEXT NOT NULL DEFAULT '${col.defaultValue}'`,
+          );
+        }
+      }
+    },
+  },
 ];
 
 export function runMigrations(sqlite: BetterSqlite3.Database): void {

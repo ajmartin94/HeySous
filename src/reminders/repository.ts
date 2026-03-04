@@ -13,7 +13,11 @@ interface ReminderSettingsRow {
   household_id: string;
   timezone: string;
   morning_time: string;
+  breakfast_time: string;
+  lunch_time: string;
+  snack_time: string;
   dinner_time: string;
+  dessert_time: string;
   morning_enabled: number;
   prep_alerts_enabled: number;
   muted_until: number | null;
@@ -41,7 +45,11 @@ function mapSettings(row: ReminderSettingsRow): ReminderSettings {
     householdId: row.household_id,
     timezone: row.timezone,
     morningTime: row.morning_time,
+    breakfastTime: row.breakfast_time,
+    lunchTime: row.lunch_time,
+    snackTime: row.snack_time,
     dinnerTime: row.dinner_time,
+    dessertTime: row.dessert_time,
     morningEnabled: row.morning_enabled === 1,
     prepAlertsEnabled: row.prep_alerts_enabled === 1,
     mutedUntil: row.muted_until != null ? new Date(row.muted_until * 1000) : null,
@@ -99,7 +107,11 @@ export function createReminderRepository(sqlite: BetterSqlite3.Database, clock?:
       updates: Partial<{
         timezone: string;
         morningTime: string;
+        breakfastTime: string;
+        lunchTime: string;
+        snackTime: string;
         dinnerTime: string;
+        dessertTime: string;
         morningEnabled: boolean;
         prepAlertsEnabled: boolean;
         mutedUntil: Date | null;
@@ -108,7 +120,11 @@ export function createReminderRepository(sqlite: BetterSqlite3.Database, clock?:
       // For insert: use provided values or defaults
       const timezone = updates.timezone ?? "America/New_York";
       const morningTime = updates.morningTime ?? "08:00";
+      const breakfastTime = updates.breakfastTime ?? "07:00";
+      const lunchTime = updates.lunchTime ?? "12:00";
+      const snackTime = updates.snackTime ?? "15:00";
       const dinnerTime = updates.dinnerTime ?? "17:30";
+      const dessertTime = updates.dessertTime ?? "20:00";
       const morningEnabled =
         updates.morningEnabled !== undefined ? (updates.morningEnabled ? 1 : 0) : 1;
       const prepAlertsEnabled =
@@ -126,7 +142,11 @@ export function createReminderRepository(sqlite: BetterSqlite3.Database, clock?:
       // When a field is not in updates, pass null so COALESCE picks the existing value
       const updateTimezone = updates.timezone ?? null;
       const updateMorningTime = updates.morningTime ?? null;
+      const updateBreakfastTime = updates.breakfastTime ?? null;
+      const updateLunchTime = updates.lunchTime ?? null;
+      const updateSnackTime = updates.snackTime ?? null;
       const updateDinnerTime = updates.dinnerTime ?? null;
+      const updateDessertTime = updates.dessertTime ?? null;
       const updateMorningEnabled =
         updates.morningEnabled !== undefined ? (updates.morningEnabled ? 1 : 0) : null;
       const updatePrepAlertsEnabled =
@@ -138,12 +158,16 @@ export function createReminderRepository(sqlite: BetterSqlite3.Database, clock?:
 
       sqlite
         .prepare(
-          `INSERT INTO reminder_settings (household_id, timezone, morning_time, dinner_time, morning_enabled, prep_alerts_enabled, muted_until)
-           VALUES (@householdId, @timezone, @morningTime, @dinnerTime, @morningEnabled, @prepAlertsEnabled, @mutedUntil)
+          `INSERT INTO reminder_settings (household_id, timezone, morning_time, breakfast_time, lunch_time, snack_time, dinner_time, dessert_time, morning_enabled, prep_alerts_enabled, muted_until)
+           VALUES (@householdId, @timezone, @morningTime, @breakfastTime, @lunchTime, @snackTime, @dinnerTime, @dessertTime, @morningEnabled, @prepAlertsEnabled, @mutedUntil)
            ON CONFLICT(household_id) DO UPDATE SET
              timezone = COALESCE(@updateTimezone, timezone),
              morning_time = COALESCE(@updateMorningTime, morning_time),
+             breakfast_time = COALESCE(@updateBreakfastTime, breakfast_time),
+             lunch_time = COALESCE(@updateLunchTime, lunch_time),
+             snack_time = COALESCE(@updateSnackTime, snack_time),
              dinner_time = COALESCE(@updateDinnerTime, dinner_time),
+             dessert_time = COALESCE(@updateDessertTime, dessert_time),
              morning_enabled = COALESCE(@updateMorningEnabled, morning_enabled),
              prep_alerts_enabled = COALESCE(@updatePrepAlertsEnabled, prep_alerts_enabled),
              muted_until = CASE WHEN @hasMutedUntilUpdate = 1 THEN @mutedUntil ELSE muted_until END,
@@ -153,13 +177,21 @@ export function createReminderRepository(sqlite: BetterSqlite3.Database, clock?:
           householdId,
           timezone,
           morningTime,
+          breakfastTime,
+          lunchTime,
+          snackTime,
           dinnerTime,
+          dessertTime,
           morningEnabled,
           prepAlertsEnabled,
           mutedUntil,
           updateTimezone,
           updateMorningTime,
+          updateBreakfastTime,
+          updateLunchTime,
+          updateSnackTime,
           updateDinnerTime,
+          updateDessertTime,
           updateMorningEnabled,
           updatePrepAlertsEnabled,
           hasMutedUntilUpdate: hasMutedUntilUpdate ? 1 : 0,

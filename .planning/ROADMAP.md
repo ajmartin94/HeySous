@@ -149,7 +149,9 @@ Plans:
   2. On large screens (iPad, desktop), the Mini App content is constrained to a reasonable max-width and centered -- not stretched edge-to-edge
   3. Sous responses in chat never contain emoji characters
   4. Hardcoded bot messages (reminders, notifications, onboarding) do not contain emoji characters
-**Plans**: TBD
+**Plans:** 1 plan
+Plans:
+- [ ] 47-01-PLAN.md -- System-ui font family, responsive layout padding, emoji ban in system prompt
 
 ## Progress
 
@@ -170,6 +172,6 @@ Note: Phase 47 has no dependencies and can execute in parallel with earlier phas
 | 44. Mini App Meal Plan View | 1/1 | Complete    | 2026-03-04 | - |
 | 45. Grocery & Reminders | 1/1 | Complete    | 2026-03-04 | - |
 | 46. Deep-Link Navigation | 2/2 | Complete    | 2026-03-04 | - |
-| 47. Mini App Polish & Prompt Cleanup | v1.6 | 0/? | Not started | - |
+| 47. Mini App Polish & Prompt Cleanup | v1.6 | 0/1 | Not started | - |
 
 **Total: 41 phases complete (89 plans) across 6 milestones + 6 phases planned for v1.6**

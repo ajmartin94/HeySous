@@ -135,7 +135,7 @@ Plans:
   2. When Sous discusses the meal plan, the response includes an inline button to open the meal plan view
   3. When Sous generates or updates a grocery list, the response includes an inline button to open the grocery list
   4. Cooking reminders include a button that opens the specific recipe being cooked
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 Plans:
 - [ ] 46-01-PLAN.md -- Deep-link builder module, on-demand tool, system prompt update, Mini App ?id handling
 - [ ] 46-02-PLAN.md -- Pipeline post-response button injection, reminder sender buttons
@@ -169,7 +169,7 @@ Note: Phase 47 has no dependencies and can execute in parallel with earlier phas
 | 43. Agent Tools & Meal Time Config | 2/2 | Complete    | 2026-03-04 | - |
 | 44. Mini App Meal Plan View | 1/1 | Complete    | 2026-03-04 | - |
 | 45. Grocery & Reminders | 1/1 | Complete    | 2026-03-04 | - |
-| 46. Deep-Link Navigation | v1.6 | 0/2 | Not started | - |
+| 46. Deep-Link Navigation | 1/2 | In Progress|  | - |
 | 47. Mini App Polish & Prompt Cleanup | v1.6 | 0/? | Not started | - |
 
 **Total: 41 phases complete (89 plans) across 6 milestones + 6 phases planned for v1.6**

@@ -26,12 +26,12 @@ Requirements for v1.6 All-Day Meals & UX. Each maps to roadmap phases.
 
 ### Mini App
 
-- [ ] **UI-01**: Mini App uses a new, more readable font family for improved accessibility
-- [ ] **UI-02**: Mini App layout is constrained to a reasonable max-width and centered on large screens (iPad/desktop)
+- [x] **UI-01**: Mini App uses a new, more readable font family for improved accessibility
+- [x] **UI-02**: Mini App layout is constrained to a reasonable max-width and centered on large screens (iPad/desktop)
 
 ### Prompt
 
-- [ ] **PROMPT-01**: Sous never uses emojis in responses (explicit system prompt ban + audit of hardcoded messages)
+- [x] **PROMPT-01**: Sous never uses emojis in responses (explicit system prompt ban + audit of hardcoded messages)
 
 ## Future Requirements
 
@@ -63,9 +63,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | NAV-02 | Phase 46 | Complete |
 | NAV-03 | Phase 46 | Complete |
 | NAV-04 | Phase 46 | Complete |
-| UI-01 | Phase 47 | Pending |
-| UI-02 | Phase 47 | Pending |
-| PROMPT-01 | Phase 47 | Pending |
+| UI-01 | Phase 47 | Complete |
+| UI-02 | Phase 47 | Complete |
+| PROMPT-01 | Phase 47 | Complete |
 
 **Coverage:**
 - v1.6 requirements: 14 total
@@ -74,4 +74,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-03-02*
-*Last updated: 2026-03-02 after roadmap creation*
+*Last updated: 2026-03-04 after phase 47 completion*

@@ -8,7 +8,7 @@
 - [x] **v1.3 AI Polish & UX** - Phases 20-24 (shipped 2026-02-19)
 - [x] **v1.4 Backlog Sweep** - Phases 25-31 (shipped 2026-02-21)
 - [x] **v1.5 Agent Hardening & Polish** - Phases 32-41 (shipped 2026-02-25)
-- [ ] **v1.6 All-Day Meals & UX** - Phases 42-47 (in progress)
+- [x] **v1.6 All-Day Meals & UX** - Phases 42-47 (shipped 2026-03-04)
 
 ## Phases
 
@@ -69,7 +69,7 @@ See .planning/milestones/v1.5-ROADMAP.md for full phase history.
 - [x] **Phase 44: Mini App Meal Plan View** - Visual display of all meal types per day with expandable sections (completed 2026-03-04)
 - [x] **Phase 45: Grocery & Reminders** - Downstream systems aggregate and remind across all meal types (completed 2026-03-04)
 - [x] **Phase 46: Deep-Link Navigation** - Inline buttons in Sous responses link directly to Mini App content (completed 2026-03-04)
-- [ ] **Phase 47: Mini App Polish & Prompt Cleanup** - Font, layout, and emoji ban for a cleaner experience
+- [x] **Phase 47: Mini App Polish & Prompt Cleanup** - Font, layout, and emoji ban for a cleaner experience (completed 2026-03-04)
 
 ## Phase Details
 
@@ -149,9 +149,9 @@ Plans:
   2. On large screens (iPad, desktop), the Mini App content is constrained to a reasonable max-width and centered -- not stretched edge-to-edge
   3. Sous responses in chat never contain emoji characters
   4. Hardcoded bot messages (reminders, notifications, onboarding) do not contain emoji characters
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 Plans:
-- [ ] 47-01-PLAN.md -- System-ui font family, responsive layout padding, emoji ban in system prompt
+- [x] 47-01-PLAN.md -- System-ui font family, responsive layout padding, emoji ban in system prompt
 
 ## Progress
 
@@ -172,6 +172,6 @@ Note: Phase 47 has no dependencies and can execute in parallel with earlier phas
 | 44. Mini App Meal Plan View | 1/1 | Complete    | 2026-03-04 | - |
 | 45. Grocery & Reminders | 1/1 | Complete    | 2026-03-04 | - |
 | 46. Deep-Link Navigation | 2/2 | Complete    | 2026-03-04 | - |
-| 47. Mini App Polish & Prompt Cleanup | v1.6 | 0/1 | Not started | - |
+| 47. Mini App Polish & Prompt Cleanup | v1.6 | 1/1 | Complete | 2026-03-04 |
 
-**Total: 41 phases complete (89 plans) across 6 milestones + 6 phases planned for v1.6**
+**Total: 47 phases complete (98 plans) across 6 milestones + v1.6 complete**

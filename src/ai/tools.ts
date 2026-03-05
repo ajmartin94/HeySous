@@ -472,9 +472,10 @@ export const REMINDER_TOOLS: Anthropic.Tool[] = [
     description:
       "Update reminder settings. Provide only the fields you want to change. " +
       "Use this when users say things like 'mute reminders until Monday', " +
-      "'change my morning time to 7am', 'turn off prep alerts', " +
-      "'set my timezone to Pacific', 'I eat breakfast at 9am', or " +
-      "'set my lunch time to 1pm'.",
+      "'change my morning time to 7am', 'turn off prep alerts', or " +
+      "'set my timezone to Pacific'. " +
+      "For meal time changes ('I eat breakfast at 9am', 'set my lunch time to 1pm'), " +
+      "ALSO call save_knowledge to store/dedup the preference.",
     input_schema: {
       type: "object" as const,
       properties: {

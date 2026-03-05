@@ -258,18 +258,16 @@ export function createTelegramStreamSender(
 
       // Normal reply -- final edit with HTML parse mode for proper formatting
       if (messageId !== null) {
+        const editOptions: Record<string, unknown> = { parse_mode: "HTML" };
+        if (replyMarkup) editOptions.reply_markup = replyMarkup;
+
         try {
-          await ctx.api.editMessageText(chatId, messageId, finalText, {
-            parse_mode: "HTML",
-            reply_markup: replyMarkup as Parameters<typeof ctx.api.editMessageText>[3] extends { reply_markup?: infer R } ? R : never,
-          });
+          await ctx.api.editMessageText(chatId, messageId, finalText, editOptions);
         } catch {
           // HTML edit failed -- fall back to plain text edit
           try {
-            await ctx.api.editMessageText(chatId, messageId, finalText, {
-              parse_mode: undefined,
-              reply_markup: replyMarkup as Parameters<typeof ctx.api.editMessageText>[3] extends { reply_markup?: infer R } ? R : never,
-            });
+            editOptions.parse_mode = undefined;
+            await ctx.api.editMessageText(chatId, messageId, finalText, editOptions);
           } catch (error) {
             senderLogger.debug(
               { error: (error as Error).message, chatId, messageId },

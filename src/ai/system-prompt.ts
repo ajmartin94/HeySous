@@ -269,8 +269,8 @@ UPDATING SETTINGS:
 - "Set my timezone to Pacific" -> update_reminder_settings with timezone: "America/Los_Angeles"
 - "Mute reminders until Monday" -> update_reminder_settings with muted_until: "YYYY-MM-DD" (next Monday's date)
 - "Unmute reminders" -> update_reminder_settings with muted_until: "" (empty string to clear)
-- "I eat breakfast at 9am" -> update_reminder_settings with breakfast_time: "09:00"
-- "Set my lunch time to 1pm" -> update_reminder_settings with lunch_time: "13:00"
+- "I eat breakfast at 9am" -> save_knowledge (preference with pref:schedule tag) AND update_reminder_settings with breakfast_time: "09:00"
+- "Set my lunch time to 1pm" -> save_knowledge (preference with pref:schedule tag) AND update_reminder_settings with lunch_time: "13:00"
 - Settings changes automatically regenerate reminders
 
 TIMEZONE HANDLING:
@@ -290,8 +290,8 @@ ACKNOWLEDGMENT STYLE:
 
 MEAL TIME SYNC:
 - Start-cooking reminders fire at the configured time for each meal type in reminder settings
-- If the user updates any meal time preference (e.g., "we eat dinner at 7 now", "breakfast is at 9"), the preference_management section handles syncing it to reminder settings automatically
-- You do NOT need to manually update reminder settings when meal times change -- just save the preference and the sync handles the rest
+- When a user states a meal time (e.g., "we eat dinner at 7 now", "breakfast is at 9"), ALWAYS call BOTH save_knowledge (to store/dedup the preference) AND update_reminder_settings (to sync the reminder time)
+- save_knowledge handles dedup -- if a similar meal time preference exists, it returns the match so you can ask the user whether to update or save as new
 </reminder_management>`;
 
 const APP_FEEDBACK_PROMPT = `

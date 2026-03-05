@@ -295,7 +295,35 @@ export function createToolHandler(deps: {
                   }
 
                   if (contentSearchQuery) {
-                    const contentMatches = searchFtsContent(sqlite, contentSearchQuery, householdId, 5);
+                    let contentMatches = searchFtsContent(sqlite, contentSearchQuery, householdId, 5);
+
+                    // Preference tag-based fallback: FTS may miss near-identical preferences
+                    // when key tokens differ (e.g. "7:30am" vs "8am"). Search by pref: tag
+                    // to find same-category preferences for similarity comparison.
+                    if (isPreference && contentMatches.length === 0) {
+                      const prefTag = tags.find((t) => t.startsWith("pref:"));
+                      if (prefTag) {
+                        const tagRows = sqlite
+                          .prepare(
+                            `SELECT ki.id, ki.title, ki.summary
+                             FROM knowledge_items ki
+                             JOIN knowledge_tags kt ON ki.id = kt.knowledge_item_id
+                             WHERE kt.tag = ? AND ki.household_id = ?
+                             LIMIT 10`
+                          )
+                          .all(prefTag, householdId) as Array<{
+                          id: number;
+                          title: string;
+                          summary: string;
+                        }>;
+                        contentMatches = tagRows.map((r) => ({
+                          ...r,
+                          relevance: 0,
+                          tags: [],
+                          lastAccessedAt: new Date(),
+                        }));
+                      }
+                    }
 
                     // Check top 3 content matches for overlap
                     for (const match of contentMatches.slice(0, 3)) {

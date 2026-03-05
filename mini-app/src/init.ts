@@ -23,8 +23,13 @@ export async function initializeTelegramSDK(): Promise<void> {
   await viewport.mount();
   viewport.bindCssVars();
 
-  // 5. Expand to full height
+  // 5. Expand to full height and request fullscreen on supported clients (iPad)
   viewport.expand();
+  if (viewport.requestFullscreen.isAvailable()) {
+    viewport.requestFullscreen().catch(() => {
+      // Fullscreen not supported or denied -- fall back to expanded mode
+    });
+  }
 
   // 6. Disable vertical swipes (iOS scroll collapse fix)
   if (swipeBehavior.mount.isAvailable()) {

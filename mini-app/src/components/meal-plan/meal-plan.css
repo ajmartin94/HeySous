@@ -115,7 +115,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 0;
+  padding: 6px 0 6px 12px;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -127,7 +127,7 @@
   background-color: var(--hs-accent-subtle);
   border-radius: 8px;
   margin: 0 -4px;
-  padding: 6px 4px;
+  padding: 6px 4px 6px 12px;
 }
 
 .meal-entry__icon {
@@ -154,6 +154,7 @@
 
 .meal-entry__name {
   font-size: 15px;
+  font-weight: 400;
   color: var(--tg-theme-text-color, #000);
   flex: 1;
 }

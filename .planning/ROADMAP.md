@@ -166,7 +166,7 @@ Plans:
 **Plans:** 2 plans
 Plans:
 - [ ] 48-01-PLAN.md -- Fix preference dedup threshold and attach deep-link buttons to response message
-- [ ] 48-02-PLAN.md -- Indent meal entries and remove dead Layout.css media queries
+- [x] 48-02-PLAN.md -- Indent meal entries and remove dead Layout.css media queries
 
 ## Progress
 
@@ -189,6 +189,6 @@ Phase 48 is a UAT fix phase -- both plans run in Wave 1 (parallel).
 | 45. Grocery & Reminders | 1/1 | Complete    | 2026-03-04 | - |
 | 46. Deep-Link Navigation | 2/2 | Complete    | 2026-03-04 | - |
 | 47. Mini App Polish & Prompt Cleanup | v1.6 | Complete    | 2026-03-04 | 2026-03-04 |
-| 48. v1.6 UAT Fixes | v1.6 | 0/2 | Planning | - |
+| 48. v1.6 UAT Fixes | v1.6 | 1/2 | In Progress | - |
 
 **Total: 47 phases complete (98 plans) across 6 milestones + v1.6 in progress**

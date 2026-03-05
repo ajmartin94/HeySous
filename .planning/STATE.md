@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: All-Day Meals & UX
 status: unknown
-last_updated: "2026-03-04T14:37:46.007Z"
+last_updated: "2026-03-05T01:36:32Z"
 progress:
   total_phases: 12
   completed_phases: 11
@@ -23,9 +23,9 @@ See: .planning/PROJECT.md (updated 2026-03-02)
 ## Current Position
 
 Phase: 48 (UAT fix phase) — v1.6 UAT Fixes
-Plan: 2 of 2 complete (48-02)
-Status: Plan 48-02 Complete
-Last activity: 2026-03-05 — Completed 48-02 (indent meal entries and remove dead Layout.css media queries)
+Plan: 2 of 2 complete
+Status: Phase Complete
+Last activity: 2026-03-05 — Completed 48-01 (preference dedup threshold and deep-link button attachment)
 
 Progress: [██████████] 100% (7/7 v1.6 phases including UAT)
 
@@ -68,6 +68,9 @@ All decisions documented in PROJECT.md Key Decisions table (consolidated at mile
 - 46-02: Only single-recipe reminders get deep-link buttons; morning_summary skipped for simplicity
 - 47-01: Layout.css file preferred over inline <style> for consistency with codebase pattern (grocery.css, recipes.css, meal-plan.css)
 - 47-01: Moved minHeight from inline style to Layout.css class for cleaner separation
+- 48-01: Preference dedup threshold lowered to 0.70 (recipes stay at 0.85)
+- 48-01: reply_markup typed as unknown in stream-sender to avoid grammY import coupling
+- 48-01: Short and split replies skip reply_markup -- acceptable edge cases
 
 ### Pending Todos
 
@@ -91,5 +94,5 @@ Total: 41 phases, 89 plans across 6 milestones. v1.6 adds 6 phases (42-47).
 ## Session Continuity
 
 Last session: 2026-03-05
-Stopped at: Completed 48-02-PLAN.md (indent meal entries and remove dead Layout.css media queries)
-Next action: v1.6 milestone completion
+Stopped at: Completed 48-01-PLAN.md (preference dedup threshold and deep-link buttons)
+Next action: v1.6 milestone completion (all phase 48 plans complete)

@@ -70,7 +70,7 @@ See .planning/milestones/v1.5-ROADMAP.md for full phase history.
 - [x] **Phase 45: Grocery & Reminders** - Downstream systems aggregate and remind across all meal types (completed 2026-03-04)
 - [x] **Phase 46: Deep-Link Navigation** - Inline buttons in Sous responses link directly to Mini App content (completed 2026-03-04)
 - [x] **Phase 47: Mini App Polish & Prompt Cleanup** - Font, layout, and emoji ban for a cleaner experience (completed 2026-03-04)
-- [ ] **Phase 48: v1.6 UAT Fixes** - Fix 4 gaps from user acceptance testing (preference dedup, meal entry styling, deep-link buttons, dead CSS)
+- [x] **Phase 48: v1.6 UAT Fixes** - Fix 4 gaps from user acceptance testing (preference dedup, meal entry styling, deep-link buttons, dead CSS) (completed 2026-03-05)
 
 ## Phase Details
 
@@ -163,7 +163,7 @@ Plans:
   2. Recipe names are visually indented under meal type headers with clear hierarchy
   3. Deep-link buttons are attached to the Sous response message, not sent as a separate message
   4. Layout CSS has no dead media queries; uses fixed padding for Telegram's ~400px viewport
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 Plans:
 - [ ] 48-01-PLAN.md -- Fix preference dedup threshold and attach deep-link buttons to response message
 - [x] 48-02-PLAN.md -- Indent meal entries and remove dead Layout.css media queries
@@ -189,6 +189,6 @@ Phase 48 is a UAT fix phase -- both plans run in Wave 1 (parallel).
 | 45. Grocery & Reminders | 1/1 | Complete    | 2026-03-04 | - |
 | 46. Deep-Link Navigation | 2/2 | Complete    | 2026-03-04 | - |
 | 47. Mini App Polish & Prompt Cleanup | v1.6 | Complete    | 2026-03-04 | 2026-03-04 |
-| 48. v1.6 UAT Fixes | v1.6 | 1/2 | In Progress | - |
+| 48. v1.6 UAT Fixes | 2/2 | Complete   | 2026-03-05 | - |
 
 **Total: 47 phases complete (98 plans) across 6 milestones + v1.6 in progress**

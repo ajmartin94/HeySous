@@ -70,6 +70,7 @@ See .planning/milestones/v1.5-ROADMAP.md for full phase history.
 - [x] **Phase 45: Grocery & Reminders** - Downstream systems aggregate and remind across all meal types (completed 2026-03-04)
 - [x] **Phase 46: Deep-Link Navigation** - Inline buttons in Sous responses link directly to Mini App content (completed 2026-03-04)
 - [x] **Phase 47: Mini App Polish & Prompt Cleanup** - Font, layout, and emoji ban for a cleaner experience (completed 2026-03-04)
+- [ ] **Phase 48: v1.6 UAT Fixes** - Fix 4 gaps from user acceptance testing (preference dedup, meal entry styling, deep-link buttons, dead CSS)
 
 ## Phase Details
 
@@ -153,11 +154,26 @@ Plans:
 Plans:
 - [x] 47-01-PLAN.md -- System-ui font family, responsive layout padding, emoji ban in system prompt
 
+### Phase 48: v1.6 UAT Fixes
+**Goal**: All 4 gaps identified in v1.6 user acceptance testing are resolved
+**Depends on**: Phases 42-47 (fixes issues found in completed phases)
+**Requirements**: UAT-1, UAT-2, UAT-3, UAT-4
+**Success Criteria** (what must be TRUE):
+  1. Preference dedup catches near-identical preferences (e.g., "Breakfast Time: 7am" vs "Breakfast Time: 8am")
+  2. Recipe names are visually indented under meal type headers with clear hierarchy
+  3. Deep-link buttons are attached to the Sous response message, not sent as a separate message
+  4. Layout CSS has no dead media queries; uses fixed padding for Telegram's ~400px viewport
+**Plans:** 2 plans
+Plans:
+- [ ] 48-01-PLAN.md -- Fix preference dedup threshold and attach deep-link buttons to response message
+- [ ] 48-02-PLAN.md -- Indent meal entries and remove dead Layout.css media queries
+
 ## Progress
 
 **Execution Order:**
 Phases execute in numeric order: 42 -> 43 -> 44 -> 45 -> 46 -> 47
 Note: Phase 47 has no dependencies and can execute in parallel with earlier phases if desired.
+Phase 48 is a UAT fix phase -- both plans run in Wave 1 (parallel).
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -173,5 +189,6 @@ Note: Phase 47 has no dependencies and can execute in parallel with earlier phas
 | 45. Grocery & Reminders | 1/1 | Complete    | 2026-03-04 | - |
 | 46. Deep-Link Navigation | 2/2 | Complete    | 2026-03-04 | - |
 | 47. Mini App Polish & Prompt Cleanup | v1.6 | Complete    | 2026-03-04 | 2026-03-04 |
+| 48. v1.6 UAT Fixes | v1.6 | 0/2 | Planning | - |
 
-**Total: 47 phases complete (98 plans) across 6 milestones + v1.6 complete**
+**Total: 47 phases complete (98 plans) across 6 milestones + v1.6 in progress**

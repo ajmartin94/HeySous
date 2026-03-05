@@ -667,66 +667,8 @@ export function createProcessor(deps: ProcessorDeps) {
         }
       }
 
-      // k3. Finalize the message and save to conversation history
-      if (streamingActive) {
-        // Streaming path: finalize the stream sender with clean text (markers stripped)
-        if (cleanText.trim()) {
-          await streamSender.finalize(cleanText);
-
-          // l. Save outgoing response to messages table for conversation continuity
-          db.insert(messages)
-            .values({
-              chatId,
-              userId,
-              text: cleanText,
-              direction: "out" as const,
-            })
-            .run();
-        } else {
-          // Empty after marker extraction -- clean up the streamed message
-          await streamSender.finalize();
-        }
-      } else {
-        // Non-streaming fallback: use sendFormattedMessage as before
-        if (cleanText.trim()) {
-          await sendFormattedMessage(ctx, cleanText);
-
-          // l. Save outgoing response to messages table for conversation continuity
-          db.insert(messages)
-            .values({
-              chatId,
-              userId,
-              text: cleanText,
-              direction: "out" as const,
-            })
-            .run();
-        }
-      }
-
-      // l2. Edit grocery list message if tools modified it
-      if (deps.groceryRepository) {
-        try {
-          const activeList = deps.groceryRepository.getActiveList(householdId);
-          if (activeList && activeList.messageId) {
-            const groceryItems = deps.groceryRepository.getListItems(activeList.id);
-            const formattedList = formatGroceryList(groceryItems);
-            const keyboard = buildGroceryKeyboard(groceryItems);
-            await ctx.api.editMessageText(
-              chatId,
-              activeList.messageId,
-              formattedList,
-              { parse_mode: "HTML", reply_markup: keyboard },
-            );
-          }
-        } catch (editError) {
-          log.debug(
-            { error: editError instanceof Error ? editError.message : String(editError) },
-            "Grocery list message edit skipped",
-          );
-        }
-      }
-
-      // l3. Send deep-link buttons as follow-up message
+      // l3. Attach deep-link buttons to response message
+      let deepLinkKeyboard: ReturnType<typeof buildDeepLinkKeyboard> = null;
       if (trackedToolCalls.length > 0) {
         try {
           // Check for explicit attach_deep_link tool calls first
@@ -765,14 +707,80 @@ export function createProcessor(deps: ProcessorDeps) {
             }
           }
 
-          const keyboard = buildDeepLinkKeyboard(allTargets);
-          if (keyboard) {
-            await ctx.reply("Open in app:", { reply_markup: keyboard });
-          }
+          deepLinkKeyboard = buildDeepLinkKeyboard(allTargets);
         } catch (deepLinkError) {
           log.debug(
             { error: deepLinkError instanceof Error ? deepLinkError.message : String(deepLinkError) },
-            "Deep-link button send skipped",
+            "Deep-link keyboard build skipped",
+          );
+        }
+      }
+
+      // k3. Finalize the message and save to conversation history
+      if (streamingActive) {
+        // Streaming path: finalize the stream sender with clean text (markers stripped)
+        if (cleanText.trim()) {
+          await streamSender.finalize(
+            cleanText,
+            deepLinkKeyboard ? { reply_markup: deepLinkKeyboard } : undefined,
+          );
+
+          // l. Save outgoing response to messages table for conversation continuity
+          db.insert(messages)
+            .values({
+              chatId,
+              userId,
+              text: cleanText,
+              direction: "out" as const,
+            })
+            .run();
+        } else {
+          // Empty after marker extraction -- clean up the streamed message
+          await streamSender.finalize();
+        }
+      } else {
+        // Non-streaming fallback: use sendFormattedMessage then attach buttons separately
+        if (cleanText.trim()) {
+          await sendFormattedMessage(ctx, cleanText);
+
+          // l. Save outgoing response to messages table for conversation continuity
+          db.insert(messages)
+            .values({
+              chatId,
+              userId,
+              text: cleanText,
+              direction: "out" as const,
+            })
+            .run();
+
+          // For non-streaming, send deep-link buttons as follow-up (no stream message to attach to)
+          if (deepLinkKeyboard) {
+            try {
+              await ctx.reply("Open in app:", { reply_markup: deepLinkKeyboard });
+            } catch { /* best-effort */ }
+          }
+        }
+      }
+
+      // l2. Edit grocery list message if tools modified it
+      if (deps.groceryRepository) {
+        try {
+          const activeList = deps.groceryRepository.getActiveList(householdId);
+          if (activeList && activeList.messageId) {
+            const groceryItems = deps.groceryRepository.getListItems(activeList.id);
+            const formattedList = formatGroceryList(groceryItems);
+            const groceryKeyboard = buildGroceryKeyboard(groceryItems);
+            await ctx.api.editMessageText(
+              chatId,
+              activeList.messageId,
+              formattedList,
+              { parse_mode: "HTML", reply_markup: groceryKeyboard },
+            );
+          }
+        } catch (editError) {
+          log.debug(
+            { error: editError instanceof Error ? editError.message : String(editError) },
+            "Grocery list message edit skipped",
           );
         }
       }

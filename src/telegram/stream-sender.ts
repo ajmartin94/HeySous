@@ -44,15 +44,22 @@ export interface TelegramStreamSender {
   /**
    * Finalize the stream -- send the clean final message.
    * @param overrideText Optional text to use instead of accumulated text.
+   * @param options Optional settings including reply_markup for inline keyboards.
    * @returns The final text that was displayed.
    */
-  finalize(overrideText?: string): Promise<string>;
+  finalize(overrideText?: string, options?: { reply_markup?: unknown }): Promise<string>;
 
   /**
    * Handle a stream error -- append an error note to partial text.
    * @returns The accumulated text with error note.
    */
   handleError(): Promise<string>;
+
+  /**
+   * Get the message ID of the streamed message (for post-finalize edits).
+   * @returns The message ID or null if placeholder was not sent.
+   */
+  getMessageId(): number | null;
 }
 
 /**
@@ -188,11 +195,12 @@ export function createTelegramStreamSender(
       // Don't trigger edit -- next text delta will update
     },
 
-    async finalize(overrideText?: string): Promise<string> {
+    async finalize(overrideText?: string, options?: { reply_markup?: unknown }): Promise<string> {
       flushEditTimer();
       stopTypingKeepAlive();
 
       const finalText = overrideText ?? accumulatedText;
+      const replyMarkup = options?.reply_markup;
 
       // Empty response -- delete the placeholder
       if (finalText.trim().length === 0) {
@@ -207,6 +215,7 @@ export function createTelegramStreamSender(
       }
 
       // Short reply -- delete streamed message, send fresh for clean display
+      // reply_markup skipped for short replies (edge case, acceptable)
       if (finalText.trim().length < SHORT_REPLY_THRESHOLD) {
         if (messageId !== null) {
           try {
@@ -227,6 +236,7 @@ export function createTelegramStreamSender(
       }
 
       // Long reply (over Telegram limit) -- delete and re-send with splitting
+      // reply_markup skipped for split messages (can't attach to all parts)
       if (finalText.length > TELEGRAM_MAX_LENGTH) {
         if (messageId !== null) {
           try {
@@ -251,12 +261,14 @@ export function createTelegramStreamSender(
         try {
           await ctx.api.editMessageText(chatId, messageId, finalText, {
             parse_mode: "HTML",
+            reply_markup: replyMarkup as Parameters<typeof ctx.api.editMessageText>[3] extends { reply_markup?: infer R } ? R : never,
           });
         } catch {
           // HTML edit failed -- fall back to plain text edit
           try {
             await ctx.api.editMessageText(chatId, messageId, finalText, {
               parse_mode: undefined,
+              reply_markup: replyMarkup as Parameters<typeof ctx.api.editMessageText>[3] extends { reply_markup?: infer R } ? R : never,
             });
           } catch (error) {
             senderLogger.debug(
@@ -268,6 +280,10 @@ export function createTelegramStreamSender(
       }
 
       return finalText;
+    },
+
+    getMessageId(): number | null {
+      return messageId;
     },
 
     async handleError(): Promise<string> {

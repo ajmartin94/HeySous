@@ -309,7 +309,8 @@ export function createToolHandler(deps: {
                         overlap = computeContentSimilarity(content, existingItem.content);
                       }
 
-                      if (overlap > 0.85) {
+                      const threshold = isPreference ? 0.70 : 0.85;
+                      if (overlap > threshold) {
                         return JSON.stringify({
                           duplicate_found: true,
                           message: `Found a similar existing item: "${match.title}" (ID: ${match.id}). Ask the user if they want to update the existing item or save this as a new item.`,

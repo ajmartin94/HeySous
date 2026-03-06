@@ -57,11 +57,21 @@ function rowToPayload(row: SettingsRow): SettingsPayload {
   };
 }
 
+/** Fields whose changes should trigger reminder regeneration. */
+const REMINDER_FIELDS = new Set([
+  "morning_enabled",
+  "prep_alerts_enabled",
+  "muted_until",
+]);
+
 /**
  * Factory function for settings API routes.
  * Returns handlers for GET /api/settings and PUT /api/settings.
  */
-export function createSettingsRoutes(sqlite: BetterSqlite3.Database) {
+export function createSettingsRoutes(
+  sqlite: BetterSqlite3.Database,
+  opts?: { regenerateReminders?: (householdId: string) => void },
+) {
   const getSettings = (_req: Request, res: Response) => {
     const householdId = res.locals.householdId as string;
 
@@ -132,6 +142,14 @@ export function createSettingsRoutes(sqlite: BetterSqlite3.Database) {
          WHERE household_id = ?`,
       )
       .run(...values, householdId);
+
+    // Trigger reminder regeneration if any reminder-related field changed
+    if (opts?.regenerateReminders) {
+      const hasReminderFieldChange = updates.some((u) => REMINDER_FIELDS.has(u.column));
+      if (hasReminderFieldChange) {
+        opts.regenerateReminders(householdId);
+      }
+    }
 
     // Return the updated row
     const row = sqlite

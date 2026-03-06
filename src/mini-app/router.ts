@@ -18,6 +18,7 @@ import { createSettingsRoutes } from "./routes/settings.js";
  */
 interface ApiRouterDeps {
   sqlite: BetterSqlite3.Database;
+  regenerateReminders?: (householdId: string) => void;
 }
 
 /**
@@ -66,7 +67,9 @@ export function createApiRouter(deps: ApiRouterDeps): Router {
   router.delete("/memories/:id", memory.deleteOne);
 
   // Settings endpoints
-  const settings = createSettingsRoutes(deps.sqlite);
+  const settings = createSettingsRoutes(deps.sqlite, {
+    regenerateReminders: deps.regenerateReminders,
+  });
   router.get("/settings", settings.getSettings);
   router.put("/settings", settings.updateSettings);
 

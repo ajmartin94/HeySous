@@ -270,13 +270,16 @@ export function createReminderRepository(sqlite: BetterSqlite3.Database, clock?:
      * Ordered by due_at ASC. This is the core poller query.
      */
     getDueReminders(): Reminder[] {
+      const now = nowUnix();
       const rows = sqlite
         .prepare(
-          `SELECT * FROM reminders
-           WHERE status = 'pending' AND due_at <= ?
-           ORDER BY due_at ASC`,
+          `SELECT r.* FROM reminders r
+           LEFT JOIN application_settings s ON r.household_id = s.household_id
+           WHERE r.status = 'pending' AND r.due_at <= ?
+             AND (s.muted_until IS NULL OR s.muted_until < ?)
+           ORDER BY r.due_at ASC`,
         )
-        .all(nowUnix()) as ReminderRow[];
+        .all(now, now) as ReminderRow[];
 
       return rows.map(mapReminder);
     },

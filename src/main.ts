@@ -248,7 +248,7 @@ async function main(): Promise<void> {
   process.on("SIGTERM", shutdown);
 
   // Create API router for Mini App endpoints (used in both modes)
-  const apiRouter = createApiRouter({ sqlite });
+  const apiRouter = createApiRouter({ sqlite, regenerateReminders });
 
   if (config.botMode === "webhook") {
     // Webhook mode (production)

@@ -258,7 +258,7 @@ export function generateReminders(deps: {
     // b. Start-cooking nudge: for each meal entry (all meal types)
     // Adjusted for total recipe prep+cook time when available
     // Fallback chain: structured metadata -> content parsing -> 45-min default
-    if (meals) {
+    if (meals && settings.prepAlertsEnabled) {
       for (const meal of meals) {
         // Calculate start time: meal type time minus recipe total time
         let recipeTotalMinutes: number | null = null;

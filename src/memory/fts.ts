@@ -1,5 +1,24 @@
 import type BetterSqlite3 from "better-sqlite3";
-import { escapeForFts5 } from "../knowledge/fts.js";
+
+/**
+ * Escape a query for FTS5 dedup matching using OR logic.
+ * Unlike escapeForFts5 (AND), this finds memories sharing ANY term
+ * so that "Dinner is at 7pm" matches "Dinner Time: 6pm".
+ */
+function escapeForMemoryFts(query: string): string {
+  const cleaned = query
+    .replace(/[*^"(){}[\]]/g, "")
+    .replace(/\b(AND|OR|NOT|NEAR)\b/gi, "")
+    .trim();
+
+  if (!cleaned) return "";
+
+  const terms = cleaned.split(/\s+/).filter(Boolean);
+  // Filter out very short/common words to reduce noise
+  const meaningful = terms.filter((t) => t.length > 2);
+  if (meaningful.length === 0) return terms.map((t) => `"${t}"`).join(" OR ");
+  return meaningful.map((t) => `"${t}"`).join(" OR ");
+}
 
 /**
  * Initialize the memories table (raw SQL) and FTS5 virtual table with sync triggers.
@@ -66,6 +85,10 @@ export function initializeMemoryFts(sqlite: BetterSqlite3.Database): void {
       VALUES (new.id, new.content);
     END
   `);
+
+  // Rebuild FTS index to pick up any rows inserted before triggers existed
+  // (e.g. migration v10 inserts memories before initializeMemoryFts runs)
+  sqlite.exec(`INSERT INTO memories_fts(memories_fts) VALUES('rebuild')`);
 }
 
 /**
@@ -78,7 +101,7 @@ export function searchMemoryFts(
   query: string,
   limit: number = 20,
 ): Array<{ id: number; content: string; category: string; rank: number }> {
-  const escaped = escapeForFts5(query);
+  const escaped = escapeForMemoryFts(query);
   if (!escaped) return [];
 
   try {

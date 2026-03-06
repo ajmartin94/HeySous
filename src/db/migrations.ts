@@ -325,13 +325,14 @@ export const migrations: Migration[] = [
           category = "dietary";
         } else if (tags.some((t) => t === "pref:schedule")) {
           category = "schedule";
+        } else if (tags.some((t) => t === "pref:grocery")) {
+          category = "logistics";
         } else if (
           tags.some(
             (t) =>
               t === "pref:cooking" ||
               t === "pref:budget" ||
-              t === "pref:serving" ||
-              t === "pref:grocery",
+              t === "pref:serving",
           )
         ) {
           category = "cooking_style";
@@ -370,6 +371,32 @@ export const migrations: Migration[] = [
         { migratedCount: idsToDelete.length, totalPrefs: rows.length },
         "Migrated preferences from knowledge_items to memories",
       );
+    },
+  },
+  {
+    version: 11,
+    name: "fix-grocery-memory-category",
+    up: (sqlite) => {
+      // Migration v10 incorrectly mapped pref:grocery to cooking_style.
+      // Re-categorize grocery/store-related memories to logistics.
+      const result = sqlite
+        .prepare(
+          `UPDATE memories SET category = 'logistics'
+           WHERE category = 'cooking_style'
+             AND (content LIKE '%store%' OR content LIKE '%shop%'
+               OR content LIKE '%grocery%' OR content LIKE '%Costco%'
+               OR content LIKE '%Kroger%' OR content LIKE '%Walmart%'
+               OR content LIKE '%Aldi%' OR content LIKE '%HyVee%'
+               OR content LIKE '%Harris Teeter%' OR content LIKE '%Food Lion%'
+               OR content LIKE '%delivery%')`,
+        )
+        .run();
+      if (result.changes > 0) {
+        logger.info(
+          { updated: result.changes },
+          "Re-categorized grocery memories from cooking_style to logistics",
+        );
+      }
     },
   },
 ];

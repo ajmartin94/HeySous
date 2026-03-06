@@ -1,8 +1,48 @@
-import { useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { backButton } from '@tma.js/sdk-react';
 import { useTheme } from '../theme/ThemeContext.js';
 import type { Theme, FontSize } from '../theme/tokens.js';
+import { apiFetch } from '../api.js';
+
+// --- Types ---
+
+interface MemoryItem {
+  id: number;
+  content: string;
+}
+
+interface MemoryCategory {
+  name: string;
+  memories: MemoryItem[];
+}
+
+interface AppSettings {
+  timezone: string;
+  morning_time: string;
+  breakfast_time: string;
+  lunch_time: string;
+  snack_time: string;
+  dinner_time: string;
+  dessert_time: string;
+  morning_enabled: boolean;
+  prep_alerts_enabled: boolean;
+  muted_until: number | null;
+}
+
+// --- Category display labels ---
+
+const categoryLabels: Record<string, string> = {
+  dietary: 'Dietary',
+  taste: 'Taste',
+  cooking_style: 'Cooking Style',
+  household: 'Household',
+  schedule: 'Schedule',
+  logistics: 'Logistics',
+  general: 'General',
+};
+
+// --- Appearance options ---
 
 const themeOptions: { value: Theme; label: string }[] = [
   { value: 'light', label: 'Light' },
@@ -15,18 +55,125 @@ const fontSizeOptions: { value: FontSize; label: string }[] = [
   { value: 'large', label: 'Large' },
 ];
 
+// --- Time input fields config ---
+
+const timeFields: Array<{ key: keyof Pick<AppSettings, 'breakfast_time' | 'lunch_time' | 'snack_time' | 'dinner_time' | 'dessert_time'>; label: string }> = [
+  { key: 'breakfast_time', label: 'Breakfast' },
+  { key: 'lunch_time', label: 'Lunch' },
+  { key: 'snack_time', label: 'Snack' },
+  { key: 'dinner_time', label: 'Dinner' },
+  { key: 'dessert_time', label: 'Dessert' },
+];
+
 export function Settings() {
   const navigate = useNavigate();
   const { theme, setTheme, fontSize, setFontSize } = useTheme();
+
+  // Memory state
+  const [categories, setCategories] = useState<MemoryCategory[]>([]);
+  const [memoriesLoading, setMemoriesLoading] = useState(true);
+
+  // Settings state
+  const [settings, setSettings] = useState<AppSettings | null>(null);
+  const [settingsLoading, setSettingsLoading] = useState(true);
+  const [savedMessage, setSavedMessage] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isMountedRef = useRef(true);
 
   // BackButton: navigate back to hub
   useEffect(() => {
     if (!backButton.onClick.isAvailable()) return;
     const off = backButton.onClick(() => navigate(-1));
-    return () => {
-      off();
-    };
+    return () => { off(); };
   }, [navigate]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
+
+  // Fetch memories on mount
+  useEffect(() => {
+    apiFetch('/memories')
+      .then((res) => res.json())
+      .then((data: { categories: MemoryCategory[] }) => {
+        if (isMountedRef.current) {
+          setCategories(data.categories);
+          setMemoriesLoading(false);
+        }
+      })
+      .catch(() => {
+        if (isMountedRef.current) setMemoriesLoading(false);
+      });
+  }, []);
+
+  // Fetch settings on mount
+  useEffect(() => {
+    apiFetch('/settings')
+      .then((res) => res.json())
+      .then((data: AppSettings) => {
+        if (isMountedRef.current) {
+          setSettings(data);
+          setSettingsLoading(false);
+        }
+      })
+      .catch(() => {
+        if (isMountedRef.current) setSettingsLoading(false);
+      });
+  }, []);
+
+  // Delete a memory (optimistic)
+  const deleteMemory = useCallback((id: number) => {
+    setCategories((prev) =>
+      prev
+        .map((cat) => ({
+          ...cat,
+          memories: cat.memories.filter((m) => m.id !== id),
+        }))
+        .filter((cat) => cat.memories.length > 0),
+    );
+    apiFetch(`/memories/${id}`, { method: 'DELETE' }).catch(() => {
+      // Silently fail -- optimistic delete already applied
+    });
+  }, []);
+
+  // Save a settings field with debounce
+  const saveSettingsField = useCallback(
+    (field: string, value: string | boolean) => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(() => {
+        apiFetch('/settings', {
+          method: 'PUT',
+          body: JSON.stringify({ [field]: value }),
+        })
+          .then(() => {
+            if (isMountedRef.current) {
+              setSavedMessage(true);
+              setTimeout(() => {
+                if (isMountedRef.current) setSavedMessage(false);
+              }, 2000);
+            }
+          })
+          .catch(() => {});
+      }, 500);
+    },
+    [],
+  );
+
+  // Update a settings value locally and trigger save
+  const updateSetting = useCallback(
+    (field: string, value: string | boolean) => {
+      setSettings((prev) => (prev ? { ...prev, [field]: value } : prev));
+      saveSettingsField(field, value);
+    },
+    [saveSettingsField],
+  );
+
+  // --- Styles ---
 
   const sectionLabelStyle: React.CSSProperties = {
     fontSize: 'var(--hs-font-size-small)',
@@ -63,6 +210,76 @@ export function Settings() {
     };
   }
 
+  const cardStyle: React.CSSProperties = {
+    padding: '12px 16px',
+    borderRadius: 'var(--hs-border-radius)',
+    background: 'var(--tg-theme-secondary-bg-color, #f5f5f5)',
+    marginBottom: '12px',
+  };
+
+  const memoryItemStyle: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '8px 0',
+    borderBottom: '1px solid var(--tg-theme-secondary-bg-color, #eee)',
+    gap: '8px',
+  };
+
+  const deleteButtonStyle: React.CSSProperties = {
+    background: 'none',
+    border: 'none',
+    color: 'var(--tg-theme-hint-color, #999)',
+    cursor: 'pointer',
+    padding: '4px 8px',
+    fontSize: 'var(--hs-font-size-body)',
+    lineHeight: 1,
+    flexShrink: 0,
+    WebkitTapHighlightColor: 'transparent',
+  };
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%',
+    padding: '10px 12px',
+    borderRadius: '10px',
+    border: '1px solid var(--tg-theme-hint-color, #ccc)',
+    background: 'var(--tg-theme-bg-color, #fff)',
+    color: 'var(--tg-theme-text-color, #000)',
+    fontSize: 'var(--hs-font-size-body)',
+    boxSizing: 'border-box',
+  };
+
+  const toggleRowStyle: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '10px 0',
+  };
+
+  const toggleStyle = (active: boolean): React.CSSProperties => ({
+    width: '48px',
+    height: '28px',
+    borderRadius: '14px',
+    border: 'none',
+    cursor: 'pointer',
+    background: active ? 'var(--hs-accent)' : 'var(--tg-theme-hint-color, #ccc)',
+    position: 'relative',
+    transition: 'background 0.2s',
+    flexShrink: 0,
+    WebkitTapHighlightColor: 'transparent',
+  });
+
+  const toggleKnobStyle = (active: boolean): React.CSSProperties => ({
+    width: '22px',
+    height: '22px',
+    borderRadius: '50%',
+    background: '#ffffff',
+    position: 'absolute',
+    top: '3px',
+    left: active ? '23px' : '3px',
+    transition: 'left 0.2s',
+  });
+
   return (
     <div style={{ padding: 'var(--hs-spacing-section)' }}>
       {/* Header */}
@@ -76,6 +293,136 @@ export function Settings() {
       >
         Settings
       </div>
+
+      {/* Memory section */}
+      <div style={sectionLabelStyle}>Memory</div>
+      {memoriesLoading ? (
+        <div style={{ color: 'var(--tg-theme-hint-color, #999)', fontSize: 'var(--hs-font-size-body)' }}>
+          Loading...
+        </div>
+      ) : categories.length === 0 ? (
+        <div style={{ color: 'var(--tg-theme-hint-color, #999)', fontSize: 'var(--hs-font-size-body)' }}>
+          No memories yet. Chat with Sous and your preferences will appear here.
+        </div>
+      ) : (
+        categories.map((cat) => (
+          <div key={cat.name} style={cardStyle}>
+            <div
+              style={{
+                fontSize: 'var(--hs-font-size-small)',
+                fontWeight: 600,
+                color: 'var(--tg-theme-hint-color, #999)',
+                marginBottom: '4px',
+              }}
+            >
+              {categoryLabels[cat.name] ?? cat.name}
+            </div>
+            {cat.memories.map((mem, idx) => (
+              <div
+                key={mem.id}
+                style={{
+                  ...memoryItemStyle,
+                  borderBottom:
+                    idx === cat.memories.length - 1
+                      ? 'none'
+                      : memoryItemStyle.borderBottom,
+                }}
+              >
+                <span style={{ fontSize: 'var(--hs-font-size-body)', color: 'var(--tg-theme-text-color, #000)' }}>
+                  {mem.content}
+                </span>
+                <button
+                  style={deleteButtonStyle}
+                  onClick={() => deleteMemory(mem.id)}
+                  aria-label="Delete memory"
+                >
+                  X
+                </button>
+              </div>
+            ))}
+          </div>
+        ))
+      )}
+
+      {/* Meal Times & Reminders section */}
+      <div style={sectionLabelStyle}>Meal Times & Reminders</div>
+      {settingsLoading || !settings ? (
+        <div style={{ color: 'var(--tg-theme-hint-color, #999)', fontSize: 'var(--hs-font-size-body)' }}>
+          Loading...
+        </div>
+      ) : (
+        <div>
+          {/* Timezone (read-only) */}
+          <div style={{ marginBottom: '12px' }}>
+            <div style={{ fontSize: 'var(--hs-font-size-small)', color: 'var(--tg-theme-hint-color, #999)', marginBottom: '4px' }}>
+              Timezone
+            </div>
+            <input
+              type="text"
+              value={settings.timezone}
+              readOnly
+              style={{ ...inputStyle, opacity: 0.7, cursor: 'default' }}
+            />
+          </div>
+
+          {/* Time inputs */}
+          {timeFields.map(({ key, label }) => (
+            <div key={key} style={{ marginBottom: '12px' }}>
+              <div style={{ fontSize: 'var(--hs-font-size-small)', color: 'var(--tg-theme-hint-color, #999)', marginBottom: '4px' }}>
+                {label}
+              </div>
+              <input
+                type="time"
+                value={settings[key]}
+                onChange={(e) => updateSetting(key, e.target.value)}
+                style={inputStyle}
+              />
+            </div>
+          ))}
+
+          {/* Toggles */}
+          <div style={toggleRowStyle}>
+            <span style={{ fontSize: 'var(--hs-font-size-body)', color: 'var(--tg-theme-text-color, #000)' }}>
+              Morning summary
+            </span>
+            <button
+              style={toggleStyle(settings.morning_enabled)}
+              onClick={() => updateSetting('morning_enabled', !settings.morning_enabled)}
+              aria-label="Toggle morning summary"
+            >
+              <div style={toggleKnobStyle(settings.morning_enabled)} />
+            </button>
+          </div>
+
+          <div style={toggleRowStyle}>
+            <span style={{ fontSize: 'var(--hs-font-size-body)', color: 'var(--tg-theme-text-color, #000)' }}>
+              Prep alerts
+            </span>
+            <button
+              style={toggleStyle(settings.prep_alerts_enabled)}
+              onClick={() => updateSetting('prep_alerts_enabled', !settings.prep_alerts_enabled)}
+              aria-label="Toggle prep alerts"
+            >
+              <div style={toggleKnobStyle(settings.prep_alerts_enabled)} />
+            </button>
+          </div>
+
+          {/* Saved confirmation */}
+          {savedMessage && (
+            <div
+              style={{
+                textAlign: 'center',
+                color: 'var(--hs-accent)',
+                fontSize: 'var(--hs-font-size-small)',
+                marginTop: '8px',
+                transition: 'opacity 0.3s',
+              }}
+            >
+              Saved
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Appearance section */}
       <div style={sectionLabelStyle}>Appearance</div>

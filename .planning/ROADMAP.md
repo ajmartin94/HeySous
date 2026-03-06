@@ -273,4 +273,7 @@ Plans:
 ### Phase 56: Database Operation Test Coverage
 **Goal:** Review and improve test coverage of major database operations, including deduplication of memory items
 **Depends on:** Phase 49
-**Plans:** Not planned yet
+**Plans:** 1 plan
+
+Plans:
+- [ ] 56-01-PLAN.md -- Memory repository CRUD tests and FTS5 search/dedup threshold tests

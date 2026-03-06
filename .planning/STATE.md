@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: All-Day Meals & UX
 status: unknown
-last_updated: "2026-03-06T03:55:53.361Z"
+last_updated: "2026-03-06T04:01:12Z"
 progress:
   total_phases: 15
-  completed_phases: 12
+  completed_phases: 13
   total_plans: 24
-  completed_plans: 22
+  completed_plans: 24
 ---
 
 # Project State
@@ -18,16 +18,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-02)
 
 **Core value:** The recipe brain -- an AI agent that remembers everything about your meals and reasons over that knowledge to help you plan.
-**Current focus:** v1.6 All-Day Meals & UX -- Phase 48: v1.6 UAT Fixes
+**Current focus:** v1.6 All-Day Meals & UX -- Phase 49: Sous Memory System
 
 ## Current Position
 
 Phase: 49 — Sous Memory System
-Plan: 1 of 3 complete
-Status: In Progress
-Last activity: 2026-03-06 — Completed 49-01 (memories table, FTS5 index, repository, migrations v9/v10)
+Plan: 3 of 3 complete
+Status: Phase Complete
+Last activity: 2026-03-06 — Completed 49-03 (memory command, API routes, Settings page)
 
-Progress: [███░░░░░░░] 33% (1/3 phase 49 plans)
+Progress: [██████████] 100% (3/3 phase 49 plans)
 
 ## Performance Metrics
 
@@ -72,6 +72,10 @@ All decisions documented in PROJECT.md Key Decisions table (consolidated at mile
 - 48-01: reply_markup typed as unknown in stream-sender to avoid grammY import coupling
 - 48-01: Short and split replies skip reply_markup -- acceptable edge cases
 - [Phase 49]: FTS5 indexes only content column for memories (single-column vs multi-column in knowledge)
+- 49-03: Both /memory and /preferences registered in single handler via grammy array command syntax
+- 49-03: Settings API uses INSERT OR IGNORE + UPDATE for households without existing row
+- 49-03: Memory delete is optimistic in Mini App UI
+- 49-03: Timezone read-only in Mini App (changed via chat)
 
 ### Pending Todos
 
@@ -87,6 +91,7 @@ None.
 |---|-------------|------|--------|-----------|
 | 2 | Update color scheme -- green to soft blue for accessibility | 2026-02-24 | 3cc3293 | [2-update-color-scheme-for-better-accessibi](./quick/2-update-color-scheme-for-better-accessibi/) |
 | Phase 49 P01 | 3min | 2 tasks | 10 files |
+| Phase 49 P03 | 4min | 2 tasks | 7 files |
 
 ### Roadmap Evolution
 
@@ -97,6 +102,6 @@ Total: 41 phases, 89 plans across 6 milestones. v1.6 adds 6 phases (42-47).
 ## Session Continuity
 
 Last session: 2026-03-06
-Stopped at: Completed 49-01-PLAN.md
-Next action: Execute 49-02-PLAN.md
-Resume file: .planning/phases/49-sous-memory-system-atomic-facts-settings-table-and-preference-migration/49-01-SUMMARY.md
+Stopped at: Completed 49-03-PLAN.md
+Next action: Phase 49 complete -- all 3 plans executed
+Resume file: .planning/phases/49-sous-memory-system-atomic-facts-settings-table-and-preference-migration/49-03-SUMMARY.md

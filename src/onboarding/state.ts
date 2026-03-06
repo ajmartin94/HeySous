@@ -10,7 +10,6 @@
 export type OnboardingState =
   | "preferences"
   | "tour"
-  | "recipes"
   | "tour_only"
   | "complete";
 
@@ -18,7 +17,6 @@ export type OnboardingState =
 export const ONBOARDING_STATES: readonly OnboardingState[] = [
   "preferences",
   "tour",
-  "recipes",
   "tour_only",
   "complete",
 ] as const;
@@ -42,10 +40,7 @@ export function getNextOnboardingState(
     case "preferences":
       return "tour";
     case "tour":
-      // Works for both the "tour" state (full flow) and "tour_only" state
-      // (abbreviated flow) because Claude uses the same marker.
-      return current === "tour_only" ? "complete" : "recipes";
-    case "recipes":
+      // Both "tour" and "tour_only" states complete when tour marker received.
       return "complete";
     default:
       // Unknown phase -- no-op, return current state unchanged.

@@ -2,6 +2,12 @@
 
 Technical changelog for HeySous. For user-facing release notes, see [RELEASE_NOTES.md](./RELEASE_NOTES.md).
 
+## v1.6.1
+
+### Fixed
+- Streaming cursor stuck after finalize: chain edit promises via editChain so finalize() waits for all in-flight edits before sending final message
+- Streaming HTML flickering: close unclosed HTML tags (closeOpenTags) in partial text before each streaming edit, eliminating plain-text fallback that doubled API calls and triggered Telegram 429 rate limits
+
 ## v1.6.0
 
 ### Added

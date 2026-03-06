@@ -28,6 +28,35 @@ const SHORT_REPLY_THRESHOLD = 50;
 /** Telegram single-message character limit. */
 const TELEGRAM_MAX_LENGTH = 4096;
 
+/** Telegram-supported HTML tags that need closing. */
+const HTML_TAGS = ["b", "i", "u", "s", "code", "pre", "blockquote"];
+
+/**
+ * Close any unclosed HTML tags in partial streaming text so Telegram
+ * can parse it without errors. Tracks open/close counts and appends
+ * closing tags for any that remain open.
+ */
+function closeOpenTags(text: string): string {
+  const counts = new Map<string, number>();
+  const tagRegex = /<\/?([a-z]+)(?:\s[^>]*)?>/gi;
+  let match: RegExpExecArray | null;
+  while ((match = tagRegex.exec(text)) !== null) {
+    const tag = match[1].toLowerCase();
+    if (!HTML_TAGS.includes(tag)) continue;
+    const isClosing = match[0][1] === "/";
+    const current = counts.get(tag) ?? 0;
+    counts.set(tag, current + (isClosing ? -1 : 1));
+  }
+  let suffix = "";
+  for (const tag of HTML_TAGS) {
+    const open = counts.get(tag) ?? 0;
+    for (let i = 0; i < open; i++) {
+      suffix += `</${tag}>`;
+    }
+  }
+  return text + suffix;
+}
+
 export interface TelegramStreamSender {
   /** Send the initial placeholder message (just the cursor). */
   sendPlaceholder(): Promise<void>;
@@ -85,13 +114,17 @@ export function createTelegramStreamSender(
   let lastEditText = "";
   let lastEditTime = 0;
   let editTimer: ReturnType<typeof setTimeout> | null = null;
+  let editChain: Promise<void> = Promise.resolve();
   let typingInterval: ReturnType<typeof setInterval> | null = null;
   let needsSeparator = false;
 
   /**
    * Perform the actual Telegram editMessageText call.
-   * Uses plain text (no parse_mode) during streaming to avoid HTML errors
-   * on partial Claude output. Only finalize() uses HTML parse mode.
+   * Uses HTML parse mode during streaming. If the partial text has unclosed
+   * tags, the edit is skipped (no plain-text fallback) to avoid flickering
+   * between rendered and raw HTML, and to prevent doubling API calls which
+   * triggers Telegram 429 rate limits. The next edit cycle will retry with
+   * more complete text.
    */
   async function doEdit(): Promise<void> {
     if (messageId === null) return;
@@ -107,26 +140,17 @@ export function createTelegramStreamSender(
     if (displayText === lastEditText) return;
 
     try {
-      await ctx.api.editMessageText(chatId, messageId, displayText, {
+      const safeText = closeOpenTags(displayText);
+      await ctx.api.editMessageText(chatId, messageId, safeText, {
         parse_mode: "HTML",
       });
       lastEditText = displayText;
       lastEditTime = Date.now();
-    } catch {
-      // HTML parse failed (likely unclosed tags in partial output) -- fall back to plain text
-      try {
-        await ctx.api.editMessageText(chatId, messageId, displayText, {
-          parse_mode: undefined,
-        });
-        lastEditText = displayText;
-        lastEditTime = Date.now();
-      } catch (error) {
-        // Log at debug level and skip -- user sees a text jump but no error
-        senderLogger.debug(
-          { error: (error as Error).message, chatId, messageId },
-          "Stream edit failed, skipping",
-        );
-      }
+    } catch (error) {
+      senderLogger.debug(
+        { error: (error as Error).message, chatId, messageId },
+        "Stream edit skipped",
+      );
     }
   }
 
@@ -139,13 +163,13 @@ export function createTelegramStreamSender(
     const elapsed = Date.now() - lastEditTime;
     if (elapsed >= EDIT_INTERVAL_MS) {
       // Enough time has passed -- edit immediately
-      void doEdit();
+      editChain = editChain.then(() => doEdit());
     } else {
       // Schedule edit at the EDIT_INTERVAL_MS mark
       const delay = EDIT_INTERVAL_MS - elapsed;
       editTimer = setTimeout(() => {
         editTimer = null;
-        void doEdit();
+        editChain = editChain.then(() => doEdit());
       }, delay);
     }
   }
@@ -209,7 +233,7 @@ export function createTelegramStreamSender(
       accumulatedText += "\n\n<i>" + label + "</i>";
       // Trigger an immediate edit to show status right away
       flushEditTimer();
-      void doEdit();
+      editChain = editChain.then(() => doEdit());
     },
 
     clearToolStatus(): void {
@@ -220,6 +244,7 @@ export function createTelegramStreamSender(
 
     async finalize(overrideText?: string, options?: { reply_markup?: unknown }): Promise<string> {
       flushEditTimer();
+      await editChain;
       stopTypingKeepAlive();
 
       const finalText = overrideText ?? accumulatedText;
@@ -313,6 +338,7 @@ export function createTelegramStreamSender(
 
     async handleError(): Promise<string> {
       flushEditTimer();
+      await editChain;
       stopTypingKeepAlive();
 
       // Append error note (plain text since we use parse_mode: undefined during streaming)

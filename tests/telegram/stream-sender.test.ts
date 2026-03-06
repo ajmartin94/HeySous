@@ -137,7 +137,7 @@ describe("TelegramStreamSender", () => {
     });
   });
 
-  describe("streaming edits use HTML with fallback", () => {
+  describe("streaming edits use HTML without fallback", () => {
     it("edits with HTML parse mode during streaming", async () => {
       const sender = createTelegramStreamSender(ctx, logger);
       await sender.sendPlaceholder();
@@ -153,9 +153,8 @@ describe("TelegramStreamSender", () => {
       );
     });
 
-    it("falls back to plain text when HTML parse fails", async () => {
+    it("skips edit when HTML parse fails (no plain-text fallback)", async () => {
       const editFn = ctx.api.editMessageText as ReturnType<typeof vi.fn>;
-      // First call (HTML) fails, second call (plain) succeeds
       editFn.mockRejectedValueOnce(new Error("Bad Request: can't parse entities"));
 
       const sender = createTelegramStreamSender(ctx, logger);
@@ -164,10 +163,43 @@ describe("TelegramStreamSender", () => {
       sender.appendText("Unclosed <b>tag");
       await vi.advanceTimersByTimeAsync(350);
 
-      // Should have been called twice: HTML attempt + plain fallback
-      expect(editFn).toHaveBeenCalledTimes(2);
-      expect(editFn).toHaveBeenNthCalledWith(1, 123, 42, expect.any(String), { parse_mode: "HTML" });
-      expect(editFn).toHaveBeenNthCalledWith(2, 123, 42, expect.any(String), { parse_mode: undefined });
+      // Only one call -- no plain-text fallback that would double API calls
+      expect(editFn).toHaveBeenCalledTimes(1);
+      expect(editFn).toHaveBeenCalledWith(123, 42, expect.any(String), { parse_mode: "HTML" });
+    });
+  });
+
+  describe("race condition prevention", () => {
+    it("awaits in-flight edit before finalize sends final message", async () => {
+      const editFn = ctx.api.editMessageText as ReturnType<typeof vi.fn>;
+      const editOrder: string[] = [];
+
+      // Make the streaming edit slow (simulates network latency)
+      editFn.mockImplementation(async (_chatId: number, _msgId: number, text: string) => {
+        if (text.includes("\u258D")) {
+          // Streaming edit with cursor -- add delay
+          await new Promise((resolve) => setTimeout(resolve, 100));
+          editOrder.push("streaming");
+        } else {
+          editOrder.push("finalize");
+        }
+      });
+
+      const sender = createTelegramStreamSender(ctx, logger);
+      await sender.sendPlaceholder();
+
+      // Append enough text to pass short reply threshold
+      sender.appendText("This is a long enough response to pass the short reply threshold for testing.");
+      // Advance past EDIT_INTERVAL_MS to trigger immediate doEdit()
+      await vi.advanceTimersByTimeAsync(350);
+
+      // Finalize while the streaming edit is still in-flight
+      const finalizePromise = sender.finalize();
+      await vi.advanceTimersByTimeAsync(200);
+      await finalizePromise;
+
+      // The finalize edit must come AFTER the streaming edit completes
+      expect(editOrder[editOrder.length - 1]).toBe("finalize");
     });
   });
 

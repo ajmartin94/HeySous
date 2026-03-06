@@ -100,13 +100,20 @@ describe("update-notifier", () => {
     sqlite.close();
   });
 
-  it("returns null after notification has been delivered", () => {
+  it("returns null after all notifications have been delivered", () => {
     const sqlite = createTestDb();
     insertUser(sqlite, "user-1", 0);
-    seedNotifications(sqlite);
 
-    // First call delivers
-    checkPendingNotification(sqlite, "user-1");
+    // Insert a single notification for deterministic behavior
+    sqlite
+      .prepare(
+        "INSERT INTO notifications (version, content, created_at) VALUES (?, ?, ?)",
+      )
+      .run("1.0.0", "Test update", 1);
+
+    // First call delivers the one notification
+    const first = checkPendingNotification(sqlite, "user-1");
+    expect(first).toBe("Test update");
 
     // Second call returns null (already delivered)
     const result = checkPendingNotification(sqlite, "user-1");
@@ -119,15 +126,21 @@ describe("update-notifier", () => {
     const sqlite = createTestDb();
     insertUser(sqlite, "user-1", 0);
     insertUser(sqlite, "user-2", 0);
-    seedNotifications(sqlite);
+
+    // Insert a single notification for deterministic behavior
+    sqlite
+      .prepare(
+        "INSERT INTO notifications (version, content, created_at) VALUES (?, ?, ?)",
+      )
+      .run("1.0.0", "Shared update", 1);
 
     // Deliver to user 1
     const result1 = checkPendingNotification(sqlite, "user-1");
-    expect(result1).toBeTruthy();
+    expect(result1).toBe("Shared update");
 
     // User 2 still has pending
     const result2 = checkPendingNotification(sqlite, "user-2");
-    expect(result2).toBeTruthy();
+    expect(result2).toBe("Shared update");
 
     // User 1 has no more pending
     const result1Again = checkPendingNotification(sqlite, "user-1");

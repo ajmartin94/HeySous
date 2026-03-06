@@ -37,6 +37,8 @@ export function checkPendingNotification(
   userId: string,
 ): string | null {
   // Find the oldest notification not yet delivered to this user
+  // Filter out notifications created before the user joined (prevents
+  // new users from seeing stale release notes on first interaction)
   const pending = sqlite
     .prepare(
       `
@@ -47,11 +49,15 @@ export function checkPendingNotification(
       FROM notification_deliveries
       WHERE user_id = ?
     )
+    AND n.created_at > COALESCE(
+      (SELECT created_at FROM users WHERE telegram_id = ?),
+      0
+    )
     ORDER BY n.created_at ASC
     LIMIT 1
   `,
     )
-    .get(userId) as { id: number; content: string } | undefined;
+    .get(userId, userId) as { id: number; content: string } | undefined;
 
   if (!pending) return null;
 

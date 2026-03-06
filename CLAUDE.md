@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-HeySous is a Telegram meal planning bot with a Claude AI agent at its core. Single-process Node.js server handles both the Telegram bot (grammY) and a React Mini App (Vite).
+HeySous is a Telegram meal planning bot. A single-process Node.js server handles the Telegram bot (grammY) and a React Mini App (Vite). The AI agent powering the bot is called **Sous** — always use "Sous" when discussing the bot's AI behavior to avoid confusion with Claude (the model used here in Claude Code).
 
 ## Commands
 
@@ -13,41 +13,20 @@ npm run typecheck    # TypeScript type check (tsc --noEmit)
 
 ## Architecture Rules
 
-**ESM with .js extensions.** All TypeScript imports use `.js` extensions. This is required by NodeNext module resolution. Never use extensionless or `.ts` imports.
-
-```typescript
-import { config } from "./config.js";       // correct
-import { config } from "./config";           // wrong
-```
-
-**Factory function pattern.** All modules export `createXxx()` factories (not classes, not default exports). Dependencies are passed as params or an options object.
-
-```typescript
-export function createHelpHandler(): Composer<BotContext> { ... }
-export function createMeRoute(sqlite: BetterSqlite3.Database) { ... }
-```
-
-**HTML parse mode.** Telegram messages use HTML, not Markdown. Use `<b>`, `<i>`, `<blockquote>`. Never use `**`, `##`, triple backticks, or `*` for bullets. Use plain dashes for lists.
-
-**Config and logger.** Import `config` from `./config.js` and `logger` from `./logger.js`. Config validates env vars at startup and throws on missing required values. Don't pass raw env vars around.
-
-**Database access.** Two handles exist:
-- `db` (Drizzle ORM) -- for schema-defined tables via query builder
-- `sqlite` (raw better-sqlite3) -- for FTS5 queries, raw SQL init scripts, and older repositories
-
-SQLite is passed as first param to standalone repository functions. Use Drizzle when possible.
-
-**BotContext.** Extends grammY Context with `userId`, `householdId`, `user`, and `db` properties. The access gate middleware populates these for registered users. `/start` bypasses the gate.
-
-**Mini App auth.** API routes at `/api/*` are protected by Telegram initData HMAC validation. The middleware sets `res.locals.chatId` and `res.locals.householdId` for downstream handlers.
+- **ESM with .js extensions.** All TypeScript imports use `.js` extensions (NodeNext module resolution). Never use extensionless or `.ts` imports.
+- **Factory function pattern.** All modules export `createXxx()` factories (not classes, not default exports). Dependencies are passed as params or an options object.
+- **HTML parse mode.** Telegram messages use HTML, not Markdown. Use `<b>`, `<i>`, `<blockquote>`. Never use `**`, `##`, triple backticks, or `*` for bullets.
+- **Config and logger.** Import from `./config.js` and `./logger.js`. Config validates env vars at startup. Don't pass raw env vars around.
+- **Database access.** `db` (Drizzle ORM) for schema-defined tables; `sqlite` (raw better-sqlite3) for FTS5 and raw SQL. Use Drizzle when possible.
 
 ## Source Layout
 
 ```
-src/ai/             Claude client, system prompt, tool definitions, tool handler
+src/ai/             Sous agent: client, system prompt, tools, tool handler
 src/bot/            grammY bot setup, command handlers, middlewares
-src/pipeline/       Message queue (debounce) + processor (Claude call orchestration)
+src/pipeline/       Message queue (debounce) + processor (Sous call orchestration)
 src/knowledge/      Recipe/preference storage, FTS5 search, retrieval service
+src/memory/         Atomic fact memory system (memories table, FTS5 dedup)
 src/planning/       Meal plan CRUD, cooking history, context builder
 src/grocery/        Grocery list CRUD, formatter, inline buttons
 src/reminders/      Reminder scheduling, polling, delivery
@@ -64,34 +43,7 @@ src/conversation/   Conversation history context builder
 mini-app/src/       React SPA (Vite, React Router, @tma.js/sdk-react)
 ```
 
-## Key Patterns
-
-### Adding a bot command
-
-1. Create handler in `src/bot/handlers/your-command.ts`
-2. Export `createYourCommandHandler()` returning `Composer<BotContext>`
-3. Create instance in `src/main.ts`, pass to `createBot()`
-4. Register in `src/bot/index.ts` middleware chain -- order matters (see comment block at top of file)
-
-### Adding a Claude tool
-
-1. Add tool definition to `src/ai/tools.ts`
-2. Add handler case in `src/ai/tool-handler.ts`
-3. Add tool to `allTools` array in `src/pipeline/processor.ts`
-4. Add behavioral instructions to `src/ai/system-prompt.ts`
-
-### Adding a Mini App API route
-
-1. Create route factory in `src/mini-app/routes/your-route.ts`
-2. Register in `src/mini-app/router.ts`
-3. Routes receive `sqlite` via closure, use `res.locals.householdId` for data access
-
-### Adding a database table
-
-1. Define schema in the relevant domain module (e.g. `src/yourfeature/schema.ts`)
-2. Create an init function with `CREATE TABLE IF NOT EXISTS`
-3. Call init from `src/db/index.ts` `createDatabase()`
-4. Re-export from `src/db/schema.ts` if using Drizzle
+Subsystem-specific patterns (adding commands, tools, routes, tables) are documented in CLAUDE.md files within each `src/` subdirectory.
 
 ## Testing
 
@@ -100,17 +52,13 @@ mini-app/src/       React SPA (Vite, React Router, @tma.js/sdk-react)
 - **Imports:** Use `.js` extensions in test files too
 - **Time:** The `Clock` abstraction (`src/clock.ts`) provides testable time -- use `vi.useFakeTimers()` for time-dependent tests
 
+### TDD Policy
+
+Default to TDD for any task involving business logic, data transformations, validation, algorithms, or state machines. Use `tdd="true"` with a `<behavior>` block in GSD plans, or `type: tdd` for dedicated TDD plans. Only skip TDD for configuration, UI styling, glue code, migrations, and documentation.
+
 ## Releasing
 
-1. Complete the GSD milestone (`/gsd:complete-milestone`)
-2. Review pending todos in `.planning/todos/pending/` -- close completed items, fold relevant ones into the next milestone's requirements
-3. Write release notes in `src/notifications/release-notes.ts` as part of the milestone (HTML format, keyed by version)
-4. Update help docs if needed (`src/bot/handlers/help.ts`)
-5. Create PR from milestone branch → `main`, squash-merge manually
-6. Tag the release on main: `git tag v1.X`
-7. Deploy -- on startup, `seedNotifications()` inserts new release notes and users see them on next interaction
-
-Release notes auto-deliver once per household via the `notifications` / `notification_deliveries` tables. No manual notification step needed.
+Release process is managed by the `/release` skill. See `.claude/skills/release/` for details.
 
 ## Git
 

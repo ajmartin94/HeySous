@@ -16,6 +16,9 @@ import { searchFts, searchFtsContent, computeIngredientOverlap, computeContentSi
 import { fetchAndParseRecipe } from "../knowledge/url-import.js";
 import { parseRecipeTotalMinutes, parseTimeToMinutes } from "../reminders/generator.js";
 import { logger } from "../logger.js";
+import { saveMemory, updateMemory, deleteMemory, getMemoryById } from "../memory/repository.js";
+import { searchMemoryFts } from "../memory/fts.js";
+import type { MemoryCategory } from "../memory/schema.js";
 
 /** Maximum string lengths for tool inputs */
 const MAX_LENGTHS = {
@@ -29,6 +32,7 @@ const MAX_LENGTHS = {
   notes: 2000,          // feedback / log_meal notes
   text: 5000,           // app feedback text
   url: 2000,            // import URL
+  memoryContent: 2000,  // memory atomic fact
   itemName: 200,        // grocery item name
   quantity: 100,        // grocery item quantity
   store: 100,           // store name
@@ -1036,7 +1040,7 @@ export function createToolHandler(deps: {
           });
         }
 
-        case "get_reminder_settings": {
+        case "get_settings": {
           if (!reminderRepository) {
             return JSON.stringify({ error: "Reminder tools not available" });
           }
@@ -1059,7 +1063,7 @@ export function createToolHandler(deps: {
           });
         }
 
-        case "update_reminder_settings": {
+        case "update_settings": {
           if (!reminderRepository) {
             return JSON.stringify({ error: "Reminder tools not available" });
           }
@@ -1277,6 +1281,130 @@ export function createToolHandler(deps: {
             deep_link: true,
             target,
             recipe_id: target === "recipe" ? input.recipe_id : undefined,
+          });
+        }
+
+        case "save_memory": {
+          if (!sqlite) {
+            return JSON.stringify({ error: "Memory tools not available" });
+          }
+
+          const validCategories = ["dietary", "taste", "cooking_style", "household", "schedule", "logistics", "general"];
+          const err = validateRequired(input.content, "content", "string")
+            ?? validateRequired(input.category, "category", "string")
+            ?? validateString(input.content, "content", MAX_LENGTHS.memoryContent);
+          if (err) return validationError(err);
+
+          const content = input.content as string;
+          const category = input.category as string;
+
+          if (!validCategories.includes(category)) {
+            return validationError(`category must be one of: ${validCategories.join(", ")}`);
+          }
+
+          // Update existing memory
+          if (input.update_id !== undefined) {
+            const idErr = validatePositiveInt(input.update_id, "update_id");
+            if (idErr) return validationError(idErr);
+
+            const updateId = input.update_id as number;
+            const existing = getMemoryById(sqlite, updateId, householdId);
+            if (!existing) {
+              return JSON.stringify({ error: `Memory with ID ${updateId} not found` });
+            }
+
+            const updated = updateMemory(sqlite, updateId, content);
+            return JSON.stringify({
+              status: "updated",
+              id: updateId,
+              content,
+              category: existing.category,
+              updated,
+            });
+          }
+
+          // Dedup check
+          if (!input.skip_dedup) {
+            try {
+              const matches = searchMemoryFts(sqlite, householdId, content, 5);
+              // FTS5 rank: lower = better match. searchMemoryFts returns Math.abs(rank).
+              // Threshold: rank < 5.0 means a strong match (original BM25 was < -5.0, abs makes it < 5.0)
+              const strongMatches = matches.filter((m) => m.rank > 0 && m.rank < 5.0);
+
+              if (strongMatches.length > 0) {
+                return JSON.stringify({
+                  status: "dedup_match",
+                  message: "Similar memories found. Decide: ADD as new (call with skip_dedup: true), UPDATE existing (call with update_id), or NOOP.",
+                  matches: strongMatches.map((m) => ({
+                    id: m.id,
+                    content: m.content,
+                    category: m.category,
+                    rank: m.rank,
+                  })),
+                });
+              }
+            } catch (dedupError) {
+              // If dedup search fails, proceed with save
+              logger.warn(
+                { error: dedupError instanceof Error ? dedupError.message : String(dedupError) },
+                "Memory dedup search failed, proceeding with save",
+              );
+            }
+          }
+
+          // Save new memory
+          const saved = saveMemory(sqlite, householdId, content, category as MemoryCategory);
+          return JSON.stringify({
+            status: "saved",
+            id: saved.id,
+            content: saved.content,
+            category: saved.category,
+          });
+        }
+
+        case "delete_memory": {
+          if (!sqlite) {
+            return JSON.stringify({ error: "Memory tools not available" });
+          }
+
+          const err = validateRequired(input.id, "id", "number")
+            ?? validatePositiveInt(input.id, "id");
+          if (err) return validationError(err);
+
+          const id = input.id as number;
+          const deleted = deleteMemory(sqlite, id, householdId);
+
+          if (!deleted) {
+            return JSON.stringify({ error: `Memory with ID ${id} not found or does not belong to this household` });
+          }
+
+          return JSON.stringify({ status: "deleted", id });
+        }
+
+        case "search_memories": {
+          if (!sqlite) {
+            return JSON.stringify({ error: "Memory tools not available" });
+          }
+
+          const err = validateRequired(input.query, "query", "string")
+            ?? validateString(input.query, "query", MAX_LENGTHS.query);
+          if (err) return validationError(err);
+
+          const query = input.query as string;
+          const limit = (typeof input.limit === "number" && Number.isInteger(input.limit) && input.limit > 0)
+            ? Math.min(input.limit, 50)
+            : 10;
+
+          const results = searchMemoryFts(sqlite, householdId, query, limit);
+
+          return JSON.stringify({
+            results: results.map((r) => ({
+              id: r.id,
+              content: r.content,
+              category: r.category,
+              rank: r.rank,
+            })),
+            count: results.length,
           });
         }
 

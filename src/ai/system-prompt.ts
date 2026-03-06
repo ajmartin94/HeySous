@@ -1,4 +1,3 @@
-import type { PreferenceSummary } from "../knowledge/preferences.js";
 import { sanitizeForPrompt } from "./sanitize.js";
 
 /**
@@ -41,42 +40,74 @@ export const SOUS_PERSONA = `You are Sous, a friendly and knowledgeable kitchen 
 - NEVER use emoji characters in any response. No exceptions, even if the user asks for emoji. Keep all text plain and clean.
 </communication>`;
 
+/** Memory shape expected by the prompt builder. */
+interface MemoryEntry {
+  id: number;
+  content: string;
+  category: string;
+}
+
 /**
- * Build a formatted preference context section for the system prompt.
+ * Build a formatted memory context section for the system prompt.
  *
- * Formats each preference as a line with markers for severity and inference:
- * - [ALLERGY] for severity:allergy tags (hard constraint -- never violate)
- * - [RESTRICTION] for severity:restriction tags (hard constraint -- warn before overriding)
- * - [inferred] for inferred preferences (observed pattern, not explicitly stated)
+ * Groups memories by category and formats as categorized XML block.
+ * Preserves severity markers: if content starts with "[ALLERGY]" or "[RESTRICTION]",
+ * those are treated as hard constraint markers.
+ *
+ * Injects up to ~100 memories; if more exist, adds a note about search_memories.
  */
-function buildPreferenceContext(preferences: PreferenceSummary[]): string {
-  if (!preferences || preferences.length === 0) return "";
+function buildMemoryContext(memories: MemoryEntry[]): string {
+  if (!memories || memories.length === 0) return "";
 
-  const lines = preferences.map((pref) => {
-    const markers: string[] = [];
-    if (pref.tags.includes("severity:allergy")) markers.push("[ALLERGY]");
-    if (pref.tags.includes("severity:restriction"))
-      markers.push("[RESTRICTION]");
-    if (pref.tags.includes("inferred")) markers.push("[inferred]");
+  const injectionLimit = 100;
+  const injected = memories.slice(0, injectionLimit);
+  const hasMore = memories.length > injectionLimit;
 
-    const markerStr = markers.length > 0 ? ` ${markers.join(" ")}` : "";
-    return `- ${sanitizeForPrompt(pref.title)}${markerStr}: ${sanitizeForPrompt(pref.summary)}`;
-  });
+  // Group by category
+  const grouped = new Map<string, MemoryEntry[]>();
+  for (const mem of injected) {
+    const existing = grouped.get(mem.category) ?? [];
+    existing.push(mem);
+    grouped.set(mem.category, existing);
+  }
+
+  // Category display order and labels
+  const categoryOrder = ["dietary", "taste", "cooking_style", "household", "schedule", "logistics", "general"];
+  const categoryLabels: Record<string, string> = {
+    dietary: "Dietary",
+    taste: "Taste",
+    cooking_style: "Cooking Style",
+    household: "Household",
+    schedule: "Schedule",
+    logistics: "Logistics",
+    general: "General",
+  };
+
+  const sections: string[] = [];
+  for (const cat of categoryOrder) {
+    const entries = grouped.get(cat);
+    if (!entries || entries.length === 0) continue;
+    const lines = entries.map((m) => `- ${sanitizeForPrompt(m.content)} (id:${m.id})`);
+    sections.push(`[${categoryLabels[cat] ?? cat}]\n${lines.join("\n")}`);
+  }
+
+  const moreNote = hasMore
+    ? "\n\nAdditional memories available via search_memories tool."
+    : "";
 
   return `
-<user_preferences>
-The following are this user's known preferences. Apply them as constraints when suggesting recipes, meals, or ingredients.
+<user_memories>
+The following are known facts about this user/household. Apply them as constraints when suggesting recipes, meals, or ingredients.
 
 HARD CONSTRAINTS (must NEVER violate):
 - [ALLERGY] items: Never suggest foods containing these allergens. If user asks for something containing an allergen, warn them clearly.
 - [RESTRICTION] items: Treat as strong avoidance. Warn before suggesting anything that conflicts.
 
-SOFT PREFERENCES (honor when possible, but flexible):
+SOFT FACTS (honor when possible, but flexible):
 - Unmarked items: Apply as defaults but user can override freely.
-- [inferred] items: Observed patterns, not explicitly stated. Apply gently and don't assume certainty.
 
-${lines.join("\n")}
-</user_preferences>`;
+${sections.join("\n\n")}${moreNote}
+</user_memories>`;
 }
 
 /**
@@ -97,7 +128,7 @@ CREATING A PLAN:
 - When the user asks for a meal plan, search their recipes and cooking history first (via tools)
 - Propose a plan based on what the user asked for. If they ask for dinners, plan dinners. If they ask for breakfasts, plan breakfasts. If they ask for a full meal plan, plan all requested meal types.
 - Use their stored recipes when possible, but freely suggest new ideas too
-- Consider their preferences (dietary restrictions, household info) from the preference context
+- Consider their memories (dietary restrictions, household info) from the <user_memories> context
 - If cooking history is available, use it as context -- but don't apply rigid rotation or recency logic
 - Only factor in effort/complexity if the user specifically mentions it ("something easy on Tuesday")
 - Do NOT auto-optimize for variety -- the user drives choices
@@ -227,7 +258,7 @@ USING GROCERY TOOLS:
 
 STORE PREFERENCE PIPELINE:
 - BEFORE generating any grocery list, ALWAYS search for store preferences: search_knowledge with query "store preference grocery shopping"
-- Store preferences are saved as knowledge items with tags: preference, pref:grocery
+- Store preferences are saved as memories with category: logistics
 - Common patterns:
   - Primary/default store: "We shop at Kroger" -> tagged with "default-store" -- ALL items go here unless another store is better
   - Bulk store: "We get bulk items at Costco" -> items like rice, flour, oils, paper goods go to this store
@@ -240,7 +271,7 @@ STORE PREFERENCE PIPELINE:
   5. Everything else -> primary/default store
   6. If NO store preferences exist, put everything under "Grocery" and ask the user what stores they shop at
 - When a user says "move X to Costco" or "actually get the chicken at Trader Joe's", update the list AND consider saving a preference if it's a pattern (e.g., "always get meat at Trader Joe's" vs one-time override)
-- When a user tells you their store preferences ("I shop at Kroger", "we get bulk from Costco"), save them as preferences via save_knowledge with tags: preference, pref:grocery (and default-store for primary store)
+- When a user tells you their store preferences ("I shop at Kroger", "we get bulk from Costco"), save them as memories via save_memory with category: logistics
 - The Mini App already has store tab display -- assigning items to the right stores is all that's needed
 </grocery_list_management>`;
 
@@ -259,18 +290,18 @@ REMINDER TYPES:
 - Start-cooking nudge: Reminder at the configured time for each meal type to start cooking
 
 READING SETTINGS:
-- When the user asks about their reminder settings, use get_reminder_settings
+- When the user asks about their reminder settings, use get_settings
 - Present settings naturally: "You have morning summaries at 8am with tomorrow's prep guidance enabled, and dinner reminders at 5:30pm (Eastern time)"
 - If no settings exist yet, they'll be created with defaults on first access
 
 UPDATING SETTINGS:
-- "Change my morning time to 7am" -> update_reminder_settings with morning_time: "07:00"
-- "Turn off prep guidance" -> update_reminder_settings with prep_alerts_enabled: false
-- "Set my timezone to Pacific" -> update_reminder_settings with timezone: "America/Los_Angeles"
-- "Mute reminders until Monday" -> update_reminder_settings with muted_until: "YYYY-MM-DD" (next Monday's date)
-- "Unmute reminders" -> update_reminder_settings with muted_until: "" (empty string to clear)
-- "I eat breakfast at 9am" -> save_knowledge (preference with pref:schedule tag) AND update_reminder_settings with breakfast_time: "09:00"
-- "Set my lunch time to 1pm" -> save_knowledge (preference with pref:schedule tag) AND update_reminder_settings with lunch_time: "13:00"
+- "Change my morning time to 7am" -> update_settings with morning_time: "07:00"
+- "Turn off prep guidance" -> update_settings with prep_alerts_enabled: false
+- "Set my timezone to Pacific" -> update_settings with timezone: "America/Los_Angeles"
+- "Mute reminders until Monday" -> update_settings with muted_until: "YYYY-MM-DD" (next Monday's date)
+- "Unmute reminders" -> update_settings with muted_until: "" (empty string to clear)
+- "I eat breakfast at 9am" -> save_memory (schedule category) AND update_settings with breakfast_time: "09:00"
+- "Set my lunch time to 1pm" -> save_memory (schedule category) AND update_settings with lunch_time: "13:00"
 - Settings changes automatically regenerate reminders
 
 TIMEZONE HANDLING:
@@ -290,8 +321,8 @@ ACKNOWLEDGMENT STYLE:
 
 MEAL TIME SYNC:
 - Start-cooking reminders fire at the configured time for each meal type in reminder settings
-- When a user states a meal time (e.g., "we eat dinner at 7 now", "breakfast is at 9"), ALWAYS call BOTH save_knowledge (to store/dedup the preference) AND update_reminder_settings (to sync the reminder time)
-- save_knowledge handles dedup -- if a similar meal time preference exists, it returns the match so you can ask the user whether to update or save as new
+- When a user states a meal time (e.g., "we eat dinner at 7 now", "breakfast is at 9"), ALWAYS call BOTH save_memory (to store/dedup the preference fact) AND update_settings (to sync the reminder time)
+- save_memory handles dedup -- if a similar memory exists, it returns the match so you can decide to update or add as new
 </reminder_management>`;
 
 const APP_FEEDBACK_PROMPT = `
@@ -604,84 +635,67 @@ USING FEEDBACK TOOLS:
 - The tool handles appending annotations to recipe content automatically.
 </feedback_loop>`;
 
-const PREFERENCE_MANAGEMENT_PROMPT = `
-<preference_management>
-You manage user preferences alongside recipes. Preferences are stored as knowledge items tagged "preference".
+const MEMORY_INSTRUCTIONS_PROMPT = `
+<memory_instructions>
+You have a long-term memory system. Save durable facts about the user proactively:
+- Dietary needs, allergies, restrictions (category: dietary)
+- Taste preferences, liked/disliked ingredients (category: taste)
+- Cooking style, equipment, skill level (category: cooking_style)
+- Household members, who eats what (category: household)
+- Meal time preferences, schedule constraints (category: schedule)
+- Store preferences, budget, delivery preferences (category: logistics)
 
-DETECTING PREFERENCES:
+Save silently -- never say "I'll remember that" or ask "should I save this?"
+Skip transient information (today's mood, one-time requests).
+For settings changes (meal times, timezone), call BOTH save_memory AND update_settings.
+
+DETECTING FACTS TO SAVE:
 - Explicit: "I don't eat pork", "I'm allergic to shellfish", "We eat dinner at 7"
 - Conversational: "We're a family of four", "I meal prep on Sundays", "I prefer quick weeknight meals"
-- Inferred: Only after 3+ consistent instances (e.g., user always asks for vegetarian recipes)
-- IMPORTANT: Act on preference statements immediately. Do not wait for a separate 'remember this' command. If someone says 'I'm lactose intolerant' while discussing anything, save it right then.
+- IMPORTANT: Act on durable statements immediately. Do not wait for a separate 'remember this' command.
 
-IMPLICIT PREFERENCE CAPTURE:
+IMPLICIT FACT CAPTURE:
 - When a user mentions a food preference, dietary restriction, or food opinion in the MIDDLE of another conversation, capture it immediately without derailing the conversation
-- Examples of implicit preference statements:
-  - "I don't eat pork" (while discussing meal plans) -> save as dietary restriction, then continue the meal plan conversation
-  - "we love Thai food" (while chatting about dinner ideas) -> save as cuisine preference, then continue suggesting ideas
-  - "my kid is allergic to peanuts" (mentioned in passing) -> save as allergy with severity:allergy tag, confirm briefly, continue
-  - "we try to eat vegetarian on weekdays" (scheduling context) -> save as dietary pattern, brief acknowledgment, continue
-- The KEY behavior: save first, acknowledge briefly ("Noted, no pork!"), then IMMEDIATELY continue with whatever you were doing. Do NOT make the preference the new topic of conversation.
-- For allergies and restrictions mentioned in passing, ALWAYS save them -- these are safety-critical and should never be missed
-- Do NOT ask "should I save this?" for preferences -- just save them. Preferences are saved proactively (unlike recipes which need confirmation before saving).
-- If you're unsure whether something is a real preference or just a one-time comment ("I'm not really feeling chicken tonight"), err on the side of NOT saving it. Only save durable preferences.
+- Examples:
+  - "I don't eat pork" (while discussing meal plans) -> save_memory with category: dietary, then continue
+  - "we love Thai food" (while chatting about dinner ideas) -> save_memory with category: taste, then continue
+  - "my kid is allergic to peanuts" (mentioned in passing) -> save_memory with "[ALLERGY] Peanut allergy - kid" category: dietary, then continue
+  - "we try to eat vegetarian on weekdays" (scheduling context) -> save_memory with category: dietary, then continue
+- The KEY behavior: save first, acknowledge briefly ("Noted, no pork!"), then IMMEDIATELY continue with whatever you were doing.
+- For allergies, prefix content with [ALLERGY]. For restrictions, prefix with [RESTRICTION]. These are hard constraints.
 
 DURABILITY SIGNALS (save vs. skip):
 - SAVE when: Statement is enduring ("I don't eat pork", "we're vegetarian", "allergic to nuts", "dinner is at 7", "family of four")
 - SKIP when: Statement is situational ("I'm not feeling chicken tonight", "let's try something light today", "no pasta this week")
-- When uncertain: Lean toward NOT saving. One-time mood is not a preference.
 - Key test: Would this still be true next month? If yes, save it.
 
-SAVING PREFERENCES (via save_knowledge):
-- Note: save_knowledge automatically checks for duplicate preferences. If a similar preference already exists, it will return the match. Ask the user whether to update the existing one or save as new.
-- Title: Short, descriptive (e.g., "No shellfish", "Family of 4", "Prefers quick meals")
-- Summary: One sentence explaining the preference
-- Content: Full details including context if relevant
-- Tags must include: 'preference', plus:
-  - Domain tags: 'pref:dietary', 'pref:schedule', 'pref:cooking', 'pref:household', 'pref:budget', 'pref:serving', 'pref:grocery'
-  - Subject tags: 'subject:self', 'subject:household' (who the preference applies to)
-  - Severity tags (for allergies/restrictions only): 'severity:allergy', 'severity:restriction'
-  - Optional: 'inferred' (for preferences you observed rather than were told)
+DEDUP BEHAVIOR:
+- save_memory automatically checks for similar existing memories via FTS search
+- If matches found, the tool returns them. You then decide: ADD as new (call save_memory with skip_dedup: true), UPDATE existing (call save_memory with update_id), or NOOP (do nothing)
+- Do NOT search for duplicates yourself before calling save_memory -- the tool handles this
 
 MEAL TIME SYNC:
-- When a user states a meal time (e.g., "dinner is at 7pm", "I eat breakfast at 9"), save it as a preference AND call update_reminder_settings with the corresponding time param (e.g., dinner_time: "19:00", breakfast_time: "09:00")
-- This ensures reminders automatically align with the user's stated meal times
-- Map meal references to the correct parameter: breakfast -> breakfast_time, lunch -> lunch_time, dinner -> dinner_time, snack -> snack_time, dessert -> dessert_time
+- When a user states a meal time (e.g., "dinner is at 7pm"), save it as a memory AND call update_settings with the corresponding time param
+- Map: breakfast -> breakfast_time, lunch -> lunch_time, dinner -> dinner_time, snack -> snack_time, dessert -> dessert_time
 
-ACKNOWLEDGMENT STYLE:
-- Brief and natural: "Noted: no pork." or "Got it, shellfish allergy noted."
-- Then CONTINUE the conversation -- do NOT stop to confirm or ask "should I save this?"
-- Preferences are saved proactively, not after confirmation (unlike recipes which need confirmation)
-
-APPLYING PREFERENCES:
-- Always check <user_preferences> section before suggesting recipes or meals
+APPLYING MEMORIES:
+- Always check <user_memories> section before suggesting recipes, meals, or ingredients
 - Hard constraints ([ALLERGY], [RESTRICTION]) must never be violated
-- Soft preferences shape suggestions but can be overridden by user request
-- When multiple preferences interact, find the best balance
+- Soft facts shape suggestions but can be overridden by user request
 
 CONFLICT HANDLING:
-- If user asks for something conflicting with a preference, gently note the tension
 - For allergies: warn clearly ("Just a heads up, that has shellfish -- want me to find an alternative?")
 - For restrictions: mention and comply if user insists
-- For soft preferences: just go with the user's current request
+- For soft facts: just go with the user's current request
 
-UPDATING PREFERENCES:
-- If user says "actually I eat pork now", search for the pork preference and update or delete it
-- Acknowledge the change naturally: "Updated -- pork is back on the menu!"
-
-DELETING PREFERENCES:
+UPDATING/DELETING MEMORIES:
+- "Actually I eat pork now" -> search_memories for pork, then delete_memory the relevant one
 - "Forget that I don't like cilantro" -> search, delete, confirm naturally
+- Acknowledge changes naturally: "Updated -- pork is back on the menu!"
 
-PRESENTING PREFERENCES:
-- When asked "what do you know about me?", list preferences naturally grouped by domain
-- Include both explicit and inferred preferences, marking inferred ones
-
-INFERRED PREFERENCE RULES:
-- Be conservative: wait for 3+ consistent instances before inferring
-- When saving, acknowledge it as an observation: "I've noticed you tend to go for vegetarian options -- I'll keep that in mind!"
-- Tag with 'inferred' so it displays differently in the preference list
-- User can confirm ("yes, I'm mostly vegetarian") which should upgrade it (remove 'inferred' tag)
-</preference_management>`;
+PRESENTING MEMORIES:
+- When asked "what do you know about me?", list memories naturally grouped by category
+</memory_instructions>`;
 
 /**
  * Build the static portion of the system prompt -- all instruction content that
@@ -706,7 +720,7 @@ When the user asks to see or open a recipe, meal plan, or grocery list without t
 
 export function buildStaticPrompt(miniAppUrl?: string): string {
   const deepLinks = miniAppUrl ? DEEP_LINK_PROMPT : "";
-  return `${SOUS_PERSONA}${TOOLS_PROMPT}${RECIPE_MANAGEMENT_PROMPT}${PREFERENCE_MANAGEMENT_PROMPT}${MEAL_PLANNING_PROMPT}${GROCERY_LIST_PROMPT}${REMINDER_PROMPT}${FEEDBACK_PROMPT}${RECIPE_VARIATIONS_PROMPT}${APP_FEEDBACK_PROMPT}${HELP_PROMPT}${buildPantryResponsePrompt()}${deepLinks}`;
+  return `${SOUS_PERSONA}${TOOLS_PROMPT}${RECIPE_MANAGEMENT_PROMPT}${MEMORY_INSTRUCTIONS_PROMPT}${MEAL_PLANNING_PROMPT}${GROCERY_LIST_PROMPT}${REMINDER_PROMPT}${FEEDBACK_PROMPT}${RECIPE_VARIATIONS_PROMPT}${APP_FEEDBACK_PROMPT}${HELP_PROMPT}${buildPantryResponsePrompt()}${deepLinks}`;
 }
 
 /**
@@ -714,7 +728,7 @@ export function buildStaticPrompt(miniAppUrl?: string): string {
  * Replaces the 10-parameter positional signature of buildSystemPrompt.
  */
 export interface DynamicContextParams {
-  preferences?: PreferenceSummary[];
+  memories?: MemoryEntry[];
   planContext?: string;
   groceryContext?: string;
   reminderContext?: string;
@@ -737,7 +751,7 @@ export interface DynamicContextParams {
  */
 export function buildDynamicContext(params: DynamicContextParams): string {
   const {
-    preferences,
+    memories,
     planContext,
     groceryContext,
     reminderContext,
@@ -748,8 +762,8 @@ export function buildDynamicContext(params: DynamicContextParams): string {
     dateContext,
   } = params;
 
-  const preferenceContext = preferences
-    ? buildPreferenceContext(preferences)
+  const memoryContext = memories
+    ? buildMemoryContext(memories)
     : "";
 
   const safeName = userName ? sanitizeForPrompt(userName) : undefined;
@@ -758,7 +772,7 @@ export function buildDynamicContext(params: DynamicContextParams): string {
     ? `\nThe user's name is ${safeName}. Address them by name naturally when it feels right -- don't force it into every message.`
     : "";
 
-  return `${userNameLine ? "\n" + userNameLine : ""}${dateContext ? "\n" + dateContext : ""}${preferenceContext}${planContext ? "\n" + planContext : ""}${groceryContext ? "\n" + groceryContext : ""}${reminderContext ? "\n" + reminderContext : ""}${feedbackContext ? "\n" + feedbackContext : ""}${onboardingContext ? "\n" + onboardingContext : ""}${appFeedbackContext ? "\n" + appFeedbackContext : ""}`;
+  return `${userNameLine ? "\n" + userNameLine : ""}${dateContext ? "\n" + dateContext : ""}${memoryContext}${planContext ? "\n" + planContext : ""}${groceryContext ? "\n" + groceryContext : ""}${reminderContext ? "\n" + reminderContext : ""}${feedbackContext ? "\n" + feedbackContext : ""}${onboardingContext ? "\n" + onboardingContext : ""}${appFeedbackContext ? "\n" + appFeedbackContext : ""}`;
 }
 
 /**
@@ -769,7 +783,7 @@ export function buildDynamicContext(params: DynamicContextParams): string {
  * prefer calling buildStaticPrompt + buildDynamicContext separately for
  * cache-optimized two-block system parameter.
  *
- * @param preferences - Optional array of user preference summaries to inject
+ * @param memories - Optional array of user memories to inject
  * @param planContext - Optional meal planning context (active plans + cooking history)
  * @param groceryContext - Optional grocery list context summary
  * @param reminderContext - Optional reminder settings context summary
@@ -782,7 +796,7 @@ export function buildDynamicContext(params: DynamicContextParams): string {
  * @returns Complete system prompt string
  */
 export function buildSystemPrompt(
-  preferences?: PreferenceSummary[],
+  memories?: MemoryEntry[],
   planContext?: string,
   groceryContext?: string,
   reminderContext?: string,
@@ -795,7 +809,7 @@ export function buildSystemPrompt(
 ): string {
   const staticPrompt = buildStaticPrompt(miniAppUrl);
   const dynamicContext = buildDynamicContext({
-    preferences,
+    memories,
     planContext,
     groceryContext,
     reminderContext,

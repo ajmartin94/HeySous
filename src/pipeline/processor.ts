@@ -650,7 +650,12 @@ export function createProcessor(deps: ProcessorDeps) {
       const requestDurationMs = Date.now() - startTime;
 
       // k. Extract onboarding marker (if any) BEFORE finalizing
-      const { text: cleanText, completedPhase } = extractOnboardingMarker(response.text);
+      // For streaming: use accumulated text (includes all turns + tool status hints)
+      // For non-streaming: use response.text (last turn only, but correct for single-turn)
+      const sourceText = streamingActive
+        ? streamSender.getAccumulatedText()
+        : response.text;
+      const { text: cleanText, completedPhase } = extractOnboardingMarker(sourceText);
 
       // k2. Advance onboarding state if marker was found
       if (completedPhase !== null && ctx.user && ctx.user.onboardingState !== "complete") {
@@ -718,10 +723,12 @@ export function createProcessor(deps: ProcessorDeps) {
 
       // k3. Finalize the message and save to conversation history
       if (streamingActive) {
-        // Streaming path: finalize the stream sender with clean text (markers stripped)
+        // Streaming path: use accumulated text (all turns + tool status hints)
+        // Only pass override if marker extraction changed the text
+        const finalizeOverride = cleanText !== sourceText ? cleanText : undefined;
         if (cleanText.trim()) {
           await streamSender.finalize(
-            cleanText,
+            finalizeOverride,
             deepLinkKeyboard ? { reply_markup: deepLinkKeyboard } : undefined,
           );
 

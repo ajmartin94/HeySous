@@ -7,7 +7,7 @@ import type {
   ReminderType,
 } from "./types.js";
 
-/** Raw row shape for reminder_settings from SQLite. */
+/** Raw row shape for application_settings from SQLite. */
 interface ReminderSettingsRow {
   id: number;
   household_id: string;
@@ -38,7 +38,7 @@ interface ReminderRow {
   created_at: number;
 }
 
-/** Map a raw reminder_settings row to the ReminderSettings interface. */
+/** Map a raw application_settings row to the ReminderSettings interface. */
 function mapSettings(row: ReminderSettingsRow): ReminderSettings {
   return {
     id: row.id,
@@ -90,7 +90,7 @@ export function createReminderRepository(sqlite: BetterSqlite3.Database, clock?:
      */
     getSettings(householdId: string): ReminderSettings | null {
       const row = sqlite
-        .prepare(`SELECT * FROM reminder_settings WHERE household_id = ?`)
+        .prepare(`SELECT * FROM application_settings WHERE household_id = ?`)
         .get(householdId) as ReminderSettingsRow | undefined;
 
       return row ? mapSettings(row) : null;
@@ -158,7 +158,7 @@ export function createReminderRepository(sqlite: BetterSqlite3.Database, clock?:
 
       sqlite
         .prepare(
-          `INSERT INTO reminder_settings (household_id, timezone, morning_time, breakfast_time, lunch_time, snack_time, dinner_time, dessert_time, morning_enabled, prep_alerts_enabled, muted_until)
+          `INSERT INTO application_settings (household_id, timezone, morning_time, breakfast_time, lunch_time, snack_time, dinner_time, dessert_time, morning_enabled, prep_alerts_enabled, muted_until)
            VALUES (@householdId, @timezone, @morningTime, @breakfastTime, @lunchTime, @snackTime, @dinnerTime, @dessertTime, @morningEnabled, @prepAlertsEnabled, @mutedUntil)
            ON CONFLICT(household_id) DO UPDATE SET
              timezone = COALESCE(@updateTimezone, timezone),
@@ -198,7 +198,7 @@ export function createReminderRepository(sqlite: BetterSqlite3.Database, clock?:
         });
 
       const row = sqlite
-        .prepare(`SELECT * FROM reminder_settings WHERE household_id = ?`)
+        .prepare(`SELECT * FROM application_settings WHERE household_id = ?`)
         .get(householdId) as ReminderSettingsRow;
 
       return mapSettings(row);
@@ -209,7 +209,7 @@ export function createReminderRepository(sqlite: BetterSqlite3.Database, clock?:
      */
     getOrCreateSettings(householdId: string): ReminderSettings {
       const existing = sqlite
-        .prepare(`SELECT * FROM reminder_settings WHERE household_id = ?`)
+        .prepare(`SELECT * FROM application_settings WHERE household_id = ?`)
         .get(householdId) as ReminderSettingsRow | undefined;
 
       if (existing) {
@@ -226,7 +226,7 @@ export function createReminderRepository(sqlite: BetterSqlite3.Database, clock?:
     getAllActiveSettings(): ReminderSettings[] {
       const rows = sqlite
         .prepare(
-          `SELECT * FROM reminder_settings
+          `SELECT * FROM application_settings
            WHERE (morning_enabled = 1 OR prep_alerts_enabled = 1)
              AND (muted_until IS NULL OR muted_until < ?)`,
         )

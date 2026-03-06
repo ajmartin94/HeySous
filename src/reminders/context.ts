@@ -37,7 +37,7 @@ export function buildReminderContext(
   const row = sqlite
     .prepare(
       `SELECT timezone, morning_time, breakfast_time, lunch_time, snack_time, dinner_time, dessert_time, morning_enabled, prep_alerts_enabled, muted_until
-       FROM reminder_settings
+       FROM application_settings
        WHERE household_id = ?`,
     )
     .get(householdId) as SettingsContextRow | undefined;

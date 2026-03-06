@@ -240,7 +240,11 @@ Plans:
 ### Phase 52: Onboarding Memory Integration
 **Goal:** Verify and ensure the onboarding process utilizes the memory function to store user preferences
 **Depends on:** Phase 49
-**Plans:** Not planned yet
+**Requirements:** ONBOARD-MEM
+**Plans:** 1 plan
+
+Plans:
+- [ ] 52-01-PLAN.md -- Regression test for memory tool availability + prod DB verification
 
 ### Phase 53: Onboarding Help Message & Next Steps
 **Goal:** End onboarding with a help-style message explaining what Sous can do, then prompt user to start planning or adding meals

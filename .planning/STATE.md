@@ -90,9 +90,11 @@ None.
 
 6 milestones shipped: v1.0 (10 phases), v1.1 (4 phases), v1.2 (5 phases), v1.3 (5 phases), v1.4 (7 phases), v1.5 (10 phases).
 Total: 41 phases, 89 plans across 6 milestones. v1.6 adds 6 phases (42-47).
+- Phase 49 added: Sous Memory System — atomic facts, settings table, and preference migration
 
 ## Session Continuity
 
 Last session: 2026-03-05
-Stopped at: Completed 48-01-PLAN.md (preference dedup threshold and deep-link buttons)
-Next action: v1.6 milestone completion (all phase 48 plans complete)
+Stopped at: Phase 49 context gathered
+Next action: /gsd:plan-phase 49
+Resume file: .planning/phases/49-sous-memory-system-atomic-facts-settings-table-and-preference-migration/49-CONTEXT.md

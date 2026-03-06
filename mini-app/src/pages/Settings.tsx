@@ -292,14 +292,14 @@ export function Settings() {
 
   function tabButtonStyle(active: boolean): React.CSSProperties {
     return {
-      width: '100%',
-      padding: '12px 10px',
+      flex: 1,
+      padding: '10px 0',
       border: 'none',
-      borderRadius: '0 8px 8px 0',
+      borderRadius: '8px',
       fontSize: 'var(--hs-font-size-small)',
       fontWeight: 600,
       cursor: 'pointer',
-      textAlign: 'left',
+      textAlign: 'center',
       background: active ? 'var(--hs-accent)' : 'var(--tg-theme-secondary-bg-color, #f0f0f0)',
       color: active ? '#ffffff' : 'var(--tg-theme-text-color, #000)',
       WebkitTapHighlightColor: 'transparent',
@@ -320,32 +320,21 @@ export function Settings() {
         Settings
       </div>
 
-      {/* Tabbed layout */}
-      <div style={{ display: 'flex', minHeight: '400px' }}>
-        {/* Left sidebar */}
-        <div
-          style={{
-            width: '80px',
-            flexShrink: 0,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '4px',
-            paddingTop: '4px',
-          }}
-        >
-          {tabs.map((tab) => (
-            <button
-              key={tab.key}
-              style={tabButtonStyle(activeTab === tab.key)}
-              onClick={() => setActiveTab(tab.key)}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+      {/* Top tabs */}
+      <div style={{ display: 'flex', gap: '6px', paddingBottom: '12px', borderBottom: '1px solid var(--tg-theme-hint-color, #ccc)', marginBottom: '16px' }}>
+        {tabs.map((tab) => (
+          <button
+            key={tab.key}
+            style={tabButtonStyle(activeTab === tab.key)}
+            onClick={() => setActiveTab(tab.key)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
-        {/* Right content area */}
-        <div style={{ flex: 1, paddingLeft: '16px', overflowY: 'auto' }}>
+      {/* Tab content */}
+      <div>
 
           {/* App tab */}
           {activeTab === 'app' && (
@@ -468,9 +457,14 @@ export function Settings() {
 
                   {/* Toggles */}
                   <div style={toggleRowStyle}>
-                    <span style={{ fontSize: 'var(--hs-font-size-body)', color: 'var(--tg-theme-text-color, #000)' }}>
-                      Morning summary
-                    </span>
+                    <div style={{ flex: 1 }}>
+                      <span style={{ fontSize: 'var(--hs-font-size-body)', color: 'var(--tg-theme-text-color, #000)' }}>
+                        Morning summary
+                      </span>
+                      <div style={{ fontSize: 'var(--hs-font-size-small)', color: 'var(--tg-theme-hint-color, #999)', marginTop: '2px' }}>
+                        A daily overview of your planned meals sent each morning
+                      </div>
+                    </div>
                     <button
                       style={toggleStyle(settings.morning_enabled)}
                       onClick={() => updateSetting('morning_enabled', !settings.morning_enabled)}
@@ -481,9 +475,14 @@ export function Settings() {
                   </div>
 
                   <div style={toggleRowStyle}>
-                    <span style={{ fontSize: 'var(--hs-font-size-body)', color: 'var(--tg-theme-text-color, #000)' }}>
-                      Prep alerts
-                    </span>
+                    <div style={{ flex: 1 }}>
+                      <span style={{ fontSize: 'var(--hs-font-size-body)', color: 'var(--tg-theme-text-color, #000)' }}>
+                        Prep alerts
+                      </span>
+                      <div style={{ fontSize: 'var(--hs-font-size-small)', color: 'var(--tg-theme-hint-color, #999)', marginTop: '2px' }}>
+                        Reminders to start cooking based on your meal times
+                      </div>
+                    </div>
                     <button
                       style={toggleStyle(settings.prep_alerts_enabled)}
                       onClick={() => updateSetting('prep_alerts_enabled', !settings.prep_alerts_enabled)}
@@ -565,7 +564,6 @@ export function Settings() {
             </div>
           )}
 
-        </div>
       </div>
     </div>
   );

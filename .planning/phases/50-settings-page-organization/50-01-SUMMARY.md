@@ -72,7 +72,11 @@ Each task was committed atomically:
 
 ## Deviations from Plan
 
-None - plan executed exactly as written.
+Post-checkpoint feedback led to three changes:
+
+1. **Side tabs replaced with top tabs** — user reported side tabs cramped content on mobile. Switched to horizontal tab row with borderBottom divider.
+2. **Layout safe area padding** — added `calc(var(--tg-content-safe-area-inset-top, 16px) + var(--tg-safe-area-inset-top, 56px))` to Layout.tsx paddingTop to prevent Telegram action buttons from overlapping content.
+3. **Toggle descriptions added** — Schedule tab toggles now have helper text explaining what morning summary and prep alerts do.
 
 ## Issues Encountered
 - Pre-existing TypeScript errors in onboarding/pipeline/stream-sender modules (unrelated to Settings.tsx changes) -- no action taken, out of scope
@@ -81,8 +85,7 @@ None - plan executed exactly as written.
 None - no external service configuration required.
 
 ## Next Phase Readiness
-- Settings page tabbed layout complete pending visual verification
-- Ready for user approval at checkpoint
+- Settings page complete with top-tabbed layout and safe area padding
 
 ---
 *Phase: 50-settings-page-organization*

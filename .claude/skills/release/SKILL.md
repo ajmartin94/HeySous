@@ -7,7 +7,7 @@ description: Walk through the full HeySous release process for a milestone. Use 
 
 Interactive walkthrough for shipping a HeySous milestone to production. Each step checks prerequisites before proceeding and waits for user confirmation.
 
-The release process has two phases: **preparation** (steps 1-4, done on the milestone branch) and **shipping** (steps 5-7, involves merging and tagging).
+The release process has three phases: **preparation** (steps 1-5, done on the milestone branch), **documentation** (steps 6-7, changelog and CLAUDE.md review), and **shipping** (steps 8-10, merging and tagging).
 
 ## Step 1: Verify milestone completion
 
@@ -56,15 +56,70 @@ Draft release notes in Sous's conversational voice following the existing patter
 - Bulleted feature list using `<b>` tags for feature names
 - Closing call-to-action
 
-Present the draft to the user for approval. On approval, add the entry to `RELEASE_NOTES` in `src/notifications/release-notes.ts`. The key is the version string (e.g., `"1.6.0"`), the value is the HTML string using the `.join("\n")` array pattern.
+Present the draft to the user for approval. On approval:
 
-Release notes auto-deliver once per household via the `notifications` / `notification_deliveries` tables — `seedNotifications()` handles insertion on startup. No manual notification step needed.
+1. **`src/notifications/release-notes.ts`** — Add the entry to `RELEASE_NOTES`. The key is the version string (e.g., `"1.6.0"`), the value is the HTML string using the `.join("\n")` array pattern. This is what Sous shows users in Telegram — `seedNotifications()` inserts it on startup and it auto-delivers once per household.
 
-## Step 4: Update help docs (if needed)
+2. **`RELEASE_NOTES.md`** — Append the same content in markdown format (not HTML) under a `## vX.Y.Z` heading. This is the human-readable version history in the repo. Convert `<b>text</b>` to `**text**`, keep the same structure otherwise.
+
+## Step 4: Write changelog
+
+Read `CHANGELOG.md` to see the existing format.
+
+Generate a technical changelog entry under a `## vX.Y.Z` heading. Unlike release notes (which are user-facing and conversational), the changelog is developer-facing and covers:
+
+- **Added** — new features, new tools, new API routes, new tables
+- **Changed** — modified behavior, renamed endpoints, schema changes
+- **Fixed** — bug fixes resolved during the milestone
+- **Removed** — deprecated features, deleted code paths
+
+Source this from the phase summaries and git log:
+```bash
+git log main..HEAD --oneline
+```
+
+Group entries by category. Keep entries concise — one line per change, referencing the phase number (e.g., "Add memory FTS5 dedup pipeline (phase 49)"). Present to user for approval before writing.
+
+## Step 5: Update help docs (if needed)
 
 Read `src/bot/handlers/help.ts` and the Mini App help page. If new user-facing features were added that aren't covered in help, suggest updates. If help is already current, confirm and move on.
 
-## Step 5: Create PR
+## Step 6: Review and update CLAUDE.md
+
+This step ensures project documentation stays current with what was actually built. Read the root `CLAUDE.md` and all subdirectory `CLAUDE.md` files:
+
+```bash
+find . -name "CLAUDE.md" -not -path "*/node_modules/*" | sort
+```
+
+For each file, check whether the milestone's changes require updates:
+
+- **Source Layout** — Were new `src/` directories added? Update the layout table.
+- **Architecture Rules** — Were new patterns established or existing conventions changed?
+- **Subdirectory CLAUDE.md files** — Do step-by-step recipes still match reality? Were new key files added?
+- **Testing** — Were new testing patterns or utilities introduced?
+- **Naming/terminology** — Any new domain concepts that should be documented?
+
+Also consider learnings from the development process itself:
+- Did the team discover gotchas or footguns that future development should avoid?
+- Were there recurring issues during the milestone that better documentation would prevent?
+- Did any architecture rules prove wrong or need refinement?
+
+Present proposed changes to the user for approval. If nothing needs updating, confirm and move on.
+
+## Step 7: Commit preparation changes
+
+Commit all preparation work (release notes, changelog, help updates, CLAUDE.md changes) on the milestone branch:
+
+```bash
+git add CHANGELOG.md RELEASE_NOTES.md src/notifications/release-notes.ts CLAUDE.md src/*/CLAUDE.md
+# Only add files that were actually modified
+git status --short
+```
+
+Use a commit message like: `docs(release): prepare v1.X release notes, changelog, and docs`
+
+## Step 8: Create PR
 
 This is the shipping boundary — confirm with the user before proceeding.
 
@@ -82,7 +137,7 @@ The PR body should include a summary of phases completed and key features. Remin
 
 Wait for the user to confirm they've merged the PR before proceeding.
 
-## Step 6: Tag the release
+## Step 9: Tag the release
 
 After the user confirms the PR is merged:
 
@@ -94,7 +149,7 @@ git push origin v1.X
 
 Confirm the tag was pushed successfully.
 
-## Step 7: Deploy
+## Step 10: Deploy
 
 Remind the user to deploy. On startup, `seedNotifications()` will insert the new release notes and users will see them on next interaction.
 
@@ -103,5 +158,6 @@ Present a final summary:
 - Features shipped
 - Todos folded into next milestone (if any)
 - Release notes version key
+- CLAUDE.md changes made
 
 Suggest next steps: `/gsd:new-milestone` to start the next cycle.

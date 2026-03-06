@@ -30,7 +30,7 @@ export const mealPlanEntries = sqliteTable("meal_plan_entries", {
     .references(() => mealPlans.id, { onDelete: "cascade" }),
   dayOfWeek: integer("day_of_week").notNull(),
   mealType: text("meal_type", {
-    enum: ["breakfast", "lunch", "dinner"],
+    enum: ["breakfast", "lunch", "snack", "dinner", "dessert", "other"],
   })
     .notNull()
     .default("dinner"),
@@ -52,7 +52,7 @@ export const cookingHistory = sqliteTable("cooking_history", {
   knowledgeItemId: integer("knowledge_item_id"),
   cookedDate: text("cooked_date").notNull(),
   mealType: text("meal_type", {
-    enum: ["breakfast", "lunch", "dinner"],
+    enum: ["breakfast", "lunch", "snack", "dinner", "dessert", "other"],
   })
     .notNull()
     .default("dinner"),

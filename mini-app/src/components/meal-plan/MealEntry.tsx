@@ -1,4 +1,5 @@
-import { Sunrise, Sun, Moon } from 'lucide-react';
+import { Sunrise, Sun, Moon, Cookie, CakeSlice, Utensils } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import type { MealPlanEntry } from '../../hooks/useMealPlan.js';
 
 interface MealEntryProps {
@@ -6,21 +7,25 @@ interface MealEntryProps {
   onTap: (knowledgeItemId: number) => void;
 }
 
-const MEAL_ICONS = {
+export const MEAL_ICONS: Record<string, LucideIcon> = {
   breakfast: Sunrise,
   lunch: Sun,
+  snack: Cookie,
   dinner: Moon,
-} as const;
+  dessert: CakeSlice,
+  other: Utensils,
+};
 
-const MEAL_LABELS: Record<string, string> = {
+export const MEAL_LABELS: Record<string, string> = {
   breakfast: 'Breakfast',
   lunch: 'Lunch',
+  snack: 'Snack',
   dinner: 'Dinner',
+  dessert: 'Dessert',
+  other: 'Other',
 };
 
 export function MealEntry({ entry, onTap }: MealEntryProps) {
-  const Icon = MEAL_ICONS[entry.mealType];
-  const label = MEAL_LABELS[entry.mealType] || entry.mealType;
   const tappable = entry.hasRecipe && entry.knowledgeItemId !== null;
 
   function handleClick() {
@@ -34,10 +39,6 @@ export function MealEntry({ entry, onTap }: MealEntryProps) {
       className={`meal-entry${tappable ? ' meal-entry--tappable' : ''}`}
       onClick={tappable ? handleClick : undefined}
     >
-      <span className={`meal-entry__icon meal-entry__icon--${entry.mealType}`}>
-        <Icon size={16} />
-      </span>
-      <span className="meal-entry__label">{label}</span>
       <span className="meal-entry__name">{entry.recipeName}</span>
       {!entry.hasRecipe && (
         <span className="meal-entry__no-recipe">(no recipe)</span>

@@ -39,35 +39,30 @@ describe("buildDynamicContext sanitization", () => {
     expect(result).toContain("Alice");
   });
 
-  it("sanitizes HTML from preference titles and summaries", () => {
+  it("sanitizes HTML from memory content", () => {
     const result = buildDynamicContext({
-      preferences: [
+      memories: [
         {
           id: 1,
-          title: "<script>No Pork</script>",
-          summary: "<b>Does not eat</b> pork products",
-          tags: ["preference", "pref:dietary"],
+          content: "<script>Does not eat</script> pork products",
+          category: "dietary",
         },
       ],
     });
-    expect(result).toContain("No Pork");
-    expect(result).not.toContain("<script>");
     expect(result).toContain("Does not eat pork products");
-    expect(result).not.toContain("<b>");
+    expect(result).not.toContain("<script>");
   });
 
-  it("preserves clean preference text unchanged", () => {
+  it("preserves clean memory text unchanged", () => {
     const result = buildDynamicContext({
-      preferences: [
+      memories: [
         {
           id: 1,
-          title: "Vegetarian",
-          summary: "Prefers vegetarian meals",
-          tags: ["preference"],
+          content: "Prefers vegetarian meals",
+          category: "taste",
         },
       ],
     });
-    expect(result).toContain("Vegetarian");
     expect(result).toContain("Prefers vegetarian meals");
   });
 });

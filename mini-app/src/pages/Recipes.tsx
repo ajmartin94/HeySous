@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { backButton } from '@tma.js/sdk-react';
 import { useRecipes } from '../hooks/useRecipes.js';
 import { RecipeList } from '../components/recipes/RecipeList.js';
@@ -12,6 +12,12 @@ import { SkeletonCard } from '../components/SkeletonCard.js';
 import '../components/recipes/recipes.css';
 
 export function Recipes() {
+  // Read ?id query param for deep-link navigation
+  const [searchParams] = useSearchParams();
+  const deepLinkId = searchParams.get('id');
+  const parsedId = deepLinkId ? parseInt(deepLinkId, 10) : NaN;
+  const initialRecipeId = isNaN(parsedId) ? undefined : parsedId;
+
   const {
     recipes,
     loading,
@@ -28,7 +34,7 @@ export function Recipes() {
     closeDetail,
     deleteRecipe,
     refetch,
-  } = useRecipes();
+  } = useRecipes(initialRecipeId);
 
   const navigate = useNavigate();
   const [isSearchOpen, setIsSearchOpen] = useState(false);

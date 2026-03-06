@@ -4,7 +4,7 @@ import { mealPlans, mealPlanEntries } from "./schema.js";
 import { getWeekStartDate, addDays } from "./date-utils.js";
 
 /** Valid meal type values matching the schema enum. */
-export type MealType = "breakfast" | "lunch" | "dinner";
+export type MealType = "breakfast" | "lunch" | "snack" | "dinner" | "dessert" | "other";
 
 /**
  * A single entry to be saved in a meal plan.

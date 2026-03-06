@@ -5,6 +5,7 @@ import { drizzle } from "drizzle-orm/better-sqlite3";
 import * as schema from "./schema.js";
 import { migrateToHouseholdId } from "./migrate.js";
 import { initializeFts } from "../knowledge/fts.js";
+import { initializeMemoryFts } from "../memory/fts.js";
 import { initializePlanning } from "../planning/history.js";
 import { initializeGrocery } from "../grocery/init.js";
 import { initializeReminders } from "../reminders/init.js";
@@ -42,6 +43,9 @@ export function createDatabase(dbPath: string) {
 
   // Initialize FTS5 virtual table and sync triggers for knowledge search
   initializeFts(sqlite);
+
+  // Initialize memory FTS5 virtual table and sync triggers
+  initializeMemoryFts(sqlite);
 
   // Initialize meal planning tables
   initializePlanning(sqlite);

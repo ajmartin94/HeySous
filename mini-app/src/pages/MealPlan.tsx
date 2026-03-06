@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { backButton } from '@tma.js/sdk-react';
 import { useSwipeable } from 'react-swipeable';
@@ -28,6 +28,19 @@ export function MealPlan() {
   const scrollPositionRef = useRef(0);
   const todayRef = useRef<HTMLDivElement>(null);
   const [hasAutoScrolled, setHasAutoScrolled] = useState(false);
+  const [collapsedDays, setCollapsedDays] = useState<Set<number>>(new Set());
+
+  const toggleDay = useCallback((dayOfWeek: number) => {
+    setCollapsedDays(prev => {
+      const next = new Set(prev);
+      if (next.has(dayOfWeek)) {
+        next.delete(dayOfWeek);
+      } else {
+        next.add(dayOfWeek);
+      }
+      return next;
+    });
+  }, []);
 
   // BackButton handler: close detail if open, otherwise navigate back
   useEffect(() => {
@@ -149,6 +162,8 @@ export function MealPlan() {
               isToday={isToday}
               isPast={past}
               onMealTap={handleOpenDetail}
+              isCollapsed={collapsedDays.has(dayOfWeek)}
+              onToggle={toggleDay}
               todayRef={isToday ? todayRef : undefined}
             />
           );

@@ -98,16 +98,17 @@ export function Help() {
       <p style={paragraphStyle}>
         This is where things get fun. Ask me to plan your week and I'll put
         together a full lineup based on your saved recipes, what you're in the
-        mood for, and what you haven't had in a while. I keep track of your
+        mood for, and what you haven't had in a while. I handle breakfast,
+        lunch, dinner, snacks, dessert -- the whole day. I keep track of your
         cooking history so things stay fresh.
       </p>
       <p style={paragraphStyle}>
         Not feeling Tuesday's dinner? No problem -- tell me to swap it out.
         Want to redo a whole day? I'm on it. You can also view and browse the
-        plan in the Mini App with a 7-day grid that swipes between weeks.
+        plan in the Mini App with a 7-day view that swipes between weeks.
       </p>
       <div style={tipStyle}>
-        Try: "Plan my meals for the week" / "Swap Tuesday's dinner for something lighter" / "What did we have last week?"
+        Try: "Plan my meals for the week" / "Swap Tuesday's dinner for something lighter" / "Plan breakfasts for the week"
       </div>
 
       {/* Grocery Lists */}
@@ -128,16 +129,17 @@ export function Help() {
       {/* Reminders & Timing */}
       <div style={sectionHeaderStyle}>Reminders & Timing</div>
       <p style={paragraphStyle}>
-        I'll send you a morning heads-up about what's on the menu, a prep
-        alert based on actual recipe cook times so you start at the right
-        moment, and a dinner time nudge when it's go time.
+        I'll send you a morning heads-up about what's on the menu and prep
+        alerts based on actual recipe cook times so you start at the right
+        moment -- for every meal, not just dinner.
       </p>
       <p style={paragraphStyle}>
-        You can customize your schedule, set your preferred dinner time, or
-        mute everything when life gets busy.
+        You can customize your schedule, set preferred times for each meal, or
+        mute everything when life gets busy. Head to Settings to manage your
+        meal times and reminder toggles.
       </p>
       <div style={tipStyle}>
-        Try: "Set my dinner time to 6:30pm" / "Mute reminders until Thursday"
+        Try: "Set my breakfast time to 8am" / "Mute reminders until Thursday"
       </div>
 
       {/* Preferences & Learning */}
@@ -151,7 +153,8 @@ export function Help() {
       <p style={paragraphStyle}>
         Of course, you can also tell me directly about dietary restrictions,
         allergies, or favorites. Either way, I'll use what I know about you
-        when planning meals and suggesting recipes.
+        when planning meals and suggesting recipes. You can see everything
+        I've remembered in the Memory tab under Settings.
       </p>
       <div style={tipStyle}>
         Try: "We don't eat pork" / "I love spicy food" / "We usually shop at Kroger and Costco"
@@ -199,7 +202,7 @@ export function Help() {
         - <b>Grocery List</b> -- Check off items, quick-add, clear the list
       </p>
       <p style={paragraphStyle}>
-        - <b>Settings</b> -- Theme (light/dark) and font size preferences
+        - <b>Settings</b> -- Theme, meal times, reminder toggles, and your stored memories
       </p>
       {isAdmin && (
         <p style={paragraphStyle}>
@@ -222,10 +225,7 @@ export function Help() {
         <span style={commandStyle}>/plan</span> -- View your meal plan
       </div>
       <div style={commandRowStyle}>
-        <span style={commandStyle}>/preferences</span> -- See your saved preferences
-      </div>
-      <div style={commandRowStyle}>
-        <span style={commandStyle}>/reminders</span> -- View reminder settings
+        <span style={commandStyle}>/memory</span> -- See what I remember about you
       </div>
       <div style={commandRowStyle}>
         <span style={commandStyle}>/feedback</span> -- Share feedback about the app

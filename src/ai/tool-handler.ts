@@ -16,6 +16,9 @@ import { searchFts, searchFtsContent, computeIngredientOverlap, computeContentSi
 import { fetchAndParseRecipe } from "../knowledge/url-import.js";
 import { parseRecipeTotalMinutes, parseTimeToMinutes } from "../reminders/generator.js";
 import { logger } from "../logger.js";
+import { saveMemory, updateMemory, deleteMemory, getMemoryById } from "../memory/repository.js";
+import { searchMemoryFts } from "../memory/fts.js";
+import type { MemoryCategory } from "../memory/schema.js";
 
 /** Maximum string lengths for tool inputs */
 const MAX_LENGTHS = {
@@ -29,6 +32,7 @@ const MAX_LENGTHS = {
   notes: 2000,          // feedback / log_meal notes
   text: 5000,           // app feedback text
   url: 2000,            // import URL
+  memoryContent: 2000,  // memory atomic fact
   itemName: 200,        // grocery item name
   quantity: 100,        // grocery item quantity
   store: 100,           // store name
@@ -295,7 +299,35 @@ export function createToolHandler(deps: {
                   }
 
                   if (contentSearchQuery) {
-                    const contentMatches = searchFtsContent(sqlite, contentSearchQuery, householdId, 5);
+                    let contentMatches = searchFtsContent(sqlite, contentSearchQuery, householdId, 5);
+
+                    // Preference tag-based fallback: FTS may miss near-identical preferences
+                    // when key tokens differ (e.g. "7:30am" vs "8am"). Search by pref: tag
+                    // to find same-category preferences for similarity comparison.
+                    if (isPreference && contentMatches.length === 0) {
+                      const prefTag = tags.find((t) => t.startsWith("pref:"));
+                      if (prefTag) {
+                        const tagRows = sqlite
+                          .prepare(
+                            `SELECT ki.id, ki.title, ki.summary
+                             FROM knowledge_items ki
+                             JOIN knowledge_tags kt ON ki.id = kt.knowledge_item_id
+                             WHERE kt.tag = ? AND ki.household_id = ?
+                             LIMIT 10`
+                          )
+                          .all(prefTag, householdId) as Array<{
+                          id: number;
+                          title: string;
+                          summary: string;
+                        }>;
+                        contentMatches = tagRows.map((r) => ({
+                          ...r,
+                          relevance: 0,
+                          tags: [],
+                          lastAccessedAt: new Date(),
+                        }));
+                      }
+                    }
 
                     // Check top 3 content matches for overlap
                     for (const match of contentMatches.slice(0, 3)) {
@@ -309,7 +341,8 @@ export function createToolHandler(deps: {
                         overlap = computeContentSimilarity(content, existingItem.content);
                       }
 
-                      if (overlap > 0.85) {
+                      const threshold = isPreference ? 0.70 : 0.85;
+                      if (overlap > threshold) {
                         return JSON.stringify({
                           duplicate_found: true,
                           message: `Found a similar existing item: "${match.title}" (ID: ${match.id}). Ask the user if they want to update the existing item or save this as a new item.`,
@@ -1007,7 +1040,7 @@ export function createToolHandler(deps: {
           });
         }
 
-        case "get_reminder_settings": {
+        case "get_settings": {
           if (!reminderRepository) {
             return JSON.stringify({ error: "Reminder tools not available" });
           }
@@ -1017,7 +1050,11 @@ export function createToolHandler(deps: {
           return JSON.stringify({
             timezone: settings.timezone,
             morningTime: settings.morningTime,
+            breakfastTime: settings.breakfastTime,
+            lunchTime: settings.lunchTime,
+            snackTime: settings.snackTime,
             dinnerTime: settings.dinnerTime,
+            dessertTime: settings.dessertTime,
             morningEnabled: settings.morningEnabled,
             prepAlertsEnabled: settings.prepAlertsEnabled,
             mutedUntil: settings.mutedUntil
@@ -1026,7 +1063,7 @@ export function createToolHandler(deps: {
           });
         }
 
-        case "update_reminder_settings": {
+        case "update_settings": {
           if (!reminderRepository) {
             return JSON.stringify({ error: "Reminder tools not available" });
           }
@@ -1034,7 +1071,11 @@ export function createToolHandler(deps: {
           {
             const err = validateString(input.timezone, "timezone", MAX_LENGTHS.timezone)
               ?? validateString(input.morning_time, "morning_time", MAX_LENGTHS.time)
+              ?? validateString(input.breakfast_time, "breakfast_time", MAX_LENGTHS.time)
+              ?? validateString(input.lunch_time, "lunch_time", MAX_LENGTHS.time)
+              ?? validateString(input.snack_time, "snack_time", MAX_LENGTHS.time)
               ?? validateString(input.dinner_time, "dinner_time", MAX_LENGTHS.time)
+              ?? validateString(input.dessert_time, "dessert_time", MAX_LENGTHS.time)
               ?? validateString(input.muted_until, "muted_until", MAX_LENGTHS.date);
             if (err) return validationError(err);
           }
@@ -1047,8 +1088,20 @@ export function createToolHandler(deps: {
           if (input.morning_time !== undefined) {
             updates.morningTime = input.morning_time as string;
           }
+          if (input.breakfast_time !== undefined) {
+            updates.breakfastTime = input.breakfast_time as string;
+          }
+          if (input.lunch_time !== undefined) {
+            updates.lunchTime = input.lunch_time as string;
+          }
+          if (input.snack_time !== undefined) {
+            updates.snackTime = input.snack_time as string;
+          }
           if (input.dinner_time !== undefined) {
             updates.dinnerTime = input.dinner_time as string;
+          }
+          if (input.dessert_time !== undefined) {
+            updates.dessertTime = input.dessert_time as string;
           }
           if (input.morning_enabled !== undefined) {
             updates.morningEnabled = input.morning_enabled as boolean;
@@ -1076,7 +1129,11 @@ export function createToolHandler(deps: {
             message: "Settings updated",
             timezone: updated.timezone,
             morningTime: updated.morningTime,
+            breakfastTime: updated.breakfastTime,
+            lunchTime: updated.lunchTime,
+            snackTime: updated.snackTime,
             dinnerTime: updated.dinnerTime,
+            dessertTime: updated.dessertTime,
             morningEnabled: updated.morningEnabled,
             prepAlertsEnabled: updated.prepAlertsEnabled,
             mutedUntil: updated.mutedUntil
@@ -1203,6 +1260,152 @@ export function createToolHandler(deps: {
               suggestion: "Try copy-pasting the recipe text directly instead.",
             });
           }
+        }
+
+        case "attach_deep_link": {
+          const validTargets = ["recipe", "recipes", "plan", "grocery"];
+          const target = input.target as string;
+
+          if (!target || !validTargets.includes(target)) {
+            return validationError(`target must be one of: ${validTargets.join(", ")}`);
+          }
+
+          if (target === "recipe") {
+            const idErr = validateRequired(input.recipe_id, "recipe_id", "number")
+              ?? validatePositiveInt(input.recipe_id, "recipe_id");
+            if (idErr) return validationError(idErr);
+          }
+
+          // Return a marker JSON -- the processor will read this to attach the button
+          return JSON.stringify({
+            deep_link: true,
+            target,
+            recipe_id: target === "recipe" ? input.recipe_id : undefined,
+          });
+        }
+
+        case "save_memory": {
+          if (!sqlite) {
+            return JSON.stringify({ error: "Memory tools not available" });
+          }
+
+          const validCategories = ["dietary", "taste", "cooking_style", "household", "schedule", "logistics", "general"];
+          const err = validateRequired(input.content, "content", "string")
+            ?? validateRequired(input.category, "category", "string")
+            ?? validateString(input.content, "content", MAX_LENGTHS.memoryContent);
+          if (err) return validationError(err);
+
+          const content = input.content as string;
+          const category = input.category as string;
+
+          if (!validCategories.includes(category)) {
+            return validationError(`category must be one of: ${validCategories.join(", ")}`);
+          }
+
+          // Update existing memory
+          if (input.update_id !== undefined) {
+            const idErr = validatePositiveInt(input.update_id, "update_id");
+            if (idErr) return validationError(idErr);
+
+            const updateId = input.update_id as number;
+            const existing = getMemoryById(sqlite, updateId, householdId);
+            if (!existing) {
+              return JSON.stringify({ error: `Memory with ID ${updateId} not found` });
+            }
+
+            const updated = updateMemory(sqlite, updateId, content);
+            return JSON.stringify({
+              status: "updated",
+              id: updateId,
+              content,
+              category: existing.category,
+              updated,
+            });
+          }
+
+          // Dedup check
+          if (!input.skip_dedup) {
+            try {
+              const matches = searchMemoryFts(sqlite, householdId, content, 5);
+              // FTS5 rank: lower = better match. searchMemoryFts returns Math.abs(rank).
+              // Threshold: rank < 5.0 means a strong match (original BM25 was < -5.0, abs makes it < 5.0)
+              const strongMatches = matches.filter((m) => m.rank > 0 && m.rank < 5.0);
+
+              if (strongMatches.length > 0) {
+                return JSON.stringify({
+                  status: "dedup_match",
+                  message: "Similar memories found. Decide: ADD as new (call with skip_dedup: true), UPDATE existing (call with update_id), or NOOP.",
+                  matches: strongMatches.map((m) => ({
+                    id: m.id,
+                    content: m.content,
+                    category: m.category,
+                    rank: m.rank,
+                  })),
+                });
+              }
+            } catch (dedupError) {
+              // If dedup search fails, proceed with save
+              logger.warn(
+                { error: dedupError instanceof Error ? dedupError.message : String(dedupError) },
+                "Memory dedup search failed, proceeding with save",
+              );
+            }
+          }
+
+          // Save new memory
+          const saved = saveMemory(sqlite, householdId, content, category as MemoryCategory);
+          return JSON.stringify({
+            status: "saved",
+            id: saved.id,
+            content: saved.content,
+            category: saved.category,
+          });
+        }
+
+        case "delete_memory": {
+          if (!sqlite) {
+            return JSON.stringify({ error: "Memory tools not available" });
+          }
+
+          const err = validateRequired(input.id, "id", "number")
+            ?? validatePositiveInt(input.id, "id");
+          if (err) return validationError(err);
+
+          const id = input.id as number;
+          const deleted = deleteMemory(sqlite, id, householdId);
+
+          if (!deleted) {
+            return JSON.stringify({ error: `Memory with ID ${id} not found or does not belong to this household` });
+          }
+
+          return JSON.stringify({ status: "deleted", id });
+        }
+
+        case "search_memories": {
+          if (!sqlite) {
+            return JSON.stringify({ error: "Memory tools not available" });
+          }
+
+          const err = validateRequired(input.query, "query", "string")
+            ?? validateString(input.query, "query", MAX_LENGTHS.query);
+          if (err) return validationError(err);
+
+          const query = input.query as string;
+          const limit = (typeof input.limit === "number" && Number.isInteger(input.limit) && input.limit > 0)
+            ? Math.min(input.limit, 50)
+            : 10;
+
+          const results = searchMemoryFts(sqlite, householdId, query, limit);
+
+          return JSON.stringify({
+            results: results.map((r) => ({
+              id: r.id,
+              content: r.content,
+              category: r.category,
+              rank: r.rank,
+            })),
+            count: results.length,
+          });
         }
 
         default:

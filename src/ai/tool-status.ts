@@ -20,10 +20,15 @@ const TOOL_STATUS_LABELS: Record<string, string> = {
   save_grocery_list: "Building your grocery list...",
   update_grocery_list: "Updating your grocery list...",
 
-  // Reminder tools
-  get_reminder_settings: "Checking your reminder settings...",
-  update_reminder_settings: "Updating your reminders...",
+  // Settings tools
+  get_settings: "Checking your settings...",
+  update_settings: "Updating your settings...",
   regenerate_reminders: "Refreshing your reminders...",
+
+  // Memory tools
+  save_memory: "Remembering that...",
+  delete_memory: "Forgetting that...",
+  search_memories: "Searching your memories...",
 
   // Cooking history & feedback
   log_meal: "Logging your meal...",

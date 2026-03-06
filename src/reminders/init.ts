@@ -7,12 +7,16 @@ import type BetterSqlite3 from "better-sqlite3";
  */
 export function initializeReminders(sqlite: BetterSqlite3.Database): void {
   sqlite.exec(`
-    CREATE TABLE IF NOT EXISTS reminder_settings (
+    CREATE TABLE IF NOT EXISTS application_settings (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       household_id TEXT NOT NULL UNIQUE,
       timezone TEXT NOT NULL DEFAULT 'America/New_York',
       morning_time TEXT NOT NULL DEFAULT '08:00',
+      breakfast_time TEXT NOT NULL DEFAULT '07:00',
+      lunch_time TEXT NOT NULL DEFAULT '12:00',
+      snack_time TEXT NOT NULL DEFAULT '15:00',
       dinner_time TEXT NOT NULL DEFAULT '17:30',
+      dessert_time TEXT NOT NULL DEFAULT '20:00',
       morning_enabled INTEGER NOT NULL DEFAULT 1,
       prep_alerts_enabled INTEGER NOT NULL DEFAULT 1,
       muted_until INTEGER,

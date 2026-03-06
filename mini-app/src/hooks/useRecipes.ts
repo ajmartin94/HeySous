@@ -37,7 +37,7 @@ interface RecipeDetailResponse {
  *
  * Follows the useGroceryList pattern (isMountedRef, apiFetch, loading/error).
  */
-export function useRecipes() {
+export function useRecipes(initialRecipeId?: number) {
   const [recipes, setRecipes] = useState<RecipeCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -144,6 +144,14 @@ export function useRecipes() {
       }
     }
   }, []);
+
+  // Auto-open recipe detail when deep-linked via ?id query param
+  useEffect(() => {
+    if (initialRecipeId != null) {
+      setSelectedRecipeId(initialRecipeId);
+      fetchDetail(initialRecipeId);
+    }
+  }, [initialRecipeId, fetchDetail]);
 
   // Toggle tag filter: same tag = clear, different tag = set
   const setActiveTag = useCallback((tag: string | null) => {

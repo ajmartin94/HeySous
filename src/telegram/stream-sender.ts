@@ -44,15 +44,28 @@ export interface TelegramStreamSender {
   /**
    * Finalize the stream -- send the clean final message.
    * @param overrideText Optional text to use instead of accumulated text.
+   * @param options Optional settings including reply_markup for inline keyboards.
    * @returns The final text that was displayed.
    */
-  finalize(overrideText?: string): Promise<string>;
+  finalize(overrideText?: string, options?: { reply_markup?: unknown }): Promise<string>;
 
   /**
    * Handle a stream error -- append an error note to partial text.
    * @returns The accumulated text with error note.
    */
   handleError(): Promise<string>;
+
+  /**
+   * Get the message ID of the streamed message (for post-finalize edits).
+   * @returns The message ID or null if placeholder was not sent.
+   */
+  getMessageId(): number | null;
+
+  /**
+   * Get the raw accumulated text including persisted tool status hints.
+   * Used by the processor for DB saves and marker extraction.
+   */
+  getAccumulatedText(): string;
 }
 
 /**
@@ -73,6 +86,7 @@ export function createTelegramStreamSender(
   let lastEditTime = 0;
   let editTimer: ReturnType<typeof setTimeout> | null = null;
   let typingInterval: ReturnType<typeof setInterval> | null = null;
+  let needsSeparator = false;
 
   /**
    * Perform the actual Telegram editMessageText call.
@@ -94,16 +108,25 @@ export function createTelegramStreamSender(
 
     try {
       await ctx.api.editMessageText(chatId, messageId, displayText, {
-        parse_mode: undefined,
+        parse_mode: "HTML",
       });
       lastEditText = displayText;
       lastEditTime = Date.now();
-    } catch (error) {
-      // Log at debug level and skip -- user sees a text jump but no error
-      senderLogger.debug(
-        { error: (error as Error).message, chatId, messageId },
-        "Stream edit failed, skipping",
-      );
+    } catch {
+      // HTML parse failed (likely unclosed tags in partial output) -- fall back to plain text
+      try {
+        await ctx.api.editMessageText(chatId, messageId, displayText, {
+          parse_mode: undefined,
+        });
+        lastEditText = displayText;
+        lastEditTime = Date.now();
+      } catch (error) {
+        // Log at debug level and skip -- user sees a text jump but no error
+        senderLogger.debug(
+          { error: (error as Error).message, chatId, messageId },
+          "Stream edit failed, skipping",
+        );
+      }
     }
   }
 
@@ -172,12 +195,18 @@ export function createTelegramStreamSender(
     },
 
     appendText(delta: string): void {
+      if (needsSeparator) {
+        accumulatedText += "\n\n";
+        needsSeparator = false;
+      }
       accumulatedText += delta;
       scheduleEdit();
     },
 
     showToolStatus(label: string): void {
       currentToolStatus = label;
+      // Persist a permanent hint line in accumulated text (rendered as <i> in final HTML)
+      accumulatedText += "\n\n<i>" + label + "</i>";
       // Trigger an immediate edit to show status right away
       flushEditTimer();
       void doEdit();
@@ -185,14 +214,16 @@ export function createTelegramStreamSender(
 
     clearToolStatus(): void {
       currentToolStatus = null;
+      needsSeparator = true;
       // Don't trigger edit -- next text delta will update
     },
 
-    async finalize(overrideText?: string): Promise<string> {
+    async finalize(overrideText?: string, options?: { reply_markup?: unknown }): Promise<string> {
       flushEditTimer();
       stopTypingKeepAlive();
 
       const finalText = overrideText ?? accumulatedText;
+      const replyMarkup = options?.reply_markup;
 
       // Empty response -- delete the placeholder
       if (finalText.trim().length === 0) {
@@ -207,6 +238,7 @@ export function createTelegramStreamSender(
       }
 
       // Short reply -- delete streamed message, send fresh for clean display
+      // reply_markup skipped for short replies (edge case, acceptable)
       if (finalText.trim().length < SHORT_REPLY_THRESHOLD) {
         if (messageId !== null) {
           try {
@@ -227,6 +259,7 @@ export function createTelegramStreamSender(
       }
 
       // Long reply (over Telegram limit) -- delete and re-send with splitting
+      // reply_markup skipped for split messages (can't attach to all parts)
       if (finalText.length > TELEGRAM_MAX_LENGTH) {
         if (messageId !== null) {
           try {
@@ -248,16 +281,16 @@ export function createTelegramStreamSender(
 
       // Normal reply -- final edit with HTML parse mode for proper formatting
       if (messageId !== null) {
+        const editOptions: Record<string, unknown> = { parse_mode: "HTML" };
+        if (replyMarkup) editOptions.reply_markup = replyMarkup;
+
         try {
-          await ctx.api.editMessageText(chatId, messageId, finalText, {
-            parse_mode: "HTML",
-          });
+          await ctx.api.editMessageText(chatId, messageId, finalText, editOptions);
         } catch {
           // HTML edit failed -- fall back to plain text edit
           try {
-            await ctx.api.editMessageText(chatId, messageId, finalText, {
-              parse_mode: undefined,
-            });
+            editOptions.parse_mode = undefined;
+            await ctx.api.editMessageText(chatId, messageId, finalText, editOptions);
           } catch (error) {
             senderLogger.debug(
               { error: (error as Error).message, chatId, messageId },
@@ -268,6 +301,14 @@ export function createTelegramStreamSender(
       }
 
       return finalText;
+    },
+
+    getMessageId(): number | null {
+      return messageId;
+    },
+
+    getAccumulatedText(): string {
+      return accumulatedText;
     },
 
     async handleError(): Promise<string> {

@@ -5,7 +5,7 @@ export interface User {
   username: string | null;
   householdId: string;
   role: "admin" | "member";
-  onboardingState: "preferences" | "tour" | "recipes" | "tour_only" | "complete";
+  onboardingState: "preferences" | "tour" | "tour_only" | "complete";
   createdAt: number;
   updatedAt: number;
 }
@@ -23,5 +23,5 @@ export interface CreateUserParams {
   username: string | null;
   householdId: string;
   role: "admin" | "member";
-  onboardingState: "preferences" | "tour" | "recipes" | "tour_only" | "complete";
+  onboardingState: "preferences" | "tour" | "tour_only" | "complete";
 }

@@ -209,6 +209,196 @@ export const migrations: Migration[] = [
       logger.info({ recipeCount: recipes.length }, "Backfilled recipe time columns");
     },
   },
+  {
+    version: 7,
+    name: "expand-meal-type-enum",
+    up: (_sqlite) => {
+      // App-level change only: expanded MealType enum from 3 values
+      // (breakfast, lunch, dinner) to 6 values (breakfast, lunch, snack,
+      // dinner, dessert, other) in Drizzle schema and TypeScript types.
+      // SQLite TEXT columns accept any string, so no DDL is needed.
+      // Existing 'dinner' default entries remain valid.
+    },
+  },
+  {
+    version: 8,
+    name: "add-meal-time-columns",
+    up: (sqlite) => {
+      // On fresh install, reminder_settings may not exist yet (created later by initializeReminders).
+      const tableExists = sqlite
+        .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='reminder_settings'")
+        .get();
+      if (!tableExists) return;
+
+      const columns = sqlite.pragma("table_info(reminder_settings)") as Array<{ name: string }>;
+
+      const newColumns: Array<{ name: string; defaultValue: string }> = [
+        { name: "breakfast_time", defaultValue: "07:00" },
+        { name: "lunch_time", defaultValue: "12:00" },
+        { name: "snack_time", defaultValue: "15:00" },
+        { name: "dessert_time", defaultValue: "20:00" },
+      ];
+
+      for (const col of newColumns) {
+        if (!columns.some((c) => c.name === col.name)) {
+          sqlite.exec(
+            `ALTER TABLE reminder_settings ADD COLUMN ${col.name} TEXT NOT NULL DEFAULT '${col.defaultValue}'`,
+          );
+        }
+      }
+    },
+  },
+  {
+    version: 9,
+    name: "create-memories-table-and-rename-settings",
+    up: (sqlite) => {
+      // Create memories table for atomic facts
+      sqlite.exec(`
+        CREATE TABLE IF NOT EXISTS memories (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          household_id TEXT NOT NULL,
+          content TEXT NOT NULL,
+          category TEXT NOT NULL DEFAULT 'general',
+          created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+          updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+        )
+      `);
+      sqlite.exec(
+        `CREATE INDEX IF NOT EXISTS idx_memories_household ON memories(household_id)`,
+      );
+
+      // Rename reminder_settings -> application_settings
+      const tableExists = sqlite
+        .prepare(
+          "SELECT name FROM sqlite_master WHERE type='table' AND name='reminder_settings'",
+        )
+        .get();
+      if (tableExists) {
+        sqlite.exec(
+          `ALTER TABLE reminder_settings RENAME TO application_settings`,
+        );
+      }
+    },
+  },
+  {
+    version: 10,
+    name: "migrate-preferences-to-memories",
+    up: (sqlite) => {
+      // Query all preference-tagged knowledge_items
+      const rows = sqlite
+        .prepare(
+          `SELECT ki.id, ki.household_id, ki.title, ki.summary,
+                  GROUP_CONCAT(kt.tag, ',') AS tags
+           FROM knowledge_items ki
+           JOIN knowledge_tags kt ON kt.knowledge_item_id = ki.id
+           WHERE ki.id IN (
+             SELECT knowledge_item_id FROM knowledge_tags
+             WHERE tag = 'preference' OR tag LIKE 'pref:%'
+           )
+           GROUP BY ki.id`,
+        )
+        .all() as Array<{
+        id: number;
+        household_id: string;
+        title: string;
+        summary: string;
+        tags: string;
+      }>;
+
+      if (rows.length === 0) return;
+
+      const insertStmt = sqlite.prepare(
+        `INSERT INTO memories (household_id, content, category) VALUES (?, ?, ?)`,
+      );
+
+      const idsToDelete: number[] = [];
+
+      for (const row of rows) {
+        const tags = row.tags.split(",");
+
+        // Skip items that are also tagged as recipes -- leave those in knowledge_items
+        if (tags.includes("recipe")) continue;
+
+        // Determine category from tags
+        let category = "general";
+        if (tags.some((t) => t === "pref:dietary")) {
+          category = "dietary";
+        } else if (tags.some((t) => t === "pref:schedule")) {
+          category = "schedule";
+        } else if (tags.some((t) => t === "pref:grocery")) {
+          category = "logistics";
+        } else if (
+          tags.some(
+            (t) =>
+              t === "pref:cooking" ||
+              t === "pref:budget" ||
+              t === "pref:serving",
+          )
+        ) {
+          category = "cooking_style";
+        } else if (tags.some((t) => t === "subject:household")) {
+          category = "household";
+        }
+
+        // Build content with severity markers
+        let content = `${row.title}: ${row.summary}`;
+        if (
+          tags.some(
+            (t) => t === "severity:allergy" || t === "severity:restriction",
+          )
+        ) {
+          const marker = tags.includes("severity:allergy")
+            ? "[ALLERGY]"
+            : "[RESTRICTION]";
+          content = `${marker} ${content}`;
+        }
+
+        insertStmt.run(row.household_id, content, category);
+        idsToDelete.push(row.id);
+      }
+
+      // Delete migrated rows from knowledge_items (tags cascade-delete)
+      if (idsToDelete.length > 0) {
+        const placeholders = idsToDelete.map(() => "?").join(",");
+        sqlite
+          .prepare(
+            `DELETE FROM knowledge_items WHERE id IN (${placeholders})`,
+          )
+          .run(...idsToDelete);
+      }
+
+      logger.info(
+        { migratedCount: idsToDelete.length, totalPrefs: rows.length },
+        "Migrated preferences from knowledge_items to memories",
+      );
+    },
+  },
+  {
+    version: 11,
+    name: "fix-grocery-memory-category",
+    up: (sqlite) => {
+      // Migration v10 incorrectly mapped pref:grocery to cooking_style.
+      // Re-categorize grocery/store-related memories to logistics.
+      const result = sqlite
+        .prepare(
+          `UPDATE memories SET category = 'logistics'
+           WHERE category = 'cooking_style'
+             AND (content LIKE '%store%' OR content LIKE '%shop%'
+               OR content LIKE '%grocery%' OR content LIKE '%Costco%'
+               OR content LIKE '%Kroger%' OR content LIKE '%Walmart%'
+               OR content LIKE '%Aldi%' OR content LIKE '%HyVee%'
+               OR content LIKE '%Harris Teeter%' OR content LIKE '%Food Lion%'
+               OR content LIKE '%delivery%')`,
+        )
+        .run();
+      if (result.changes > 0) {
+        logger.info(
+          { updated: result.changes },
+          "Re-categorized grocery memories from cooking_style to logistics",
+        );
+      }
+    },
+  },
 ];
 
 export function runMigrations(sqlite: BetterSqlite3.Database): void {

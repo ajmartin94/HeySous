@@ -6,6 +6,18 @@
  * Format: HTML for Telegram (uses <b>, <i>, plain dashes for lists).
  */
 export const RELEASE_NOTES: Record<string, string> = {
+  "1.6.0": [
+    "I can do a lot more with your day now -- not just dinner anymore. Here's what's new:",
+    "",
+    "- <b>All-day meal planning</b> -- Breakfast, lunch, snacks, dessert -- tell me about any meal and I'll plan, track, and remind you for all of them",
+    "- <b>Sous memory</b> -- I remember all sorts of things about you now to make our conversations smoother. Check out the new Settings page to see what I've picked up",
+    "- <b>Tap to open</b> -- When I mention a recipe or update your plan, you'll see buttons that jump straight to it",
+    "- <b>Reorganized settings</b> -- Meal times, reminder toggles, and your stored memories are all in one place with a cleaner layout",
+    "- <b>Better onboarding</b> -- New users get a friendlier welcome that explains what I can do and how to get started",
+    "- <b>Smoother replies</b> -- My responses flow more cleanly now, no more lost text mid-conversation",
+    "",
+    "Open the Mini App and check out your new Settings page!",
+  ].join("\n"),
   "1.5.0": [
     "A bunch of under-the-hood upgrades just landed. Things should feel noticeably snappier:",
     "",

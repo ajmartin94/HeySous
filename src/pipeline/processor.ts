@@ -22,7 +22,7 @@ import { calculateCost } from "../ai/claude-client.js";
 import { sendFormattedMessage } from "../telegram/sender.js";
 import { messages, tokenUsage } from "../db/schema.js";
 import { createToolHandler } from "../ai/tool-handler.js";
-import { KNOWLEDGE_TOOLS, PLAN_TOOLS, GROCERY_TOOLS, REMINDER_TOOLS, FEEDBACK_TOOLS, APP_FEEDBACK_TOOLS } from "../ai/tools.js";
+import { KNOWLEDGE_TOOLS, PLAN_TOOLS, GROCERY_TOOLS, REMINDER_TOOLS, FEEDBACK_TOOLS, APP_FEEDBACK_TOOLS, DEEP_LINK_TOOLS, MEMORY_TOOLS } from "../ai/tools.js";
 import { buildConversationContext } from "../conversation/context-builder.js";
 import { estimateTokens, estimateMessageTokens } from "../knowledge/token-budget.js";
 import type { ConversationTurn } from "../conversation/types.js";
@@ -41,7 +41,7 @@ import { buildFeedbackContext } from "../feedback/context.js";
 import type { createAppFeedbackRepository } from "../app-feedback/repository.js";
 import { formatGroceryList } from "../grocery/formatter.js";
 import { buildGroceryKeyboard } from "../grocery/buttons.js";
-import { getPreferenceSummaries } from "../knowledge/preferences.js";
+import { getMemoriesByHousehold } from "../memory/repository.js";
 import { checkPendingNotification } from "../notifications/update-notifier.js";
 import { config } from "../config.js";
 import { buildStaticPrompt, buildDynamicContext } from "../ai/system-prompt.js";
@@ -57,6 +57,8 @@ import { getErrorMessage, getMessageTooLongResponse, getThinkingLongerMessage, g
 import { createTelegramStreamSender } from "../telegram/stream-sender.js";
 import { getToolStatusLabel } from "../ai/tool-status.js";
 import { checkDailyTokenBudget } from "../pipeline/token-budget-guard.js";
+import { buildDeepLinksFromToolCalls, buildDeepLinkKeyboard } from "../deep-links/builder.js";
+import type { DeepLinkTarget } from "../deep-links/builder.js";
 
 /**
  * Create an instrumented wrapper around a tool call handler.
@@ -354,16 +356,16 @@ export function createProcessor(deps: ProcessorDeps) {
         dateContext = `<current_date>\nToday is ${dayNames[todayDate.getDay()]}, ${monthNames[todayDate.getMonth()]} ${todayDate.getDate()}, ${todayDate.getFullYear()} (${todayStr}).\n</current_date>`;
       }
 
-      // h. Load user preferences for system prompt injection
-      const preferences = getPreferenceSummaries(deps.sqlite, householdId);
+      // h. Load user memories for system prompt injection
+      const memories = getMemoriesByHousehold(deps.sqlite, householdId);
       const rawUserName = ctx.user?.displayName;
 
       // h1. Sanitize user-controlled text with logging (per security policy)
       const userName = rawUserName ? sanitizeAndLog(rawUserName, "userName", log) : undefined;
-      const sanitizedPreferences = preferences.map((pref) => ({
-        ...pref,
-        title: sanitizeAndLog(pref.title, "preference.title", log),
-        summary: sanitizeAndLog(pref.summary, "preference.summary", log),
+      const sanitizedMemories = memories.map((mem) => ({
+        id: mem.id,
+        content: sanitizeAndLog(mem.content, "memory.content", log),
+        category: mem.category,
       }));
 
       // h2. Build onboarding context if user is in onboarding
@@ -384,7 +386,7 @@ export function createProcessor(deps: ProcessorDeps) {
 
       const staticPrompt = buildStaticPrompt(config.miniAppUrl);
       const dynamicContext = buildDynamicContext({
-        preferences: sanitizedPreferences,
+        memories: sanitizedMemories,
         planContext,
         groceryContext,
         reminderContext,
@@ -474,13 +476,21 @@ export function createProcessor(deps: ProcessorDeps) {
       let response: ClaudeResponse;
       const startTime = Date.now();
 
-      const allTools = [...KNOWLEDGE_TOOLS, ...PLAN_TOOLS, ...GROCERY_TOOLS, ...REMINDER_TOOLS, ...FEEDBACK_TOOLS, ...APP_FEEDBACK_TOOLS];
+      const allTools = [...KNOWLEDGE_TOOLS, ...PLAN_TOOLS, ...GROCERY_TOOLS, ...REMINDER_TOOLS, ...FEEDBACK_TOOLS, ...APP_FEEDBACK_TOOLS, ...DEEP_LINK_TOOLS, ...MEMORY_TOOLS];
 
       const instrumentedHandler = createInstrumentedToolHandler(
         toolHandler.handleToolCall,
         householdId,
         log,
       );
+
+      // Track tool calls for deep-link button injection after response
+      const trackedToolCalls: Array<{ name: string; input: Record<string, unknown>; result: string }> = [];
+      const trackingHandler = async (name: string, input: Record<string, unknown>): Promise<string> => {
+        const result = await instrumentedHandler(name, input);
+        trackedToolCalls.push({ name, input, result });
+        return result;
+      };
 
       // Track whether user has been notified about retry (only once per request)
       let retryNotificationSent = false;
@@ -542,7 +552,7 @@ export function createProcessor(deps: ProcessorDeps) {
           response = await claudeClient.streamMessageWithTools(
             fullMessages,
             allTools,
-            instrumentedHandler,
+            trackingHandler,
             streamCallbacks,
             10, // max iterations for grocery list generation (plan + recipe lookups + save)
             systemPrompt,
@@ -609,7 +619,7 @@ export function createProcessor(deps: ProcessorDeps) {
           response = await claudeClient.sendMessageWithTools(
             fullMessages,
             allTools,
-            instrumentedHandler,
+            trackingHandler,
             10,
             systemPrompt,
             onRetry,
@@ -640,7 +650,12 @@ export function createProcessor(deps: ProcessorDeps) {
       const requestDurationMs = Date.now() - startTime;
 
       // k. Extract onboarding marker (if any) BEFORE finalizing
-      const { text: cleanText, completedPhase } = extractOnboardingMarker(response.text);
+      // For streaming: use accumulated text (includes all turns + tool status hints)
+      // For non-streaming: use response.text (last turn only, but correct for single-turn)
+      const sourceText = streamingActive
+        ? streamSender.getAccumulatedText()
+        : response.text;
+      const { text: cleanText, completedPhase } = extractOnboardingMarker(sourceText);
 
       // k2. Advance onboarding state if marker was found
       if (completedPhase !== null && ctx.user && ctx.user.onboardingState !== "complete") {
@@ -657,11 +672,65 @@ export function createProcessor(deps: ProcessorDeps) {
         }
       }
 
+      // l3. Attach deep-link buttons to response message
+      let deepLinkKeyboard: ReturnType<typeof buildDeepLinkKeyboard> = null;
+      if (trackedToolCalls.length > 0) {
+        try {
+          // Check for explicit attach_deep_link tool calls first
+          const explicitLinks: DeepLinkTarget[] = [];
+          for (const tc of trackedToolCalls) {
+            if (tc.name === "attach_deep_link") {
+              try {
+                const parsed = JSON.parse(tc.result) as { deep_link?: boolean; target?: string; recipe_id?: number };
+                if (parsed.deep_link && parsed.target) {
+                  if (parsed.target === "recipe" && parsed.recipe_id) {
+                    explicitLinks.push({ type: "recipe", recipeId: parsed.recipe_id });
+                  } else if (parsed.target === "recipes") {
+                    explicitLinks.push({ type: "recipes" });
+                  } else if (parsed.target === "plan") {
+                    explicitLinks.push({ type: "plan" });
+                  } else if (parsed.target === "grocery") {
+                    explicitLinks.push({ type: "grocery" });
+                  }
+                }
+              } catch { /* ignore parse errors */ }
+            }
+          }
+
+          // Build targets from automatic tool tracking (excludes attach_deep_link)
+          const autoTargets = buildDeepLinksFromToolCalls(
+            trackedToolCalls.filter(tc => tc.name !== "attach_deep_link")
+          );
+
+          // Merge: explicit links take priority, deduplicate by type
+          const allTargets = [...explicitLinks];
+          const existingTypes = new Set(allTargets.map(t => t.type));
+          for (const t of autoTargets) {
+            if (!existingTypes.has(t.type)) {
+              allTargets.push(t);
+              existingTypes.add(t.type);
+            }
+          }
+
+          deepLinkKeyboard = buildDeepLinkKeyboard(allTargets);
+        } catch (deepLinkError) {
+          log.debug(
+            { error: deepLinkError instanceof Error ? deepLinkError.message : String(deepLinkError) },
+            "Deep-link keyboard build skipped",
+          );
+        }
+      }
+
       // k3. Finalize the message and save to conversation history
       if (streamingActive) {
-        // Streaming path: finalize the stream sender with clean text (markers stripped)
+        // Streaming path: use accumulated text (all turns + tool status hints)
+        // Only pass override if marker extraction changed the text
+        const finalizeOverride = cleanText !== sourceText ? cleanText : undefined;
         if (cleanText.trim()) {
-          await streamSender.finalize(cleanText);
+          await streamSender.finalize(
+            finalizeOverride,
+            deepLinkKeyboard ? { reply_markup: deepLinkKeyboard } : undefined,
+          );
 
           // l. Save outgoing response to messages table for conversation continuity
           db.insert(messages)
@@ -677,7 +746,7 @@ export function createProcessor(deps: ProcessorDeps) {
           await streamSender.finalize();
         }
       } else {
-        // Non-streaming fallback: use sendFormattedMessage as before
+        // Non-streaming fallback: use sendFormattedMessage then attach buttons separately
         if (cleanText.trim()) {
           await sendFormattedMessage(ctx, cleanText);
 
@@ -690,6 +759,13 @@ export function createProcessor(deps: ProcessorDeps) {
               direction: "out" as const,
             })
             .run();
+
+          // For non-streaming, send deep-link buttons as follow-up (no stream message to attach to)
+          if (deepLinkKeyboard) {
+            try {
+              await ctx.reply("Open in app:", { reply_markup: deepLinkKeyboard });
+            } catch { /* best-effort */ }
+          }
         }
       }
 
@@ -700,12 +776,12 @@ export function createProcessor(deps: ProcessorDeps) {
           if (activeList && activeList.messageId) {
             const groceryItems = deps.groceryRepository.getListItems(activeList.id);
             const formattedList = formatGroceryList(groceryItems);
-            const keyboard = buildGroceryKeyboard(groceryItems);
+            const groceryKeyboard = buildGroceryKeyboard(groceryItems);
             await ctx.api.editMessageText(
               chatId,
               activeList.messageId,
               formattedList,
-              { parse_mode: "HTML", reply_markup: keyboard },
+              { parse_mode: "HTML", reply_markup: groceryKeyboard },
             );
           }
         } catch (editError) {

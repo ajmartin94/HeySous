@@ -4,7 +4,7 @@ import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
  * Per-chat reminder settings with timezone and preferred notification times.
  * One row per household (UNIQUE on household_id enforced in init.ts).
  */
-export const reminderSettings = sqliteTable("reminder_settings", {
+export const reminderSettings = sqliteTable("application_settings", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   householdId: text("household_id").notNull(),
   timezone: text("timezone").notNull().default("America/New_York"),

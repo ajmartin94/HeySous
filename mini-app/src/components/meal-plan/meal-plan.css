@@ -63,6 +63,44 @@
   font-weight: 600;
   color: var(--tg-theme-text-color, #000);
   margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.day-row__header--tappable {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Chevron indicator */
+.day-row__chevron {
+  color: var(--tg-theme-hint-color, #999);
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.day-row__chevron--collapsed {
+  transform: rotate(-90deg);
+}
+
+/* Collapsed summary */
+.day-row__summary {
+  font-size: var(--hs-font-size-small);
+  color: var(--tg-theme-hint-color, #999);
+  padding: 2px 0 4px;
+}
+
+/* Meal sections container for collapse animation */
+.day-row__sections {
+  overflow: hidden;
+  transition: max-height 0.2s ease, opacity 0.15s ease;
+}
+
+.day-row__sections--collapsed {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
 }
 
 .day-row__empty {
@@ -77,7 +115,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 0;
+  padding: 6px 0 6px 12px;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -89,7 +127,7 @@
   background-color: var(--hs-accent-subtle);
   border-radius: 8px;
   margin: 0 -4px;
-  padding: 6px 4px;
+  padding: 6px 4px 6px 12px;
 }
 
 .meal-entry__icon {
@@ -102,7 +140,10 @@
 /* Color-code icons by meal type */
 .meal-entry__icon--breakfast { color: #e5a03a; }
 .meal-entry__icon--lunch { color: #e58c3a; }
+.meal-entry__icon--snack { color: #5dab5e; }
 .meal-entry__icon--dinner { color: #7a6fbf; }
+.meal-entry__icon--dessert { color: #d4698a; }
+.meal-entry__icon--other { color: #8a8a8e; }
 
 .meal-entry__label {
   font-size: var(--hs-font-size-small);
@@ -113,6 +154,7 @@
 
 .meal-entry__name {
   font-size: 15px;
+  font-weight: 400;
   color: var(--tg-theme-text-color, #000);
   flex: 1;
 }
@@ -131,6 +173,21 @@
 
 .week-content--transitioning {
   opacity: 0.6;
+}
+
+/* Meal type section */
+.meal-type-section {
+  margin-bottom: 4px;
+}
+
+.meal-type-section__header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0 2px;
+  font-size: var(--hs-font-size-small);
+  color: var(--tg-theme-hint-color, #999);
+  font-weight: 500;
 }
 
 /* Loading skeleton */

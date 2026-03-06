@@ -15,7 +15,7 @@
  * 8. inviteHandler (/invite admin command)
  * 9. costsHandler (/costs admin command)
  * 10. debugHandler (/debug retrieval stats)
- * 11. preferencesHandler (/preferences user preferences)
+ * 11. memoryHandler (/memory and /preferences -- user memories)
  * 12. planHandler (/plan meal plan display)
  * 13. groceryHandler (/grocery grocery list display)
  * 14. appFeedbackHandler (/feedback app feedback submission)
@@ -39,7 +39,7 @@ interface CreateBotOptions {
   inviteHandler: Composer<BotContext>;
   costsHandler: Composer<BotContext>;
   debugHandler: Composer<BotContext>;
-  preferencesHandler: Composer<BotContext>;
+  memoryHandler: Composer<BotContext>;
   planHandler: Composer<BotContext>;
   groceryHandler: Composer<BotContext>;
   groceryCallbackHandler: Composer<BotContext>;
@@ -62,7 +62,7 @@ export function createBot(
     inviteHandler,
     costsHandler,
     debugHandler,
-    preferencesHandler,
+    memoryHandler,
     planHandler,
     groceryHandler,
     groceryCallbackHandler,
@@ -98,7 +98,7 @@ export function createBot(
   bot.use(inviteHandler); // /invite command -- admin invite generation
   bot.use(costsHandler); // /costs command -- MUST be before catch-all message handler
   bot.use(debugHandler); // /debug command -- retrieval stats
-  bot.use(preferencesHandler); // /preferences command -- user preferences
+  bot.use(memoryHandler); // /memory + /preferences commands -- user memories
   bot.use(planHandler); // /plan command -- meal plan display
   bot.use(groceryHandler); // /grocery command -- grocery list display
   bot.use(appFeedbackHandler); // /feedback command -- app feedback submission

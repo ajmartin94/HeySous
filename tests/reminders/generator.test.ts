@@ -4,6 +4,7 @@ import {
   parseTimeToMinutes,
   parseRecipeTotalMinutes,
   generateReminders,
+  getMealTypeTime,
 } from "../../src/reminders/generator.js";
 import { createReminderRepository } from "../../src/reminders/repository.js";
 import { createTestClock } from "../../src/clock.js";
@@ -333,9 +334,13 @@ describe("generateReminders start_cooking behavior", () => {
         householdId: HOUSEHOLD_ID,
         timezone: "America/New_York",
         morningTime: "08:00",
+        breakfastTime: "07:00",
+        lunchTime: "12:00",
+        snackTime: "15:00",
         dinnerTime: "17:30",
+        dessertTime: "20:00",
         morningEnabled: false,
-        prepAlertsEnabled: false,
+        prepAlertsEnabled: true,
         mutedUntil: null,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -388,9 +393,13 @@ describe("generateReminders start_cooking behavior", () => {
         householdId: HOUSEHOLD_ID,
         timezone: "America/New_York",
         morningTime: "08:00",
+        breakfastTime: "07:00",
+        lunchTime: "12:00",
+        snackTime: "15:00",
         dinnerTime: "17:30",
+        dessertTime: "20:00",
         morningEnabled: false,
-        prepAlertsEnabled: false,
+        prepAlertsEnabled: true,
         mutedUntil: null,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -439,9 +448,13 @@ describe("generateReminders start_cooking behavior", () => {
         householdId: HOUSEHOLD_ID,
         timezone: "America/New_York",
         morningTime: "08:00",
+        breakfastTime: "07:00",
+        lunchTime: "12:00",
+        snackTime: "15:00",
         dinnerTime: "17:30",
+        dessertTime: "20:00",
         morningEnabled: false,
-        prepAlertsEnabled: false,
+        prepAlertsEnabled: true,
         mutedUntil: null,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -503,9 +516,13 @@ describe("generateReminders start_cooking behavior", () => {
         householdId: HOUSEHOLD_ID,
         timezone: "America/New_York",
         morningTime: "08:00",
+        breakfastTime: "07:00",
+        lunchTime: "12:00",
+        snackTime: "15:00",
         dinnerTime: "17:30",
+        dessertTime: "20:00",
         morningEnabled: false,
-        prepAlertsEnabled: false,
+        prepAlertsEnabled: true,
         mutedUntil: null,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -548,9 +565,13 @@ describe("generateReminders start_cooking behavior", () => {
         householdId: HOUSEHOLD_ID,
         timezone: "America/New_York",
         morningTime: "08:00",
+        breakfastTime: "07:00",
+        lunchTime: "12:00",
+        snackTime: "15:00",
         dinnerTime: "17:30",
+        dessertTime: "20:00",
         morningEnabled: false,
-        prepAlertsEnabled: false,
+        prepAlertsEnabled: true,
         mutedUntil: null,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -593,9 +614,13 @@ describe("generateReminders start_cooking behavior", () => {
         householdId: HOUSEHOLD_ID,
         timezone: "America/New_York",
         morningTime: "08:00",
+        breakfastTime: "07:00",
+        lunchTime: "12:00",
+        snackTime: "15:00",
         dinnerTime: "17:30",
+        dessertTime: "20:00",
         morningEnabled: false,
-        prepAlertsEnabled: false,
+        prepAlertsEnabled: true,
         mutedUntil: null,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -657,7 +682,11 @@ describe("generateReminders start_cooking behavior", () => {
         householdId: HOUSEHOLD_ID,
         timezone: "America/New_York",
         morningTime: "08:00",
+        breakfastTime: "07:00",
+        lunchTime: "12:00",
+        snackTime: "15:00",
         dinnerTime: "17:30",
+        dessertTime: "20:00",
         morningEnabled: true,
         prepAlertsEnabled: true,
         mutedUntil: null,
@@ -690,7 +719,11 @@ describe("generateReminders start_cooking behavior", () => {
         householdId: HOUSEHOLD_ID,
         timezone: "America/New_York",
         morningTime: "08:00",
+        breakfastTime: "07:00",
+        lunchTime: "12:00",
+        snackTime: "15:00",
         dinnerTime: "17:30",
+        dessertTime: "20:00",
         morningEnabled: true,
         prepAlertsEnabled: true,
         mutedUntil: null,
@@ -705,5 +738,386 @@ describe("generateReminders start_cooking behavior", () => {
       .prepare("SELECT * FROM reminders WHERE household_id = ? AND status = 'sent'")
       .all(HOUSEHOLD_ID) as Array<Record<string, unknown>>;
     expect(sentAfter).toHaveLength(0);
+  });
+
+  // -----------------------------------------------------------------------
+  // New: createMealPlan helper for multi-meal-type tests
+  // -----------------------------------------------------------------------
+
+  /**
+   * Helper: create a plan with one entry of any meal type for a specific date
+   */
+  function createMealPlan(
+    db: InstanceType<typeof Database>,
+    opts: {
+      weekStartDate: string;
+      dayOfWeek: number;
+      mealType: string;
+      recipeName: string;
+      knowledgeItemId: number | null;
+    },
+  ): void {
+    const plan = db
+      .prepare(
+        "INSERT INTO meal_plans (household_id, week_start_date) VALUES (?, ?)",
+      )
+      .run(HOUSEHOLD_ID, opts.weekStartDate);
+
+    db.prepare(
+      "INSERT INTO meal_plan_entries (plan_id, day_of_week, meal_type, recipe_name, knowledge_item_id) VALUES (?, ?, ?, ?, ?)",
+    ).run(plan.lastInsertRowid, opts.dayOfWeek, opts.mealType, opts.recipeName, opts.knowledgeItemId);
+  }
+
+  /** Default settings for multi-meal tests */
+  function defaultSettings(): import("../../src/reminders/types.js").ReminderSettings {
+    return {
+      id: 1,
+      householdId: HOUSEHOLD_ID,
+      timezone: "America/New_York",
+      morningTime: "08:00",
+      breakfastTime: "07:00",
+      lunchTime: "12:00",
+      snackTime: "15:00",
+      dinnerTime: "17:30",
+      dessertTime: "20:00",
+      morningEnabled: false,
+      prepAlertsEnabled: true,
+      mutedUntil: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+  }
+
+  // -----------------------------------------------------------------------
+  // Multi-meal-type start_cooking tests
+  // -----------------------------------------------------------------------
+
+  it("creates start-cooking reminder for breakfast entry at breakfastTime", () => {
+    // Breakfast recipe with 30-min cook time
+    createKnowledgeItem(sqlite, {
+      id: 10,
+      title: "Pancakes",
+      content: "Prep Time: 10 minutes\nCook Time: 20 minutes\n\nSteps:\n1. Mix\n2. Cook",
+    });
+
+    createMealPlan(sqlite, {
+      weekStartDate: "2026-02-23",
+      dayOfWeek: 0,
+      mealType: "breakfast",
+      recipeName: "Pancakes",
+      knowledgeItemId: 10,
+    });
+
+    const reminderRepo = createReminderRepository(sqlite, clock);
+    const planRepo = createMockPlanRepo(sqlite);
+
+    generateReminders({
+      reminderRepository: reminderRepo,
+      planRepository: planRepo as ReturnType<typeof import("../../src/planning/repository.js").createPlanRepository>,
+      sqlite,
+      householdId: HOUSEHOLD_ID,
+      settings: defaultSettings(),
+      clock,
+    });
+
+    const reminders = sqlite
+      .prepare("SELECT * FROM reminders WHERE type = 'start_cooking'")
+      .all() as Array<{ due_at: number; context_json: string }>;
+
+    expect(reminders).toHaveLength(1);
+
+    // breakfastTime 07:00 ET - 30 min (10 prep + 20 cook) = 06:30 ET = 11:30 UTC
+    const dueAt = new Date(reminders[0].due_at * 1000);
+    expect(dueAt.getUTCHours()).toBe(11);
+    expect(dueAt.getUTCMinutes()).toBe(30);
+  });
+
+  it("creates start-cooking reminder for lunch entry with no recipe (45-min default)", () => {
+    createMealPlan(sqlite, {
+      weekStartDate: "2026-02-23",
+      dayOfWeek: 0,
+      mealType: "lunch",
+      recipeName: "Quick Sandwich",
+      knowledgeItemId: null,
+    });
+
+    const reminderRepo = createReminderRepository(sqlite, clock);
+    const planRepo = createMockPlanRepo(sqlite);
+
+    generateReminders({
+      reminderRepository: reminderRepo,
+      planRepository: planRepo as ReturnType<typeof import("../../src/planning/repository.js").createPlanRepository>,
+      sqlite,
+      householdId: HOUSEHOLD_ID,
+      settings: defaultSettings(),
+      clock,
+    });
+
+    const reminders = sqlite
+      .prepare("SELECT * FROM reminders WHERE type = 'start_cooking'")
+      .all() as Array<{ due_at: number }>;
+
+    expect(reminders).toHaveLength(1);
+
+    // lunchTime 12:00 ET - 45 min default = 11:15 ET = 16:15 UTC
+    const dueAt = new Date(reminders[0].due_at * 1000);
+    expect(dueAt.getUTCHours()).toBe(16);
+    expect(dueAt.getUTCMinutes()).toBe(15);
+  });
+
+  it("creates start-cooking reminder for snack entry at snackTime", () => {
+    createKnowledgeItem(sqlite, {
+      id: 11,
+      title: "Energy Bites",
+      content: "Prep Time: 20 minutes\n\nSteps:\n1. Mix\n2. Roll",
+    });
+
+    createMealPlan(sqlite, {
+      weekStartDate: "2026-02-23",
+      dayOfWeek: 0,
+      mealType: "snack",
+      recipeName: "Energy Bites",
+      knowledgeItemId: 11,
+    });
+
+    const reminderRepo = createReminderRepository(sqlite, clock);
+    const planRepo = createMockPlanRepo(sqlite);
+
+    generateReminders({
+      reminderRepository: reminderRepo,
+      planRepository: planRepo as ReturnType<typeof import("../../src/planning/repository.js").createPlanRepository>,
+      sqlite,
+      householdId: HOUSEHOLD_ID,
+      settings: defaultSettings(),
+      clock,
+    });
+
+    const reminders = sqlite
+      .prepare("SELECT * FROM reminders WHERE type = 'start_cooking'")
+      .all() as Array<{ due_at: number }>;
+
+    expect(reminders).toHaveLength(1);
+
+    // snackTime 15:00 ET - 20 min = 14:40 ET = 19:40 UTC
+    const dueAt = new Date(reminders[0].due_at * 1000);
+    expect(dueAt.getUTCHours()).toBe(19);
+    expect(dueAt.getUTCMinutes()).toBe(40);
+  });
+
+  it("creates start-cooking reminder for dessert entry using dessertTime, not dinnerTime", () => {
+    createKnowledgeItem(sqlite, {
+      id: 12,
+      title: "Chocolate Cake",
+      content: "Total Time: 60 minutes\n\nSteps:\n1. Bake",
+    });
+
+    createMealPlan(sqlite, {
+      weekStartDate: "2026-02-23",
+      dayOfWeek: 0,
+      mealType: "dessert",
+      recipeName: "Chocolate Cake",
+      knowledgeItemId: 12,
+    });
+
+    const reminderRepo = createReminderRepository(sqlite, clock);
+    const planRepo = createMockPlanRepo(sqlite);
+
+    generateReminders({
+      reminderRepository: reminderRepo,
+      planRepository: planRepo as ReturnType<typeof import("../../src/planning/repository.js").createPlanRepository>,
+      sqlite,
+      householdId: HOUSEHOLD_ID,
+      settings: defaultSettings(),
+      clock,
+    });
+
+    const reminders = sqlite
+      .prepare("SELECT * FROM reminders WHERE type = 'start_cooking'")
+      .all() as Array<{ due_at: number }>;
+
+    expect(reminders).toHaveLength(1);
+
+    // dessertTime 20:00 ET - 60 min = 19:00 ET = 00:00 UTC (next day)
+    const dueAt = new Date(reminders[0].due_at * 1000);
+    expect(dueAt.getUTCHours()).toBe(0);
+    expect(dueAt.getUTCMinutes()).toBe(0);
+  });
+
+  it("'other' meal type falls back to dinnerTime", () => {
+    createMealPlan(sqlite, {
+      weekStartDate: "2026-02-23",
+      dayOfWeek: 0,
+      mealType: "other",
+      recipeName: "Random Nibbles",
+      knowledgeItemId: null,
+    });
+
+    const reminderRepo = createReminderRepository(sqlite, clock);
+    const planRepo = createMockPlanRepo(sqlite);
+
+    generateReminders({
+      reminderRepository: reminderRepo,
+      planRepository: planRepo as ReturnType<typeof import("../../src/planning/repository.js").createPlanRepository>,
+      sqlite,
+      householdId: HOUSEHOLD_ID,
+      settings: defaultSettings(),
+      clock,
+    });
+
+    const reminders = sqlite
+      .prepare("SELECT * FROM reminders WHERE type = 'start_cooking'")
+      .all() as Array<{ due_at: number }>;
+
+    expect(reminders).toHaveLength(1);
+
+    // dinnerTime 17:30 ET - 45 min default = 16:45 ET = 21:45 UTC
+    const dueAt = new Date(reminders[0].due_at * 1000);
+    expect(dueAt.getUTCHours()).toBe(21);
+    expect(dueAt.getUTCMinutes()).toBe(45);
+  });
+
+  it("multiple meal types on same day each get their own start-cooking reminder", () => {
+    // Create breakfast and dinner on same day
+    createMealPlan(sqlite, {
+      weekStartDate: "2026-02-23",
+      dayOfWeek: 0,
+      mealType: "breakfast",
+      recipeName: "Oatmeal",
+      knowledgeItemId: null,
+    });
+
+    // Add lunch to an existing plan (need separate plan row for test simplicity)
+    createMealPlan(sqlite, {
+      weekStartDate: "2026-02-23",
+      dayOfWeek: 0,
+      mealType: "lunch",
+      recipeName: "Soup",
+      knowledgeItemId: null,
+    });
+
+    createMealPlan(sqlite, {
+      weekStartDate: "2026-02-23",
+      dayOfWeek: 0,
+      mealType: "dinner",
+      recipeName: "Steak",
+      knowledgeItemId: null,
+    });
+
+    const reminderRepo = createReminderRepository(sqlite, clock);
+    const planRepo = createMockPlanRepo(sqlite);
+
+    generateReminders({
+      reminderRepository: reminderRepo,
+      planRepository: planRepo as ReturnType<typeof import("../../src/planning/repository.js").createPlanRepository>,
+      sqlite,
+      householdId: HOUSEHOLD_ID,
+      settings: defaultSettings(),
+      clock,
+    });
+
+    const reminders = sqlite
+      .prepare("SELECT * FROM reminders WHERE type = 'start_cooking' ORDER BY due_at")
+      .all() as Array<{ due_at: number; context_json: string }>;
+
+    // Should have 3 reminders: breakfast, lunch, dinner
+    expect(reminders).toHaveLength(3);
+
+    // Verify each has correct meal time offset:
+    // breakfast 07:00 - 45 = 06:15 ET = 11:15 UTC
+    const breakfastDue = new Date(reminders[0].due_at * 1000);
+    expect(breakfastDue.getUTCHours()).toBe(11);
+    expect(breakfastDue.getUTCMinutes()).toBe(15);
+
+    // lunch 12:00 - 45 = 11:15 ET = 16:15 UTC
+    const lunchDue = new Date(reminders[1].due_at * 1000);
+    expect(lunchDue.getUTCHours()).toBe(16);
+    expect(lunchDue.getUTCMinutes()).toBe(15);
+
+    // dinner 17:30 - 45 = 16:45 ET = 21:45 UTC
+    const dinnerDue = new Date(reminders[2].due_at * 1000);
+    expect(dinnerDue.getUTCHours()).toBe(21);
+    expect(dinnerDue.getUTCMinutes()).toBe(45);
+  });
+
+  it("includes mealType in start_cooking contextJson", () => {
+    createMealPlan(sqlite, {
+      weekStartDate: "2026-02-23",
+      dayOfWeek: 0,
+      mealType: "breakfast",
+      recipeName: "Eggs Benedict",
+      knowledgeItemId: null,
+    });
+
+    const reminderRepo = createReminderRepository(sqlite, clock);
+    const planRepo = createMockPlanRepo(sqlite);
+
+    generateReminders({
+      reminderRepository: reminderRepo,
+      planRepository: planRepo as ReturnType<typeof import("../../src/planning/repository.js").createPlanRepository>,
+      sqlite,
+      householdId: HOUSEHOLD_ID,
+      settings: defaultSettings(),
+      clock,
+    });
+
+    const reminders = sqlite
+      .prepare("SELECT * FROM reminders WHERE type = 'start_cooking'")
+      .all() as Array<{ context_json: string }>;
+
+    expect(reminders).toHaveLength(1);
+
+    const context = JSON.parse(reminders[0].context_json);
+    expect(context.mealType).toBe("breakfast");
+    expect(context.recipeName).toBe("Eggs Benedict");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Unit tests for getMealTypeTime
+// ---------------------------------------------------------------------------
+describe("getMealTypeTime", () => {
+  const settings = {
+    id: 1,
+    householdId: "test",
+    timezone: "America/New_York",
+    morningTime: "08:00",
+    breakfastTime: "07:00",
+    lunchTime: "12:00",
+    snackTime: "15:00",
+    dinnerTime: "17:30",
+    dessertTime: "20:00",
+    morningEnabled: true,
+    prepAlertsEnabled: true,
+    mutedUntil: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  } satisfies import("../../src/reminders/types.js").ReminderSettings;
+
+  it("returns breakfastTime for 'breakfast'", () => {
+    expect(getMealTypeTime(settings, "breakfast")).toBe("07:00");
+  });
+
+  it("returns lunchTime for 'lunch'", () => {
+    expect(getMealTypeTime(settings, "lunch")).toBe("12:00");
+  });
+
+  it("returns snackTime for 'snack'", () => {
+    expect(getMealTypeTime(settings, "snack")).toBe("15:00");
+  });
+
+  it("returns dinnerTime for 'dinner'", () => {
+    expect(getMealTypeTime(settings, "dinner")).toBe("17:30");
+  });
+
+  it("returns dessertTime for 'dessert'", () => {
+    expect(getMealTypeTime(settings, "dessert")).toBe("20:00");
+  });
+
+  it("falls back to dinnerTime for 'other'", () => {
+    expect(getMealTypeTime(settings, "other")).toBe("17:30");
+  });
+
+  it("falls back to dinnerTime for unknown meal type", () => {
+    expect(getMealTypeTime(settings, "brunch")).toBe("17:30");
   });
 });

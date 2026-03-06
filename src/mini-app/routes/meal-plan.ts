@@ -49,7 +49,16 @@ export function createMealPlanRoutes(sqlite: BetterSqlite3.Database) {
               AND ki.household_id = mp.household_id
             WHERE mp.household_id = ? AND mp.week_start_date = ?
             ORDER BY mpe.day_of_week ASC,
-                     CASE mpe.meal_type WHEN 'breakfast' THEN 1 WHEN 'lunch' THEN 2 WHEN 'dinner' THEN 3 END ASC
+                     CASE mpe.meal_type
+                       WHEN 'breakfast' THEN 1
+                       WHEN 'lunch' THEN 2
+                       WHEN 'snack' THEN 3
+                       WHEN 'dinner' THEN 4
+                       WHEN 'dessert' THEN 5
+                       WHEN 'other' THEN 6
+                       ELSE 7
+                     END ASC,
+                     mpe.id ASC
           `
           )
           .all(householdId, weekStartDate) as Array<{

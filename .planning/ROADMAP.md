@@ -251,7 +251,10 @@ Plans:
 ### Phase 55: Verify Reminder Settings Integration
 **Goal:** Verify the reminder system is actually controlled by the settings page toggles
 **Depends on:** Phase 49
-**Plans:** Not planned yet
+**Plans:** 1 plan
+
+Plans:
+- [ ] 55-01-PLAN.md -- Fix settings-to-reminder wiring gaps and add integration tests
 
 ### Phase 56: Database Operation Test Coverage
 **Goal:** Review and improve test coverage of major database operations, including deduplication of memory items

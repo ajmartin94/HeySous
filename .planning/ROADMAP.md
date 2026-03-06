@@ -238,7 +238,10 @@ Plans:
 ### Phase 53: Onboarding Help Message & Next Steps
 **Goal:** End onboarding with a help-style message explaining what Sous can do, then prompt user to start planning or adding meals
 **Depends on:** Nothing
-**Plans:** Not planned yet
+**Plans:** 1 plan
+
+Plans:
+- [ ] 53-01-PLAN.md -- Remove recipes state, rewrite tour as help/next-steps message
 
 ### Phase 54: Hide Release Notes for New Users
 **Goal:** Brand new users should not see release notes on first interaction

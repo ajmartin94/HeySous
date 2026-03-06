@@ -115,7 +115,7 @@ export function createPlanHandler(
 
     // Resolve user's timezone for correct week boundary
     const settingsRow = sqlite
-      .prepare("SELECT timezone FROM reminder_settings WHERE household_id = ?")
+      .prepare("SELECT timezone FROM application_settings WHERE household_id = ?")
       .get(householdId) as { timezone: string } | undefined;
     const userTimezone = settingsRow?.timezone ?? "America/New_York";
     const todayStr = getTodayInTimezone(userTimezone, { now: () => Date.now(), date: () => new Date() });

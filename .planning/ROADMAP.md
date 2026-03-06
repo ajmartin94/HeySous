@@ -221,9 +221,13 @@ Plans:
 - [ ] 49-03-PLAN.md -- Bot /memory command, Mini App memory list and settings form, API routes
 
 ### Phase 50: Settings Page Organization
-**Goal:** Organize and polish the Mini App settings page before shipping
+**Goal:** Reorganize the Mini App settings page into a side-tabbed layout with App, Schedule, and Memory tabs
 **Depends on:** Phase 49
-**Plans:** Not planned yet
+**Requirements**: SETTINGS-ORG
+**Plans:** 1 plan
+
+Plans:
+- [ ] 50-01-PLAN.md -- Refactor Settings.tsx into side-tabbed layout with App/Schedule/Memory tabs
 
 ### Phase 51: Message Streaming Fixes
 **Goal:** Fix funky behavior in message streaming

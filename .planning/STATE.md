@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: All-Day Meals & UX
 status: unknown
-last_updated: "2026-03-05T01:41:52.057Z"
+last_updated: "2026-03-06T03:55:53.361Z"
 progress:
-  total_phases: 14
+  total_phases: 15
   completed_phases: 12
-  total_plans: 21
-  completed_plans: 21
+  total_plans: 24
+  completed_plans: 22
 ---
 
 # Project State
@@ -22,12 +22,12 @@ See: .planning/PROJECT.md (updated 2026-03-02)
 
 ## Current Position
 
-Phase: 48 (UAT fix phase) — v1.6 UAT Fixes
-Plan: 2 of 2 complete
-Status: Phase Complete
-Last activity: 2026-03-05 — Completed 48-01 (preference dedup threshold and deep-link button attachment)
+Phase: 49 — Sous Memory System
+Plan: 1 of 3 complete
+Status: In Progress
+Last activity: 2026-03-06 — Completed 49-01 (memories table, FTS5 index, repository, migrations v9/v10)
 
-Progress: [██████████] 100% (7/7 v1.6 phases including UAT)
+Progress: [███░░░░░░░] 33% (1/3 phase 49 plans)
 
 ## Performance Metrics
 
@@ -71,6 +71,7 @@ All decisions documented in PROJECT.md Key Decisions table (consolidated at mile
 - 48-01: Preference dedup threshold lowered to 0.70 (recipes stay at 0.85)
 - 48-01: reply_markup typed as unknown in stream-sender to avoid grammY import coupling
 - 48-01: Short and split replies skip reply_markup -- acceptable edge cases
+- [Phase 49]: FTS5 indexes only content column for memories (single-column vs multi-column in knowledge)
 
 ### Pending Todos
 
@@ -85,6 +86,7 @@ None.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 2 | Update color scheme -- green to soft blue for accessibility | 2026-02-24 | 3cc3293 | [2-update-color-scheme-for-better-accessibi](./quick/2-update-color-scheme-for-better-accessibi/) |
+| Phase 49 P01 | 3min | 2 tasks | 10 files |
 
 ### Roadmap Evolution
 
@@ -94,7 +96,7 @@ Total: 41 phases, 89 plans across 6 milestones. v1.6 adds 6 phases (42-47).
 
 ## Session Continuity
 
-Last session: 2026-03-05
-Stopped at: Phase 49 context gathered
-Next action: /gsd:plan-phase 49
-Resume file: .planning/phases/49-sous-memory-system-atomic-facts-settings-table-and-preference-migration/49-CONTEXT.md
+Last session: 2026-03-06
+Stopped at: Completed 49-01-PLAN.md
+Next action: Execute 49-02-PLAN.md
+Resume file: .planning/phases/49-sous-memory-system-atomic-facts-settings-table-and-preference-migration/49-01-SUMMARY.md

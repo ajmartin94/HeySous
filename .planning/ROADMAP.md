@@ -71,13 +71,13 @@ See .planning/milestones/v1.5-ROADMAP.md for full phase history.
 - [x] **Phase 46: Deep-Link Navigation** - Inline buttons in Sous responses link directly to Mini App content (completed 2026-03-04)
 - [x] **Phase 47: Mini App Polish & Prompt Cleanup** - Font, layout, and emoji ban for a cleaner experience (completed 2026-03-04)
 - [x] **Phase 48: v1.6 UAT Fixes** - Fix 4 gaps from user acceptance testing (preference dedup, meal entry styling, deep-link buttons, dead CSS) (completed 2026-03-05)
-- [ ] **Phase 50: Settings Page Organization** - Organize and polish the settings page before shipping
-- [ ] **Phase 51: Message Streaming Fixes** - Fix funky behavior in message streaming
-- [ ] **Phase 52: Onboarding Memory Integration** - Verify onboarding utilizes the memory function
-- [ ] **Phase 53: Onboarding Help Message & Next Steps** - End onboarding with help message and prompt to start planning
-- [ ] **Phase 54: Hide Release Notes for New Users** - Brand new users should not see release notes
-- [ ] **Phase 55: Verify Reminder Settings Integration** - Verify reminders are controlled by settings page
-- [ ] **Phase 56: Database Operation Test Coverage** - Test coverage for major DB operations and memory dedup
+- [x] **Phase 50: Settings Page Organization** - Organize and polish the settings page before shipping (completed 2026-03-06)
+- [x] **Phase 51: Message Streaming Fixes** - Fix funky behavior in message streaming (completed 2026-03-06)
+- [x] **Phase 52: Onboarding Memory Integration** - Verify onboarding utilizes the memory function (completed 2026-03-06)
+- [x] **Phase 53: Onboarding Help Message & Next Steps** - End onboarding with help message and prompt to start planning (completed 2026-03-06)
+- [x] **Phase 54: Hide Release Notes for New Users** - Brand new users should not see release notes (completed 2026-03-06)
+- [x] **Phase 55: Verify Reminder Settings Integration** - Verify reminders are controlled by settings page (completed 2026-03-06)
+- [x] **Phase 56: Database Operation Test Coverage** - Test coverage for major DB operations and memory dedup (completed 2026-03-06)
 
 ## Phase Details
 
@@ -92,8 +92,8 @@ See .planning/milestones/v1.5-ROADMAP.md for full phase history.
   4. The meal plan API endpoints return meal type and multi-recipe data for Mini App consumption
 **Plans:** 2/2 plans complete
 Plans:
-- [ ] 42-01-PLAN.md -- Expand Drizzle schema enums, TypeScript MealType, and add migration v7
-- [ ] 42-02-PLAN.md -- Update Claude tool definitions and Mini App API sort order
+- [x] 42-01-PLAN.md -- Expand Drizzle schema enums, TypeScript MealType, and add migration v7
+- [x] 42-02-PLAN.md -- Update Claude tool definitions and Mini App API sort order
 
 ### Phase 43: Agent Tools & Meal Time Config
 **Goal**: Claude can plan, query, and modify meals for any meal type throughout the day, and users can set preferred times per meal type
@@ -120,7 +120,7 @@ Plans:
   4. Tapping a recipe within any meal type navigates to the recipe detail view
 **Plans:** 1/1 plans complete
 Plans:
-- [ ] 44-01-PLAN.md -- Extend meal type support, grouped section rendering, day-level expand/collapse
+- [x] 44-01-PLAN.md -- Extend meal type support, grouped section rendering, day-level expand/collapse
 
 ### Phase 45: Grocery & Reminders
 **Goal**: Grocery lists and reminders work across all meal types, not just dinner
@@ -132,7 +132,7 @@ Plans:
   3. Start-cooking reminders adjust timing based on the specific meal type's target time (e.g., breakfast prep reminder in the evening before, lunch reminder in the morning)
 **Plans:** 1/1 plans complete
 Plans:
-- [ ] 45-01-PLAN.md -- Extend start-cooking reminders to all meal types, verify grocery aggregation
+- [x] 45-01-PLAN.md -- Extend start-cooking reminders to all meal types, verify grocery aggregation
 
 ### Phase 46: Deep-Link Navigation
 **Goal**: Users can jump directly from Sous chat messages and reminders into the relevant Mini App view
@@ -145,8 +145,8 @@ Plans:
   4. Cooking reminders include a button that opens the specific recipe being cooked
 **Plans:** 2/2 plans complete
 Plans:
-- [ ] 46-01-PLAN.md -- Deep-link builder module, on-demand tool, system prompt update, Mini App ?id handling
-- [ ] 46-02-PLAN.md -- Pipeline post-response button injection, reminder sender buttons
+- [x] 46-01-PLAN.md -- Deep-link builder module, on-demand tool, system prompt update, Mini App ?id handling
+- [x] 46-02-PLAN.md -- Pipeline post-response button injection, reminder sender buttons
 
 ### Phase 47: Mini App Polish & Prompt Cleanup
 **Goal**: The Mini App is more readable and better laid out, and Sous never uses emojis
@@ -197,8 +197,16 @@ Phase 48 is a UAT fix phase -- both plans run in Wave 1 (parallel).
 | 46. Deep-Link Navigation | 2/2 | Complete    | 2026-03-04 | - |
 | 47. Mini App Polish & Prompt Cleanup | v1.6 | Complete    | 2026-03-04 | 2026-03-04 |
 | 48. v1.6 UAT Fixes | 2/2 | Complete    | 2026-03-05 | - |
+| 49. Sous Memory System | 3/3 | Complete    | 2026-03-06 | - |
+| 50. Settings Page Organization | 1/1 | Complete    | 2026-03-06 | - |
+| 51. Message Streaming Fixes | 1/1 | Complete    | 2026-03-06 | - |
+| 52. Onboarding Memory Integration | 1/1 | Complete    | 2026-03-06 | - |
+| 53. Onboarding Help Message & Next Steps | 1/1 | Complete    | 2026-03-06 | - |
+| 54. Hide Release Notes for New Users | 1/1 | Complete    | 2026-03-06 | - |
+| 55. Verify Reminder Settings Integration | 1/1 | Complete    | 2026-03-06 | - |
+| 56. Database Operation Test Coverage | 1/1 | Complete    | 2026-03-06 | - |
 
-**Total: 47 phases complete (98 plans) across 6 milestones + v1.6 in progress**
+**Total: 56 phases complete (109 plans) across 6 milestones + v1.6 in progress**
 
 ### Phase 49: Sous Memory System — atomic facts, settings table, and preference migration
 
@@ -216,9 +224,9 @@ Phase 48 is a UAT fix phase -- both plans run in Wave 1 (parallel).
 **Plans:** 3/3 plans complete
 
 Plans:
-- [ ] 49-01-PLAN.md -- Database foundation: memories table, FTS5 index, repository, migrations, settings rename
-- [ ] 49-02-PLAN.md -- Claude tools: save_memory/delete_memory/search_memories with dedup, settings rename, system prompt
-- [ ] 49-03-PLAN.md -- Bot /memory command, Mini App memory list and settings form, API routes
+- [x] 49-01-PLAN.md -- Database foundation: memories table, FTS5 index, repository, migrations, settings rename
+- [x] 49-02-PLAN.md -- Claude tools: save_memory/delete_memory/search_memories with dedup, settings rename, system prompt
+- [x] 49-03-PLAN.md -- Bot /memory command, Mini App memory list and settings form, API routes
 
 ### Phase 50: Settings Page Organization
 **Goal:** Reorganize the Mini App settings page into a side-tabbed layout with App, Schedule, and Memory tabs
@@ -227,7 +235,7 @@ Plans:
 **Plans:** 1 plan
 
 Plans:
-- [ ] 50-01-PLAN.md -- Refactor Settings.tsx into side-tabbed layout with App/Schedule/Memory tabs
+- [x] 50-01-PLAN.md -- Refactor Settings.tsx into side-tabbed layout with App/Schedule/Memory tabs
 
 ### Phase 51: Message Streaming Fixes
 **Goal:** Fix multi-turn text overwrite, intermediate text loss, and transient tool status labels in streaming
@@ -236,7 +244,7 @@ Plans:
 **Plans:** 1 plan
 
 Plans:
-- [ ] 51-01-PLAN.md -- Fix stream-sender accumulation and processor finalize override
+- [x] 51-01-PLAN.md -- Fix stream-sender accumulation and processor finalize override
 ### Phase 52: Onboarding Memory Integration
 **Goal:** Verify and ensure the onboarding process utilizes the memory function to store user preferences
 **Depends on:** Phase 49
@@ -244,7 +252,7 @@ Plans:
 **Plans:** 1 plan
 
 Plans:
-- [ ] 52-01-PLAN.md -- Regression test for memory tool availability + prod DB verification
+- [x] 52-01-PLAN.md -- Regression test for memory tool availability + prod DB verification
 
 ### Phase 53: Onboarding Help Message & Next Steps
 **Goal:** End onboarding with a help-style message explaining what Sous can do, then prompt user to start planning or adding meals
@@ -252,7 +260,7 @@ Plans:
 **Plans:** 1 plan
 
 Plans:
-- [ ] 53-01-PLAN.md -- Remove recipes state, rewrite tour as help/next-steps message
+- [x] 53-01-PLAN.md -- Remove recipes state, rewrite tour as help/next-steps message
 
 ### Phase 54: Hide Release Notes for New Users
 **Goal:** Brand new users should not see release notes on first interaction
@@ -260,7 +268,7 @@ Plans:
 **Requirements**: NOTIF-HIDE
 **Plans:** 1 plan
 Plans:
-- [ ] 54-01-PLAN.md -- Filter checkPendingNotification by user creation time with TDD
+- [x] 54-01-PLAN.md -- Filter checkPendingNotification by user creation time with TDD
 
 
 
@@ -272,7 +280,7 @@ Plans:
 **Plans:** 1 plan
 
 Plans:
-- [ ] 55-01-PLAN.md -- Fix settings-to-reminder wiring gaps and add integration tests
+- [x] 55-01-PLAN.md -- Fix settings-to-reminder wiring gaps and add integration tests
 
 ### Phase 56: Database Operation Test Coverage
 **Goal:** Review and improve test coverage of major database operations, including deduplication of memory items
@@ -280,4 +288,4 @@ Plans:
 **Plans:** 1 plan
 
 Plans:
-- [ ] 56-01-PLAN.md -- Memory repository CRUD tests and FTS5 search/dedup threshold tests
+- [x] 56-01-PLAN.md -- Memory repository CRUD tests and FTS5 search/dedup threshold tests

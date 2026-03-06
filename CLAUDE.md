@@ -25,11 +25,13 @@ npm run typecheck    # TypeScript type check (tsc --noEmit)
 src/ai/             Sous agent: client, system prompt, tools, tool handler
 src/bot/            grammY bot setup, command handlers, middlewares
 src/pipeline/       Message queue (debounce) + processor (Sous call orchestration)
-src/knowledge/      Recipe/preference storage, FTS5 search, retrieval service
+src/knowledge/      Recipe storage, FTS5 search, retrieval service
 src/memory/         Atomic fact memory system (memories table, FTS5 dedup)
 src/planning/       Meal plan CRUD, cooking history, context builder
 src/grocery/        Grocery list CRUD, formatter, inline buttons
 src/reminders/      Reminder scheduling, polling, delivery
+src/deep-links/     Deep-link builder for Mini App inline buttons
+src/notifications/  Release notes, update notification delivery
 src/feedback/       Meal feedback check-ins, sentiment extraction
 src/onboarding/     First-run conversational flow (state machine)
 src/invites/        Invite-gated access token system

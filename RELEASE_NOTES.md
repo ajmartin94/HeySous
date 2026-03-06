@@ -2,6 +2,19 @@
 
 User-facing release notes as shown by Sous in Telegram. For technical changes, see [CHANGELOG.md](./CHANGELOG.md).
 
+## v1.6.0
+
+I can do a lot more with your day now -- not just dinner anymore. Here's what's new:
+
+- **All-day meal planning** -- Breakfast, lunch, snacks, dessert -- tell me about any meal and I'll plan, track, and remind you for all of them
+- **Sous memory** -- I remember all sorts of things about you now to make our conversations smoother. Check out the new Settings page to see what I've picked up
+- **Tap to open** -- When I mention a recipe or update your plan, you'll see buttons that jump straight to it
+- **Reorganized settings** -- Meal times, reminder toggles, and your stored memories are all in one place with a cleaner layout
+- **Better onboarding** -- New users get a friendlier welcome that explains what I can do and how to get started
+- **Smoother replies** -- My responses flow more cleanly now, no more lost text mid-conversation
+
+Open the Mini App and check out your new Settings page!
+
 ## v1.5.0
 
 A bunch of under-the-hood upgrades just landed. Things should feel noticeably snappier:

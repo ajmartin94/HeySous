@@ -230,10 +230,13 @@ Plans:
 - [ ] 50-01-PLAN.md -- Refactor Settings.tsx into side-tabbed layout with App/Schedule/Memory tabs
 
 ### Phase 51: Message Streaming Fixes
-**Goal:** Fix funky behavior in message streaming
+**Goal:** Fix multi-turn text overwrite, intermediate text loss, and transient tool status labels in streaming
 **Depends on:** Nothing
-**Plans:** Not planned yet
+**Requirements**: STREAM-FIX
+**Plans:** 1 plan
 
+Plans:
+- [ ] 51-01-PLAN.md -- Fix stream-sender accumulation and processor finalize override
 ### Phase 52: Onboarding Memory Integration
 **Goal:** Verify and ensure the onboarding process utilizes the memory function to store user preferences
 **Depends on:** Phase 49
@@ -250,7 +253,14 @@ Plans:
 ### Phase 54: Hide Release Notes for New Users
 **Goal:** Brand new users should not see release notes on first interaction
 **Depends on:** Nothing
-**Plans:** Not planned yet
+**Requirements**: NOTIF-HIDE
+**Plans:** 1 plan
+Plans:
+- [ ] 54-01-PLAN.md -- Filter checkPendingNotification by user creation time with TDD
+
+
+
+
 
 ### Phase 55: Verify Reminder Settings Integration
 **Goal:** Verify the reminder system is actually controlled by the settings page toggles

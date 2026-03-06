@@ -100,6 +100,13 @@ None.
 6 milestones shipped: v1.0 (10 phases), v1.1 (4 phases), v1.2 (5 phases), v1.3 (5 phases), v1.4 (7 phases), v1.5 (10 phases).
 Total: 41 phases, 89 plans across 6 milestones. v1.6 adds 6 phases (42-47).
 - Phase 49 added: Sous Memory System — atomic facts, settings table, and preference migration
+- Phase 50 added: Settings Page Organization
+- Phase 51 added: Message Streaming Fixes
+- Phase 52 added: Onboarding Memory Integration
+- Phase 53 added: Onboarding Help Message & Next Steps
+- Phase 54 added: Hide Release Notes for New Users
+- Phase 55 added: Verify Reminder Settings Integration
+- Phase 56 added: Database Operation Test Coverage
 
 ## Session Continuity
 

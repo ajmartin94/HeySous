@@ -71,6 +71,13 @@ See .planning/milestones/v1.5-ROADMAP.md for full phase history.
 - [x] **Phase 46: Deep-Link Navigation** - Inline buttons in Sous responses link directly to Mini App content (completed 2026-03-04)
 - [x] **Phase 47: Mini App Polish & Prompt Cleanup** - Font, layout, and emoji ban for a cleaner experience (completed 2026-03-04)
 - [x] **Phase 48: v1.6 UAT Fixes** - Fix 4 gaps from user acceptance testing (preference dedup, meal entry styling, deep-link buttons, dead CSS) (completed 2026-03-05)
+- [ ] **Phase 50: Settings Page Organization** - Organize and polish the settings page before shipping
+- [ ] **Phase 51: Message Streaming Fixes** - Fix funky behavior in message streaming
+- [ ] **Phase 52: Onboarding Memory Integration** - Verify onboarding utilizes the memory function
+- [ ] **Phase 53: Onboarding Help Message & Next Steps** - End onboarding with help message and prompt to start planning
+- [ ] **Phase 54: Hide Release Notes for New Users** - Brand new users should not see release notes
+- [ ] **Phase 55: Verify Reminder Settings Integration** - Verify reminders are controlled by settings page
+- [ ] **Phase 56: Database Operation Test Coverage** - Test coverage for major DB operations and memory dedup
 
 ## Phase Details
 
@@ -212,3 +219,38 @@ Plans:
 - [ ] 49-01-PLAN.md -- Database foundation: memories table, FTS5 index, repository, migrations, settings rename
 - [ ] 49-02-PLAN.md -- Claude tools: save_memory/delete_memory/search_memories with dedup, settings rename, system prompt
 - [ ] 49-03-PLAN.md -- Bot /memory command, Mini App memory list and settings form, API routes
+
+### Phase 50: Settings Page Organization
+**Goal:** Organize and polish the Mini App settings page before shipping
+**Depends on:** Phase 49
+**Plans:** Not planned yet
+
+### Phase 51: Message Streaming Fixes
+**Goal:** Fix funky behavior in message streaming
+**Depends on:** Nothing
+**Plans:** Not planned yet
+
+### Phase 52: Onboarding Memory Integration
+**Goal:** Verify and ensure the onboarding process utilizes the memory function to store user preferences
+**Depends on:** Phase 49
+**Plans:** Not planned yet
+
+### Phase 53: Onboarding Help Message & Next Steps
+**Goal:** End onboarding with a help-style message explaining what Sous can do, then prompt user to start planning or adding meals
+**Depends on:** Nothing
+**Plans:** Not planned yet
+
+### Phase 54: Hide Release Notes for New Users
+**Goal:** Brand new users should not see release notes on first interaction
+**Depends on:** Nothing
+**Plans:** Not planned yet
+
+### Phase 55: Verify Reminder Settings Integration
+**Goal:** Verify the reminder system is actually controlled by the settings page toggles
+**Depends on:** Phase 49
+**Plans:** Not planned yet
+
+### Phase 56: Database Operation Test Coverage
+**Goal:** Review and improve test coverage of major database operations, including deduplication of memory items
+**Depends on:** Phase 49
+**Plans:** Not planned yet

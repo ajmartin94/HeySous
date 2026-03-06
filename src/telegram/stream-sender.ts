@@ -60,6 +60,12 @@ export interface TelegramStreamSender {
    * @returns The message ID or null if placeholder was not sent.
    */
   getMessageId(): number | null;
+
+  /**
+   * Get the raw accumulated text including persisted tool status hints.
+   * Used by the processor for DB saves and marker extraction.
+   */
+  getAccumulatedText(): string;
 }
 
 /**
@@ -185,6 +191,8 @@ export function createTelegramStreamSender(
 
     showToolStatus(label: string): void {
       currentToolStatus = label;
+      // Persist a permanent hint line in accumulated text (rendered as <i> in final HTML)
+      accumulatedText += "\n\n<i>" + label + "</i>";
       // Trigger an immediate edit to show status right away
       flushEditTimer();
       void doEdit();
@@ -282,6 +290,10 @@ export function createTelegramStreamSender(
 
     getMessageId(): number | null {
       return messageId;
+    },
+
+    getAccumulatedText(): string {
+      return accumulatedText;
     },
 
     async handleError(): Promise<string> {

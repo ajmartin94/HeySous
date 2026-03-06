@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: All-Day Meals & UX
 status: unknown
-last_updated: "2026-03-06T04:01:12Z"
+last_updated: "2026-03-06T04:06:03.910Z"
 progress:
   total_phases: 15
   completed_phases: 13
@@ -23,11 +23,11 @@ See: .planning/PROJECT.md (updated 2026-03-02)
 ## Current Position
 
 Phase: 49 — Sous Memory System
-Plan: 3 of 3 complete
-Status: Phase Complete
-Last activity: 2026-03-06 — Completed 49-03 (memory command, API routes, Settings page)
+Plan: 2 of 3 complete
+Status: In Progress
+Last activity: 2026-03-06 — Completed 49-02 (memory tools, system prompt injection, settings rename)
 
-Progress: [██████████] 100% (3/3 phase 49 plans)
+Progress: [██████░░░░] 67% (2/3 phase 49 plans)
 
 ## Performance Metrics
 
@@ -76,6 +76,7 @@ All decisions documented in PROJECT.md Key Decisions table (consolidated at mile
 - 49-03: Settings API uses INSERT OR IGNORE + UPDATE for households without existing row
 - 49-03: Memory delete is optimistic in Mini App UI
 - 49-03: Timezone read-only in Mini App (changed via chat)
+- [Phase 49]: FTS5 dedup threshold rank < 5.0 (abs BM25) for memory save_memory inline dedup
 
 ### Pending Todos
 
@@ -91,6 +92,7 @@ None.
 |---|-------------|------|--------|-----------|
 | 2 | Update color scheme -- green to soft blue for accessibility | 2026-02-24 | 3cc3293 | [2-update-color-scheme-for-better-accessibi](./quick/2-update-color-scheme-for-better-accessibi/) |
 | Phase 49 P01 | 3min | 2 tasks | 10 files |
+| Phase 49 P02 | 8min | 2 tasks | 7 files |
 | Phase 49 P03 | 4min | 2 tasks | 7 files |
 
 ### Roadmap Evolution
@@ -102,6 +104,6 @@ Total: 41 phases, 89 plans across 6 milestones. v1.6 adds 6 phases (42-47).
 ## Session Continuity
 
 Last session: 2026-03-06
-Stopped at: Completed 49-03-PLAN.md
-Next action: Phase 49 complete -- all 3 plans executed
-Resume file: .planning/phases/49-sous-memory-system-atomic-facts-settings-table-and-preference-migration/49-03-SUMMARY.md
+Stopped at: Completed 49-02-PLAN.md
+Next action: Execute 49-03-PLAN.md
+Resume file: .planning/phases/49-sous-memory-system-atomic-facts-settings-table-and-preference-migration/49-02-SUMMARY.md

@@ -192,3 +192,23 @@ Phase 48 is a UAT fix phase -- both plans run in Wave 1 (parallel).
 | 48. v1.6 UAT Fixes | 2/2 | Complete    | 2026-03-05 | - |
 
 **Total: 47 phases complete (98 plans) across 6 milestones + v1.6 in progress**
+
+### Phase 49: Sous Memory System — atomic facts, settings table, and preference migration
+
+**Goal:** Replace the preference-as-knowledge-item system with a dedicated memories table for atomic facts, rename reminder_settings to application_settings, add Claude tools for memory CRUD with dedup, migrate existing preferences, and add memory/settings views to the Mini App
+**Requirements**: MEM-01, MEM-02, MEM-03, MEM-04, MEM-05, MEM-06, MEM-07, SET-01, SET-02, SET-03
+**Depends on:** Phase 48
+**Success Criteria** (what must be TRUE):
+  1. Atomic facts are stored in a dedicated `memories` table with FTS5 search
+  2. Existing preferences are migrated from `knowledge_items` to `memories`
+  3. Claude can save, delete, and search memories via new tools with dedup pipeline
+  4. The `reminder_settings` table is renamed to `application_settings`
+  5. The /memory command displays memories grouped by category
+  6. The Mini App settings page shows memory list with delete and settings form with meal times/toggles
+  7. System prompt injects memories instead of preferences, with proactive saving instructions
+**Plans:** 3 plans
+
+Plans:
+- [ ] 49-01-PLAN.md -- Database foundation: memories table, FTS5 index, repository, migrations, settings rename
+- [ ] 49-02-PLAN.md -- Claude tools: save_memory/delete_memory/search_memories with dedup, settings rename, system prompt
+- [ ] 49-03-PLAN.md -- Bot /memory command, Mini App memory list and settings form, API routes

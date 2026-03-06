@@ -86,6 +86,7 @@ export function createTelegramStreamSender(
   let lastEditTime = 0;
   let editTimer: ReturnType<typeof setTimeout> | null = null;
   let typingInterval: ReturnType<typeof setInterval> | null = null;
+  let needsSeparator = false;
 
   /**
    * Perform the actual Telegram editMessageText call.
@@ -107,16 +108,25 @@ export function createTelegramStreamSender(
 
     try {
       await ctx.api.editMessageText(chatId, messageId, displayText, {
-        parse_mode: undefined,
+        parse_mode: "HTML",
       });
       lastEditText = displayText;
       lastEditTime = Date.now();
-    } catch (error) {
-      // Log at debug level and skip -- user sees a text jump but no error
-      senderLogger.debug(
-        { error: (error as Error).message, chatId, messageId },
-        "Stream edit failed, skipping",
-      );
+    } catch {
+      // HTML parse failed (likely unclosed tags in partial output) -- fall back to plain text
+      try {
+        await ctx.api.editMessageText(chatId, messageId, displayText, {
+          parse_mode: undefined,
+        });
+        lastEditText = displayText;
+        lastEditTime = Date.now();
+      } catch (error) {
+        // Log at debug level and skip -- user sees a text jump but no error
+        senderLogger.debug(
+          { error: (error as Error).message, chatId, messageId },
+          "Stream edit failed, skipping",
+        );
+      }
     }
   }
 
@@ -185,6 +195,10 @@ export function createTelegramStreamSender(
     },
 
     appendText(delta: string): void {
+      if (needsSeparator) {
+        accumulatedText += "\n\n";
+        needsSeparator = false;
+      }
       accumulatedText += delta;
       scheduleEdit();
     },
@@ -200,6 +214,7 @@ export function createTelegramStreamSender(
 
     clearToolStatus(): void {
       currentToolStatus = null;
+      needsSeparator = true;
       // Don't trigger edit -- next text delta will update
     },
 

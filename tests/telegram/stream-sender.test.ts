@@ -105,7 +105,7 @@ describe("TelegramStreamSender", () => {
   });
 
   describe("multi-turn accumulation", () => {
-    it("preserves text across tool call turns", async () => {
+    it("preserves text across tool call turns with separator", async () => {
       const sender = createTelegramStreamSender(ctx, logger);
       await sender.sendPlaceholder();
 
@@ -119,7 +119,7 @@ describe("TelegramStreamSender", () => {
 
       const accumulated = sender.getAccumulatedText();
       expect(accumulated).toBe(
-        "OK I'll look that up. \n\n<i>Searching recipes...</i>Here are your recipes!",
+        "OK I'll look that up. \n\n<i>Searching recipes...</i>\n\nHere are your recipes!",
       );
     });
 
@@ -133,8 +133,41 @@ describe("TelegramStreamSender", () => {
       sender.appendText("Here's your plan!");
 
       const accumulated = sender.getAccumulatedText();
-      expect(accumulated).toContain("<i>Checking your meal plan...</i>");
-      expect(accumulated).toContain("Here's your plan!");
+      expect(accumulated).toBe("\n\n<i>Checking your meal plan...</i>\n\nHere's your plan!");
+    });
+  });
+
+  describe("streaming edits use HTML with fallback", () => {
+    it("edits with HTML parse mode during streaming", async () => {
+      const sender = createTelegramStreamSender(ctx, logger);
+      await sender.sendPlaceholder();
+
+      sender.appendText("Hello <b>world</b>");
+      // Flush the edit timer
+      await vi.advanceTimersByTimeAsync(350);
+
+      expect((ctx.api.editMessageText as ReturnType<typeof vi.fn>)).toHaveBeenCalledWith(
+        123, 42,
+        expect.stringContaining("Hello <b>world</b>"),
+        expect.objectContaining({ parse_mode: "HTML" }),
+      );
+    });
+
+    it("falls back to plain text when HTML parse fails", async () => {
+      const editFn = ctx.api.editMessageText as ReturnType<typeof vi.fn>;
+      // First call (HTML) fails, second call (plain) succeeds
+      editFn.mockRejectedValueOnce(new Error("Bad Request: can't parse entities"));
+
+      const sender = createTelegramStreamSender(ctx, logger);
+      await sender.sendPlaceholder();
+
+      sender.appendText("Unclosed <b>tag");
+      await vi.advanceTimersByTimeAsync(350);
+
+      // Should have been called twice: HTML attempt + plain fallback
+      expect(editFn).toHaveBeenCalledTimes(2);
+      expect(editFn).toHaveBeenNthCalledWith(1, 123, 42, expect.any(String), { parse_mode: "HTML" });
+      expect(editFn).toHaveBeenNthCalledWith(2, 123, 42, expect.any(String), { parse_mode: undefined });
     });
   });
 

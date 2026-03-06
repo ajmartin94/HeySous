@@ -171,6 +171,40 @@ describe("TelegramStreamSender", () => {
     });
   });
 
+  describe("race condition prevention", () => {
+    it("awaits in-flight edit before finalize sends final message", async () => {
+      const editFn = ctx.api.editMessageText as ReturnType<typeof vi.fn>;
+      const editOrder: string[] = [];
+
+      // Make the streaming edit slow (simulates network latency)
+      editFn.mockImplementation(async (_chatId: number, _msgId: number, text: string) => {
+        if (text.includes("\u258D")) {
+          // Streaming edit with cursor -- add delay
+          await new Promise((resolve) => setTimeout(resolve, 100));
+          editOrder.push("streaming");
+        } else {
+          editOrder.push("finalize");
+        }
+      });
+
+      const sender = createTelegramStreamSender(ctx, logger);
+      await sender.sendPlaceholder();
+
+      // Append enough text to pass short reply threshold
+      sender.appendText("This is a long enough response to pass the short reply threshold for testing.");
+      // Advance past EDIT_INTERVAL_MS to trigger immediate doEdit()
+      await vi.advanceTimersByTimeAsync(350);
+
+      // Finalize while the streaming edit is still in-flight
+      const finalizePromise = sender.finalize();
+      await vi.advanceTimersByTimeAsync(200);
+      await finalizePromise;
+
+      // The finalize edit must come AFTER the streaming edit completes
+      expect(editOrder[editOrder.length - 1]).toBe("finalize");
+    });
+  });
+
   describe("finalize", () => {
     it("uses accumulated text when no override is provided", async () => {
       const sender = createTelegramStreamSender(ctx, logger);

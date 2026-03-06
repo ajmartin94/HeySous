@@ -85,6 +85,7 @@ export function createTelegramStreamSender(
   let lastEditText = "";
   let lastEditTime = 0;
   let editTimer: ReturnType<typeof setTimeout> | null = null;
+  let inflightEdit: Promise<void> | null = null;
   let typingInterval: ReturnType<typeof setInterval> | null = null;
   let needsSeparator = false;
 
@@ -139,13 +140,13 @@ export function createTelegramStreamSender(
     const elapsed = Date.now() - lastEditTime;
     if (elapsed >= EDIT_INTERVAL_MS) {
       // Enough time has passed -- edit immediately
-      void doEdit();
+      inflightEdit = doEdit();
     } else {
       // Schedule edit at the EDIT_INTERVAL_MS mark
       const delay = EDIT_INTERVAL_MS - elapsed;
       editTimer = setTimeout(() => {
         editTimer = null;
-        void doEdit();
+        inflightEdit = doEdit();
       }, delay);
     }
   }
@@ -209,7 +210,7 @@ export function createTelegramStreamSender(
       accumulatedText += "\n\n<i>" + label + "</i>";
       // Trigger an immediate edit to show status right away
       flushEditTimer();
-      void doEdit();
+      inflightEdit = doEdit();
     },
 
     clearToolStatus(): void {
@@ -220,6 +221,7 @@ export function createTelegramStreamSender(
 
     async finalize(overrideText?: string, options?: { reply_markup?: unknown }): Promise<string> {
       flushEditTimer();
+      if (inflightEdit) await inflightEdit;
       stopTypingKeepAlive();
 
       const finalText = overrideText ?? accumulatedText;
@@ -313,6 +315,7 @@ export function createTelegramStreamSender(
 
     async handleError(): Promise<string> {
       flushEditTimer();
+      if (inflightEdit) await inflightEdit;
       stopTypingKeepAlive();
 
       // Append error note (plain text since we use parse_mode: undefined during streaming)

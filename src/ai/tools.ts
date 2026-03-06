@@ -449,16 +449,16 @@ export const GROCERY_TOOLS: Anthropic.Tool[] = [
 /**
  * Anthropic tool definitions for reminder management.
  *
- * Three tools for reminder settings CRUD:
- * 1. get_reminder_settings -- Read current reminder settings
- * 2. update_reminder_settings -- Modify settings (timezone, times, enable/disable, mute)
+ * Three tools for application settings CRUD:
+ * 1. get_settings -- Read current application settings
+ * 2. update_settings -- Modify settings (timezone, times, enable/disable, mute)
  * 3. regenerate_reminders -- Regenerate all pending reminders from meal plans
  */
 export const REMINDER_TOOLS: Anthropic.Tool[] = [
   {
-    name: "get_reminder_settings",
+    name: "get_settings",
     description:
-      "Get the current reminder settings for this chat. Returns timezone, " +
+      "Get the current application settings for this chat. Returns timezone, " +
       "morning summary time, all meal times (breakfast, lunch, snack, dinner, dessert), " +
       "enabled states, and mute status.",
     input_schema: {
@@ -468,14 +468,14 @@ export const REMINDER_TOOLS: Anthropic.Tool[] = [
     },
   },
   {
-    name: "update_reminder_settings",
+    name: "update_settings",
     description:
-      "Update reminder settings. Provide only the fields you want to change. " +
+      "Update application settings. Provide only the fields you want to change. " +
       "Use this when users say things like 'mute reminders until Monday', " +
       "'change my morning time to 7am', 'turn off prep alerts', or " +
       "'set my timezone to Pacific'. " +
       "For meal time changes ('I eat breakfast at 9am', 'set my lunch time to 1pm'), " +
-      "ALSO call save_knowledge to store/dedup the preference.",
+      "ALSO call save_memory to store/dedup the preference fact.",
     input_schema: {
       type: "object" as const,
       properties: {
@@ -648,6 +648,87 @@ export const DEEP_LINK_TOOLS: Anthropic.Tool[] = [
         },
       },
       required: ["target"],
+    },
+  },
+];
+
+/**
+ * Anthropic tool definitions for the memory system.
+ *
+ * Three tools for managing atomic facts about the user/household:
+ * 1. save_memory -- Save a new atomic fact with inline dedup
+ * 2. delete_memory -- Delete a memory by ID
+ * 3. search_memories -- FTS5 search over memories
+ */
+export const MEMORY_TOOLS: Anthropic.Tool[] = [
+  {
+    name: "save_memory",
+    description:
+      "Save an atomic fact about the user or household to long-term memory. " +
+      "Use proactively when the user shares durable information (allergies, dietary preferences, " +
+      "household members, cooking equipment, preferred stores, schedule constraints). " +
+      "Do NOT ask 'should I save this?' -- just save silently. " +
+      "Automatically checks for similar existing memories. If duplicates found, returns match info; " +
+      "decide whether to ADD as new, UPDATE existing (provide update_id), or NOOP.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        content: {
+          type: "string",
+          description: "The atomic fact to remember",
+        },
+        category: {
+          type: "string",
+          enum: ["dietary", "taste", "cooking_style", "household", "schedule", "logistics", "general"],
+          description: "Category for the memory",
+        },
+        update_id: {
+          type: "number",
+          description:
+            "If updating an existing memory instead of creating new, provide its ID",
+        },
+        skip_dedup: {
+          type: "boolean",
+          description:
+            "Force save without duplicate checking. Use after reviewing dedup matches.",
+        },
+      },
+      required: ["content", "category"],
+    },
+  },
+  {
+    name: "delete_memory",
+    description:
+      "Delete a specific memory by ID. Use when user says to forget something.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        id: {
+          type: "number",
+          description: "The ID of the memory to delete",
+        },
+      },
+      required: ["id"],
+    },
+  },
+  {
+    name: "search_memories",
+    description:
+      "Search the user's memories for specific facts. Use when the injected memory context " +
+      "isn't sufficient and you need to find specific details at scale.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        query: {
+          type: "string",
+          description: "Search query for finding relevant memories",
+        },
+        limit: {
+          type: "number",
+          description: "Maximum number of results (default 10)",
+        },
+      },
+      required: ["query"],
     },
   },
 ];

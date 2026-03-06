@@ -22,7 +22,7 @@ import { calculateCost } from "../ai/claude-client.js";
 import { sendFormattedMessage } from "../telegram/sender.js";
 import { messages, tokenUsage } from "../db/schema.js";
 import { createToolHandler } from "../ai/tool-handler.js";
-import { KNOWLEDGE_TOOLS, PLAN_TOOLS, GROCERY_TOOLS, REMINDER_TOOLS, FEEDBACK_TOOLS, APP_FEEDBACK_TOOLS, DEEP_LINK_TOOLS } from "../ai/tools.js";
+import { KNOWLEDGE_TOOLS, PLAN_TOOLS, GROCERY_TOOLS, REMINDER_TOOLS, FEEDBACK_TOOLS, APP_FEEDBACK_TOOLS, DEEP_LINK_TOOLS, MEMORY_TOOLS } from "../ai/tools.js";
 import { buildConversationContext } from "../conversation/context-builder.js";
 import { estimateTokens, estimateMessageTokens } from "../knowledge/token-budget.js";
 import type { ConversationTurn } from "../conversation/types.js";
@@ -41,7 +41,7 @@ import { buildFeedbackContext } from "../feedback/context.js";
 import type { createAppFeedbackRepository } from "../app-feedback/repository.js";
 import { formatGroceryList } from "../grocery/formatter.js";
 import { buildGroceryKeyboard } from "../grocery/buttons.js";
-import { getPreferenceSummaries } from "../knowledge/preferences.js";
+import { getMemoriesByHousehold } from "../memory/repository.js";
 import { checkPendingNotification } from "../notifications/update-notifier.js";
 import { config } from "../config.js";
 import { buildStaticPrompt, buildDynamicContext } from "../ai/system-prompt.js";
@@ -356,16 +356,16 @@ export function createProcessor(deps: ProcessorDeps) {
         dateContext = `<current_date>\nToday is ${dayNames[todayDate.getDay()]}, ${monthNames[todayDate.getMonth()]} ${todayDate.getDate()}, ${todayDate.getFullYear()} (${todayStr}).\n</current_date>`;
       }
 
-      // h. Load user preferences for system prompt injection
-      const preferences = getPreferenceSummaries(deps.sqlite, householdId);
+      // h. Load user memories for system prompt injection
+      const memories = getMemoriesByHousehold(deps.sqlite, householdId);
       const rawUserName = ctx.user?.displayName;
 
       // h1. Sanitize user-controlled text with logging (per security policy)
       const userName = rawUserName ? sanitizeAndLog(rawUserName, "userName", log) : undefined;
-      const sanitizedPreferences = preferences.map((pref) => ({
-        ...pref,
-        title: sanitizeAndLog(pref.title, "preference.title", log),
-        summary: sanitizeAndLog(pref.summary, "preference.summary", log),
+      const sanitizedMemories = memories.map((mem) => ({
+        id: mem.id,
+        content: sanitizeAndLog(mem.content, "memory.content", log),
+        category: mem.category,
       }));
 
       // h2. Build onboarding context if user is in onboarding
@@ -386,7 +386,7 @@ export function createProcessor(deps: ProcessorDeps) {
 
       const staticPrompt = buildStaticPrompt(config.miniAppUrl);
       const dynamicContext = buildDynamicContext({
-        preferences: sanitizedPreferences,
+        memories: sanitizedMemories,
         planContext,
         groceryContext,
         reminderContext,
@@ -476,7 +476,7 @@ export function createProcessor(deps: ProcessorDeps) {
       let response: ClaudeResponse;
       const startTime = Date.now();
 
-      const allTools = [...KNOWLEDGE_TOOLS, ...PLAN_TOOLS, ...GROCERY_TOOLS, ...REMINDER_TOOLS, ...FEEDBACK_TOOLS, ...APP_FEEDBACK_TOOLS, ...DEEP_LINK_TOOLS];
+      const allTools = [...KNOWLEDGE_TOOLS, ...PLAN_TOOLS, ...GROCERY_TOOLS, ...REMINDER_TOOLS, ...FEEDBACK_TOOLS, ...APP_FEEDBACK_TOOLS, ...DEEP_LINK_TOOLS, ...MEMORY_TOOLS];
 
       const instrumentedHandler = createInstrumentedToolHandler(
         toolHandler.handleToolCall,

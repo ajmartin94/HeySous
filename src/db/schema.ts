@@ -53,3 +53,6 @@ export {
 export { households, users } from "../users/schema.js";
 
 export { inviteTokens } from "../invites/schema.js";
+
+export { memories } from "../memory/schema.js";
+export type { Memory, MemoryCategory } from "../memory/schema.js";

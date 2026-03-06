@@ -23,7 +23,7 @@ import { createProcessor } from "./pipeline/processor.js";
 import { createMessageHandler } from "./bot/handlers/message.js";
 import { createCostsHandler } from "./bot/handlers/costs.js";
 import { createDebugHandler } from "./bot/handlers/debug.js";
-import { createPreferencesHandler } from "./bot/handlers/preferences.js";
+import { createMemoryHandler } from "./bot/handlers/memory.js";
 import { createPlanHandler } from "./bot/handlers/plan.js";
 import { createGroceryHandler, createGroceryCallbackHandler } from "./bot/handlers/grocery.js";
 import { createRemindersHandler } from "./bot/handlers/reminders.js";
@@ -176,7 +176,7 @@ async function main(): Promise<void> {
     },
     regenerateReminders,
   });
-  const preferencesHandler = createPreferencesHandler(sqlite);
+  const memoryHandler = createMemoryHandler(sqlite);
   const planHandler = createPlanHandler(sqlite);
   const groceryHandler = createGroceryHandler(sqlite);
   const groceryCallbackHandler = createGroceryCallbackHandler(sqlite);
@@ -194,7 +194,7 @@ async function main(): Promise<void> {
     inviteHandler,
     costsHandler,
     debugHandler,
-    preferencesHandler,
+    memoryHandler,
     planHandler,
     groceryHandler,
     groceryCallbackHandler,

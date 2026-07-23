@@ -14,6 +14,7 @@ import {
   type PreferenceSummary,
 } from "../../knowledge/preferences.js";
 import { sendFormattedMessage } from "../../telegram/sender.js";
+import { escapeHtml } from "../../telegram/formatter.js";
 
 /** Category groups for preference display. */
 interface GroupedPreferences {
@@ -89,7 +90,7 @@ function formatPreferenceLine(pref: PreferenceSummary): string {
   }
 
   const markerSuffix = markers.length > 0 ? " " + markers.join(" ") : "";
-  return `- <b>${pref.title}</b>${markerSuffix}: ${pref.summary}`;
+  return `- <b>${escapeHtml(pref.title)}</b>${markerSuffix}: ${escapeHtml(pref.summary)}`;
 }
 
 /**

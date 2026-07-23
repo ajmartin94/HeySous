@@ -6,6 +6,8 @@
  * All messages use HTML formatting (Telegram parse mode).
  */
 
+import { escapeHtml } from "../telegram/formatter.js";
+
 /**
  * Pick a random element from an array.
  * Exported for testing (allows mocking Math.random).
@@ -206,7 +208,7 @@ export function getReminderFallbackMorning(
   }
   if (meals && meals.length > 0) {
     const mealList = meals
-      .map((m) => `  ${m.mealType}: ${m.recipeName}`)
+      .map((m) => `  ${escapeHtml(m.mealType)}: ${escapeHtml(m.recipeName)}`)
       .join("\n");
     return pickRandom([
       `Good morning! Here's today's plan:\n${mealList}`,
@@ -222,18 +224,20 @@ export function getReminderFallbackMorning(
 }
 
 export function getReminderFallbackPrep(recipeName: string): string {
+  const safeName = escapeHtml(recipeName);
   return pickRandom([
-    `Heads up! Time to start prepping ${recipeName}.`,
-    `Just a nudge -- ${recipeName} needs some prep work!`,
-    `Prep reminder: time to get started on ${recipeName}!`,
+    `Heads up! Time to start prepping ${safeName}.`,
+    `Just a nudge -- ${safeName} needs some prep work!`,
+    `Prep reminder: time to get started on ${safeName}!`,
   ]);
 }
 
 export function getReminderFallbackCooking(recipeName: string): string {
+  const safeName = escapeHtml(recipeName);
   return pickRandom([
-    `Time to start cooking ${recipeName}!`,
-    `Let's get cooking -- ${recipeName} time!`,
-    `Stove's calling! Time to start on ${recipeName}.`,
+    `Time to start cooking ${safeName}!`,
+    `Let's get cooking -- ${safeName} time!`,
+    `Stove's calling! Time to start on ${safeName}.`,
   ]);
 }
 

@@ -48,7 +48,10 @@ export function createRetrievalService(deps: {
 
       let results: SearchResult[];
       try {
-        results = searchFts(sqlite, query, householdId, limit);
+        // "wide" mode: prefix + OR + LIKE fallback so a few keywords are enough
+        // and near-misses surface (see searchFts). Precision-sensitive callers
+        // (dedup) use the default "strict" mode instead.
+        results = searchFts(sqlite, query, householdId, limit, "wide");
       } catch (error) {
         // Defensive: searchFts has its own try/catch with LIKE fallback,
         // but handle unexpected errors gracefully

@@ -374,7 +374,14 @@ const TOOLS_PROMPT = `
 - After searching, use get_knowledge_item to get full details for items you want to reference
 - You can search multiple times with different queries to find what you need
 - Don't mention "searching" or "looking up" to the user -- just naturally reference their information
-- If no relevant knowledge is found, respond naturally without mentioning the search
+
+SEARCHING FOR RECIPES (be persistent, cast a wide net):
+- Prefer SHORT queries: two or three distinctive keywords usually beat a full sentence. Search "miso salmon" rather than "that miso glazed salmon recipe we made last week".
+- If the first search comes back empty or misses what you expected, DO NOT conclude the recipe doesn't exist. Search again with FEWER and BROADER keywords -- drop adjectives, cuisines, and cooking methods, and keep the core noun(s). For example, if "miso glazed cod" finds nothing, try "miso cod", then "cod", then "miso".
+- Try the main ingredient or dish type on its own (e.g. "salmon", "tacos", "stir fry") -- the search already matches partial words and related titles, so a broad term surfaces near-misses.
+- NEVER tell the user a recipe is missing after a single failed search. Only say you can't find something after you've retried with at least one or two broader queries and still come up empty.
+- If the user insists a recipe exists, believe them and search again with different, simpler keywords rather than pushing back.
+- If no relevant knowledge is found after retrying, respond naturally without mentioning the search
 - You can also SAVE, UPDATE, and DELETE knowledge items using save_knowledge, update_knowledge, and delete_knowledge
 - When saving, always include relevant tags for categorization
 - Don't tell the user "I'll save this to my knowledge base" -- just naturally confirm what you saved ("Got it, I've saved your chicken stromboli recipe!")

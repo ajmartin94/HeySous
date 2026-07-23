@@ -4,20 +4,36 @@ import type BetterSqlite3 from "better-sqlite3";
  * Escape a query for FTS5 dedup matching using OR logic.
  * Unlike escapeForFts5 (AND), this finds memories sharing ANY term
  * so that "Dinner is at 7pm" matches "Dinner Time: 6pm".
+ *
+ * Every term is individually wrapped in double quotes, which turns each
+ * one into an FTS5 phrase token. This is what makes the probe safe against
+ * FTS5-reserved punctuation in the source content (parentheses, colons,
+ * hyphens, apostrophes, commas, etc): those characters either get stripped
+ * up front or end up *inside* a quoted phrase, where FTS5 treats them as
+ * literal text rather than query syntax.
+ *
+ * Returns both the MATCH-ready query string and the number of terms it
+ * was built from -- callers need the term count to normalize BM25 rank
+ * (see searchMemoryFts), since bm25() for an OR query sums a contribution
+ * per matching term, so raw magnitude scales with query length rather than
+ * with match quality.
  */
-function escapeForMemoryFts(query: string): string {
+function escapeForMemoryFts(query: string): { escaped: string; termCount: number } {
   const cleaned = query
     .replace(/[*^"(){}[\]]/g, "")
     .replace(/\b(AND|OR|NOT|NEAR)\b/gi, "")
     .trim();
 
-  if (!cleaned) return "";
+  if (!cleaned) return { escaped: "", termCount: 0 };
 
   const terms = cleaned.split(/\s+/).filter(Boolean);
   // Filter out very short/common words to reduce noise
   const meaningful = terms.filter((t) => t.length > 2);
-  if (meaningful.length === 0) return terms.map((t) => `"${t}"`).join(" OR ");
-  return meaningful.map((t) => `"${t}"`).join(" OR ");
+  const finalTerms = meaningful.length > 0 ? meaningful : terms;
+  return {
+    escaped: finalTerms.map((t) => `"${t}"`).join(" OR "),
+    termCount: finalTerms.length,
+  };
 }
 
 /**
@@ -94,6 +110,16 @@ export function initializeMemoryFts(sqlite: BetterSqlite3.Database): void {
 /**
  * Search memories using FTS5 full-text search with BM25 ranking.
  * Filters by householdId for per-household isolation.
+ *
+ * The returned `rank` is BM25 magnitude normalized by the number of query
+ * terms (see escapeForMemoryFts), so it stays on a comparable scale for
+ * both short atomic facts ("Allergic to peanuts") and long, multi-sentence
+ * content (e.g. a paragraph-length household note). Without this
+ * normalization, raw bm25() sums grow with query length: an exact-duplicate
+ * match on a 30-word memory can produce a *larger* magnitude than a weak,
+ * one-word coincidental match on a 3-word memory, which inverts the
+ * "lower magnitude = better match" contract callers rely on for a fixed
+ * dedup threshold.
  */
 export function searchMemoryFts(
   sqlite: BetterSqlite3.Database,
@@ -101,7 +127,7 @@ export function searchMemoryFts(
   query: string,
   limit: number = 20,
 ): Array<{ id: number; content: string; category: string; rank: number }> {
-  const escaped = escapeForMemoryFts(query);
+  const { escaped, termCount } = escapeForMemoryFts(query);
   if (!escaped) return [];
 
   try {
@@ -132,7 +158,7 @@ export function searchMemoryFts(
       id: row.id,
       content: row.content,
       category: row.category,
-      rank: Math.abs(row.rank),
+      rank: Math.abs(row.rank) / termCount,
     }));
   } catch {
     // Fallback to LIKE query if FTS5 parse error

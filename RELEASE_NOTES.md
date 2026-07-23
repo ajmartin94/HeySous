@@ -2,6 +2,19 @@
 
 User-facing release notes as shown by Sous in Telegram. For technical changes, see [CHANGELOG.md](./CHANGELOG.md).
 
+## v1.7.0
+
+This one's all about fixing the things you told me about. Here's what's better:
+
+- **Sharper recipe search** -- A few keywords is enough now. Ask for "miso glazed fish" and I'll find your salmon and tilapia recipes instead of coming up empty
+- **Dates I can trust** -- Moving meals between days and picking the right week works reliably now. Say "Tuesday" and I'll always mean the upcoming one
+- **Plan changes that stick** -- When you tell me you swapped a meal, I actually update the plan instead of just nodding along
+- **Back button fixed** -- Opening a recipe from chat no longer strands you in the app; back always takes you somewhere sensible
+- **Meal check-ins that arrive** -- My after-meal check-ins were getting lost behind the scenes; they'll show up properly now
+- **No more repeating myself** -- Fixed the bug where I'd save the same memory two or three times
+
+Keep the feedback coming -- it's how this update happened! Just type /feedback anytime.
+
 ## v1.6.2
 
 Small update, big brain. Here's what changed:

@@ -12,17 +12,62 @@ import {
 import { SOUS_PERSONA } from "../ai/system-prompt.js";
 import { buildDeepLinkKeyboard } from "../deep-links/builder.js";
 
+/** Minimal API surface for sending a Telegram message. */
+type SendMessageApi = {
+  sendMessage: (
+    chatId: string,
+    text: string,
+    options?: { parse_mode?: string; reply_markup?: unknown },
+  ) => Promise<unknown>;
+};
+
 /**
  * Minimal interface for bot API -- keeps sender decoupled from grammY types.
  */
 interface BotApi {
-  api: {
-    sendMessage: (
-      chatId: string,
-      text: string,
-      options?: { parse_mode?: string; reply_markup?: unknown },
-    ) => Promise<unknown>;
-  };
+  api: SendMessageApi;
+}
+
+/**
+ * True when a Telegram send failed because it could not parse the HTML entities
+ * (a stray "<" or "&" in generated text or a recipe name). Detected by error
+ * description rather than instanceof so mock APIs in tests can reproduce it.
+ */
+export function isParseEntitiesError(error: unknown): boolean {
+  const e = error as { description?: unknown } | null;
+  return (
+    typeof e?.description === "string" &&
+    e.description.includes("can't parse entities")
+  );
+}
+
+/**
+ * Send a Telegram message as HTML, falling back to plain text if Telegram
+ * rejects the entity parsing. Mirrors the fallback in telegram/sender.ts so a
+ * single stray "<"/"&" never silently drops a reminder. Non-parse errors (e.g.
+ * 403 blocked) propagate to the caller unchanged.
+ */
+export async function sendWithHtmlFallback(
+  api: SendMessageApi,
+  chatId: string,
+  text: string,
+  extraOptions: { reply_markup?: unknown },
+  logger: Logger,
+  logContext: Record<string, unknown>,
+): Promise<void> {
+  try {
+    await api.sendMessage(chatId, text, { parse_mode: "HTML", ...extraOptions });
+  } catch (error: unknown) {
+    if (isParseEntitiesError(error)) {
+      logger.warn(
+        { ...logContext, text: text.substring(0, 100) },
+        "HTML parse failed, retrying message as plain text",
+      );
+      await api.sendMessage(chatId, text, { ...extraOptions, parse_mode: undefined });
+    } else {
+      throw error;
+    }
+  }
 }
 
 /**
@@ -322,10 +367,14 @@ export function createReminderSender(deps: ReminderSenderDeps) {
         let sent = false;
         for (const member of members) {
           try {
-            await bot.api.sendMessage(member.telegramId, text, {
-              parse_mode: "HTML",
-              ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
-            });
+            await sendWithHtmlFallback(
+              bot.api,
+              member.telegramId,
+              text,
+              replyMarkup ? { reply_markup: replyMarkup } : {},
+              logger,
+              { reminderId: reminder.id, telegramId: member.telegramId },
+            );
             sent = true;
           } catch (error: unknown) {
             const err = error as { error_code?: number };

@@ -320,15 +320,22 @@ export function createReminderRepository(sqlite: BetterSqlite3.Database, clock?:
     },
 
     /**
-     * Delete ALL reminders for a household regardless of status.
+     * Delete regenerable reminders for a household regardless of status.
      * Used on full regeneration after plan changes -- ensures no stale
      * 'sent' reminders (marked by poller before delivery) survive cleanup.
+     *
+     * Excludes 'feedback_checkin' reminders: those are the delivery trigger for
+     * feedback_checkins tracking rows, and deleting them here orphaned the
+     * tracking rows on every regeneration (each plan edit / restart), which is
+     * what caused pending check-ins to pile up and duplicate. Feedback check-ins
+     * are deduped separately by the feedback generator's own pending-reminder
+     * check, so their reminders must persist across regeneration.
      */
     deleteAllForRegeneration(householdId: string): void {
       sqlite
         .prepare(
           `DELETE FROM reminders
-           WHERE household_id = ?`,
+           WHERE household_id = ? AND type != 'feedback_checkin'`,
         )
         .run(householdId);
     },

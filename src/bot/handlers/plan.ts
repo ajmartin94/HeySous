@@ -16,9 +16,10 @@ import {
   formatDateRange,
 } from "../../planning/date-utils.js";
 import { getTodayInTimezone } from "../../clock.js";
+import { escapeHtml } from "../../telegram/formatter.js";
 
 /** Raw SQLite query result shape for plan entries. */
-interface PlanRow {
+export interface PlanRow {
   recipe_name: string;
   day_of_week: number;
   meal_type: string;
@@ -57,7 +58,7 @@ function getCurrentWeekPlan(
  * - Dinner-only: one line per day ("Monday - Chicken Parm")
  * - Multi-meal: grouped by day with meal type headers
  */
-function formatPlanMessage(entries: PlanRow[], weekStartDate: string): string {
+export function formatPlanMessage(entries: PlanRow[], weekStartDate: string): string {
   const isDinnerOnly = entries.every((e) => e.meal_type === "dinner");
 
   const lines: string[] = [
@@ -69,7 +70,7 @@ function formatPlanMessage(entries: PlanRow[], weekStartDate: string): string {
   if (isDinnerOnly) {
     for (const entry of entries) {
       const dayName = DAY_NAMES[entry.day_of_week] ?? `Day ${entry.day_of_week}`;
-      lines.push(`${dayName} - ${entry.recipe_name}`);
+      lines.push(`${dayName} - ${escapeHtml(entry.recipe_name)}`);
     }
   } else {
     // Group entries by day
@@ -92,7 +93,7 @@ function formatPlanMessage(entries: PlanRow[], weekStartDate: string): string {
       for (const entry of dayEntries) {
         const mealLabel =
           entry.meal_type.charAt(0).toUpperCase() + entry.meal_type.slice(1);
-        lines.push(`${mealLabel} - ${entry.recipe_name}`);
+        lines.push(`${mealLabel} - ${escapeHtml(entry.recipe_name)}`);
       }
     }
   }

@@ -7,6 +7,7 @@ import {
   deleteMemory,
   getMemoriesByHousehold,
   getMemoryById,
+  findExactMemoryMatch,
 } from "../../src/memory/repository.js";
 
 vi.mock("../../src/logger.js", () => ({
@@ -66,6 +67,88 @@ describe("Memory Repository CRUD", () => {
         const result = saveMemory(sqlite, HOUSEHOLD_ID, `Fact for ${category}`, category);
         expect(result.category).toBe(category);
       }
+    });
+  });
+
+  describe("saveMemory exact-duplicate prevention", () => {
+    it("does not insert a second row for a byte-identical duplicate", () => {
+      const content =
+        "Hosting a family with two boys (ages 4 and 8) from Thursday morning June 4 through Saturday morning June 7, 2026. Account for them in meals during that window: Thursday dinner, Friday breakfast, Friday lunch, Friday dinner, Saturday breakfast.";
+
+      const first = saveMemory(sqlite, HOUSEHOLD_ID, content, "household");
+      const second = saveMemory(sqlite, HOUSEHOLD_ID, content, "household");
+
+      expect(second.id).toBe(first.id);
+      expect(second.duplicate).toBe(true);
+
+      const all = getMemoriesByHousehold(sqlite, HOUSEHOLD_ID);
+      expect(all).toHaveLength(1);
+    });
+
+    it("treats differing case and surrounding/internal whitespace as the same fact", () => {
+      const first = saveMemory(sqlite, HOUSEHOLD_ID, "Allergic to Peanuts", "dietary");
+      const second = saveMemory(
+        sqlite,
+        HOUSEHOLD_ID,
+        "  allergic   to peanuts  \n",
+        "dietary",
+      );
+
+      expect(second.id).toBe(first.id);
+      expect(second.duplicate).toBe(true);
+
+      const all = getMemoriesByHousehold(sqlite, HOUSEHOLD_ID);
+      expect(all).toHaveLength(1);
+    });
+
+    it("saves and dedups content full of FTS5-hostile punctuation", () => {
+      const content =
+        "Total headcount: 4 adults, 4 kids (Bekah's two plus guests' two). \"Quoted\" note -- see plan.";
+
+      let first!: ReturnType<typeof saveMemory>;
+      expect(() => {
+        first = saveMemory(sqlite, HOUSEHOLD_ID, content, "household");
+      }).not.toThrow();
+      expect(first.duplicate).toBeFalsy();
+
+      const second = saveMemory(sqlite, HOUSEHOLD_ID, content, "household");
+      expect(second.id).toBe(first.id);
+      expect(second.duplicate).toBe(true);
+
+      const all = getMemoriesByHousehold(sqlite, HOUSEHOLD_ID);
+      expect(all).toHaveLength(1);
+    });
+
+    it("does not treat distinct memories as duplicates -- both insert", () => {
+      const first = saveMemory(sqlite, HOUSEHOLD_ID, "Allergic to peanuts", "dietary");
+      const second = saveMemory(sqlite, HOUSEHOLD_ID, "Allergic to shellfish", "dietary");
+
+      expect(second.id).not.toBe(first.id);
+      expect(second.duplicate).toBeFalsy();
+
+      const all = getMemoriesByHousehold(sqlite, HOUSEHOLD_ID);
+      expect(all).toHaveLength(2);
+    });
+
+    it("scopes exact-match detection to the household (cross-household isolation)", () => {
+      const first = saveMemory(sqlite, HOUSEHOLD_ID, "Allergic to peanuts", "dietary");
+      const second = saveMemory(sqlite, OTHER_HOUSEHOLD, "Allergic to peanuts", "dietary");
+
+      expect(second.id).not.toBe(first.id);
+      expect(second.duplicate).toBeFalsy();
+    });
+  });
+
+  describe("findExactMemoryMatch", () => {
+    it("returns null when no memory matches", () => {
+      saveMemory(sqlite, HOUSEHOLD_ID, "Allergic to peanuts", "dietary");
+      expect(findExactMemoryMatch(sqlite, HOUSEHOLD_ID, "Allergic to shellfish")).toBeNull();
+    });
+
+    it("finds a match ignoring case and whitespace differences", () => {
+      const saved = saveMemory(sqlite, HOUSEHOLD_ID, "Dinner is at 7pm", "schedule");
+      const found = findExactMemoryMatch(sqlite, HOUSEHOLD_ID, "  DINNER IS   AT 7PM ");
+      expect(found?.id).toBe(saved.id);
     });
   });
 

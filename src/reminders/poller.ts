@@ -28,6 +28,7 @@ interface FeedbackSender {
 /** Minimal feedback repository interface for the poller. */
 interface FeedbackRepository {
   getCheckinByReminderId: (reminderId: number) => FeedbackCheckin | null;
+  markCheckinSent: (id: number) => void;
 }
 
 export interface ReminderPollerDeps {
@@ -57,10 +58,25 @@ export function createReminderPoller(deps: ReminderPollerDeps) {
   const { reminderRepository, sender, logger, feedbackSender, feedbackRepository } = deps;
   let intervalHandle: ReturnType<typeof setInterval> | null = null;
 
+  // In-flight guard: an async tick() slower than the poll interval must not be
+  // re-entered by the next interval firing. Two overlapping ticks could both
+  // fetch the same due reminders before either marked them sent, causing
+  // double-dispatch. When a tick is already running we skip the new one -- the
+  // still-due reminders are simply picked up on the following tick.
+  let tickRunning = false;
+
   /**
    * Single poll cycle: query due reminders and dispatch them sequentially.
+   *
+   * Guarded against overlapping execution. If a previous tick is still running
+   * this call returns immediately without querying or dispatching.
    */
   async function tick(): Promise<void> {
+    if (tickRunning) {
+      logger.debug("Reminder poller tick skipped -- previous tick still running");
+      return;
+    }
+    tickRunning = true;
     try {
       const dueReminders = reminderRepository.getDueReminders();
 
@@ -85,6 +101,10 @@ export function createReminderPoller(deps: ReminderPollerDeps) {
             if (checkin) {
               const success = await feedbackSender.sendCheckin(reminder, checkin);
               if (success) {
+                // Transition the tracking row pending -> sent. Without this the
+                // check-in stays 'pending' forever and the expiry sweep (which
+                // targets stale rows) can never treat it as delivered.
+                feedbackRepository.markCheckinSent(checkin.id);
                 logger.info(
                   { reminderId: reminder.id, householdId: reminder.householdId, type: reminder.type },
                   "Feedback check-in delivered",
@@ -134,6 +154,9 @@ export function createReminderPoller(deps: ReminderPollerDeps) {
     } catch (error) {
       // Outer catch -- protects the entire tick from crashing
       logger.error({ error }, "Error in reminder poller tick");
+    } finally {
+      // Always release the in-flight guard, even if the outer try somehow threw.
+      tickRunning = false;
     }
   }
 

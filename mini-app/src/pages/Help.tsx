@@ -2,19 +2,23 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { backButton } from '@tma.js/sdk-react';
 import { useUserRole } from '../hooks/useUserRole';
+import { useCanGoBack } from '../hooks/useCanGoBack.js';
+import { goBack } from '../utils/backNavigation.js';
 
 export function Help() {
   const navigate = useNavigate();
+  const canGoBack = useCanGoBack();
   const { isAdmin } = useUserRole();
 
-  // BackButton: navigate back to hub
+  // BackButton: navigate back, falling back to the Hub if there is no
+  // in-app history to pop to (e.g. cold start / deep-link entry).
   useEffect(() => {
     if (!backButton.onClick.isAvailable()) return;
-    const off = backButton.onClick(() => navigate(-1));
+    const off = backButton.onClick(() => goBack(navigate, canGoBack));
     return () => {
       off();
     };
-  }, [navigate]);
+  }, [navigate, canGoBack]);
 
   const sectionHeaderStyle: React.CSSProperties = {
     fontSize: 'calc(var(--hs-font-size-body) + 2px)',

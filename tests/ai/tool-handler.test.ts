@@ -1,9 +1,29 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import Database from "better-sqlite3";
+
+// Mock the logger so we can assert on structured log calls (e.g. the always-on
+// save_meal_plan input logging) without noisy output.
+vi.mock("../../src/logger.js", () => ({
+  logger: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+  },
+}));
+
 import { createToolHandler } from "../../src/ai/tool-handler.js";
 import type { PlanEntry, SavedPlan } from "../../src/planning/repository.js";
 import { createTestClock } from "../../src/clock.js";
 import { initializeFts } from "../../src/knowledge/fts.js";
+import { logger } from "../../src/logger.js";
+
+const mockLogger = logger as unknown as {
+  info: ReturnType<typeof vi.fn>;
+  warn: ReturnType<typeof vi.fn>;
+  error: ReturnType<typeof vi.fn>;
+  debug: ReturnType<typeof vi.fn>;
+};
 
 /** Helper to parse a validation error response */
 function parseError(result: string): { error: string; is_error: boolean } {
@@ -215,6 +235,146 @@ describe("tool-handler save_meal_plan", () => {
 
     expect(result.conflict).toBe(true);
     expect(generateRemindersFn).not.toHaveBeenCalled();
+  });
+});
+
+describe("tool-handler save_meal_plan robustness (v1.7 fixes)", () => {
+  beforeEach(() => {
+    mockLogger.info.mockClear();
+    mockLogger.warn.mockClear();
+    mockLogger.error.mockClear();
+  });
+
+  /** An existing saved plan with a single Monday dinner. */
+  function existingTacosPlan(): SavedPlan {
+    return {
+      id: 1,
+      weekStartDate: "2026-02-16",
+      version: 1,
+      updatedBy: null,
+      entries: [
+        {
+          id: 1,
+          dayOfWeek: 0,
+          mealType: "dinner",
+          recipeName: "Tacos",
+          knowledgeItemId: null,
+        },
+      ],
+    };
+  }
+
+  it("always logs the tool input at info level regardless of LOG_TOOL_INPUTS", async () => {
+    const { handler } = createMockDepsWithReminders();
+
+    await handler.handleToolCall("save_meal_plan", {
+      week_start_date: "2026-02-16",
+      entries: [{ day: 0, recipe_name: "Tacos" }],
+    });
+
+    const inputLog = mockLogger.info.mock.calls.find(
+      (c) => c[1] === "save_meal_plan tool input",
+    );
+    expect(inputLog).toBeDefined();
+    expect(inputLog?.[0]).toMatchObject({
+      tool: "save_meal_plan",
+      weekStartDate: "2026-02-16",
+    });
+  });
+
+  it("detects a no-op save when submitted entries equal the existing plan", async () => {
+    const { handler, mockPlanRepository, generateRemindersFn } =
+      createMockDepsWithReminders();
+    mockPlanRepository.getPlan.mockReturnValue(existingTacosPlan());
+
+    const result = JSON.parse(
+      await handler.handleToolCall("save_meal_plan", {
+        week_start_date: "2026-02-16",
+        entries: [{ day: 0, recipe_name: "Tacos" }],
+      }),
+    );
+
+    expect(result.no_op).toBe(true);
+    expect(result.is_error).toBe(true);
+    expect(result.warning).toContain("identical");
+    // Must NOT have persisted anything or regenerated reminders.
+    expect(mockPlanRepository.savePlan).not.toHaveBeenCalled();
+    expect(generateRemindersFn).not.toHaveBeenCalled();
+  });
+
+  it("saves normally when submitted entries differ from the existing plan", async () => {
+    const { handler, mockPlanRepository, generateRemindersFn } =
+      createMockDepsWithReminders();
+    mockPlanRepository.getPlan.mockReturnValue(existingTacosPlan());
+
+    const result = JSON.parse(
+      await handler.handleToolCall("save_meal_plan", {
+        week_start_date: "2026-02-16",
+        entries: [{ day: 0, recipe_name: "Pizza" }],
+      }),
+    );
+
+    expect(result.no_op).toBeUndefined();
+    expect(result.message).toContain("Saved plan");
+    expect(mockPlanRepository.savePlan).toHaveBeenCalledTimes(1);
+    expect(generateRemindersFn).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not treat a changed meal_type on the same recipe as a no-op", async () => {
+    const { handler, mockPlanRepository } = createMockDepsWithReminders();
+    mockPlanRepository.getPlan.mockReturnValue(existingTacosPlan());
+
+    const result = JSON.parse(
+      await handler.handleToolCall("save_meal_plan", {
+        week_start_date: "2026-02-16",
+        entries: [{ day: 0, meal_type: "lunch", recipe_name: "Tacos" }],
+      }),
+    );
+
+    expect(result.no_op).toBeUndefined();
+    expect(mockPlanRepository.savePlan).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns success even when reminder regeneration throws (Invalid time value)", async () => {
+    const { handler, mockPlanRepository, generateRemindersFn } =
+      createMockDepsWithReminders();
+    mockPlanRepository.getPlan.mockReturnValue(undefined);
+    generateRemindersFn.mockImplementation(() => {
+      throw new RangeError("Invalid time value");
+    });
+
+    const result = JSON.parse(
+      await handler.handleToolCall("save_meal_plan", {
+        week_start_date: "2026-02-16",
+        entries: [{ day: 5, meal_type: "breakfast", recipe_name: "Overnight Oats" }],
+      }),
+    );
+
+    // The save must still be reported as successful -- the plan was persisted.
+    expect(result.message).toContain("Saved plan");
+    expect(result.is_error).toBeUndefined();
+    expect(generateRemindersFn).toHaveBeenCalledTimes(1);
+    // The reminder failure should have been logged.
+    expect(mockLogger.error).toHaveBeenCalled();
+  });
+
+  it("returns a clear actionable error instead of throwing when savePlan fails", async () => {
+    const { handler, mockPlanRepository } = createMockDepsWithReminders();
+    mockPlanRepository.getPlan.mockReturnValue(undefined);
+    mockPlanRepository.savePlan.mockImplementation(() => {
+      throw new Error("unexpected db failure");
+    });
+
+    const result = JSON.parse(
+      await handler.handleToolCall("save_meal_plan", {
+        week_start_date: "2026-02-16",
+        entries: [{ day: 0, recipe_name: "Tacos" }],
+      }),
+    );
+
+    expect(result.is_error).toBe(true);
+    expect(result.error).toContain("Could not save the meal plan");
+    expect(result.error).toContain("YYYY-MM-DD");
   });
 });
 

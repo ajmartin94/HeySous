@@ -38,10 +38,16 @@ export function createGroceryRoutes(sqlite: BetterSqlite3.Database) {
      * Flips an item's checked state and returns the new state.
      */
     toggleItem(req: Request, res: Response) {
+      const householdId = res.locals.householdId as string;
       const { itemId } = req.body;
 
       if (typeof itemId !== "number") {
         res.status(400).json({ error: "itemId required" });
+        return;
+      }
+
+      if (!repo.itemBelongsToHousehold(itemId, householdId)) {
+        res.status(404).json({ error: "Item not found" });
         return;
       }
 

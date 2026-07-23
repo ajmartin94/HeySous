@@ -19,6 +19,7 @@ import { extractFeedback } from "../../feedback/extractor.js";
 import { knowledgeChangelog } from "../../knowledge/schema.js";
 import { formatIsoDate } from "../../clock.js";
 import type { FeedbackSentiment } from "../../feedback/types.js";
+import { escapeHtml } from "../../telegram/formatter.js";
 
 /**
  * Minimal Claude client interface -- same as feedback/extractor.ts.
@@ -178,7 +179,7 @@ export function createFeedbackTextHandler(
 
     // If there are actionable notes, suggest a recipe update
     if (notes && notes.length > 0 && sentiment !== "skipped") {
-      reply += ` You mentioned: "${notes}" -- want me to update the recipe based on that?`;
+      reply += ` You mentioned: "${escapeHtml(notes)}" -- want me to update the recipe based on that?`;
     }
 
     await ctx.reply(reply);

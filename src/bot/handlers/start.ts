@@ -18,6 +18,7 @@ import { getAndRedeemToken } from "../../invites/repository.js";
 import { messages } from "../../db/schema.js";
 import { logger } from "../../logger.js";
 import { getWelcomeBackMessage, getInvalidTokenMessage, getNoTokenMessage, getAdminJoinNotification } from "../messages.js";
+import { escapeHtml } from "../../telegram/formatter.js";
 
 interface StartHandlerDeps {
   sqlite: BetterSqlite3.Database;
@@ -78,9 +79,10 @@ export function createStartHandler(deps: StartHandlerDeps): Composer<BotContext>
         );
 
         // Welcome message varies by onboarding path
+        const safeDisplayName = escapeHtml(displayName);
         const welcomeText = isJoiningExisting
-          ? `Hey ${displayName}! Welcome aboard. I'm Sous, your household's kitchen sidekick.`
-          : `Hey ${displayName}! I'm Sous, your new kitchen sidekick. I'd love to get to know your cooking style so I can be actually helpful. Mind if I ask a few questions?`;
+          ? `Hey ${safeDisplayName}! Welcome aboard. I'm Sous, your household's kitchen sidekick.`
+          : `Hey ${safeDisplayName}! I'm Sous, your new kitchen sidekick. I'd love to get to know your cooking style so I can be actually helpful. Mind if I ask a few questions?`;
 
         await ctx.reply(welcomeText);
 

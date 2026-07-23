@@ -1070,6 +1070,144 @@ describe("generateReminders start_cooking behavior", () => {
     expect(context.mealType).toBe("breakfast");
     expect(context.recipeName).toBe("Eggs Benedict");
   });
+
+  // -----------------------------------------------------------------------
+  // Negative start-time handling (the prod "Invalid time value" crash)
+  // -----------------------------------------------------------------------
+
+  it("does not throw when recipe time exceeds the meal time-of-day (breakfast + overnight recipe)", () => {
+    // 600-minute (10h) recipe for a 07:00 breakfast => naive start = 07:00 - 10h
+    // = -03:00, which previously produced the time string "-3:00" -> Invalid Date
+    // -> Intl.DateTimeFormat throws. The meal is on the plan-week's Monday, so the
+    // rolled-over previous day (Sunday 21:00 ET) is already in the past relative to
+    // the test clock (Monday 01:00 ET) and the reminder is simply skipped.
+    createKnowledgeItem(sqlite, {
+      id: 50,
+      title: "Overnight Braise",
+      content: "Ingredients:\n- beef\n\nSteps:\n1. Braise for ten hours",
+      totalTimeMinutes: 600,
+    });
+    createMealPlan(sqlite, {
+      weekStartDate: "2026-02-23",
+      dayOfWeek: 0, // Monday 2026-02-23
+      mealType: "breakfast",
+      recipeName: "Overnight Braise",
+      knowledgeItemId: 50,
+    });
+
+    const reminderRepo = createReminderRepository(sqlite, clock);
+    const planRepo = createMockPlanRepo(sqlite);
+
+    expect(() =>
+      generateReminders({
+        reminderRepository: reminderRepo,
+        planRepository: planRepo as ReturnType<typeof import("../../src/planning/repository.js").createPlanRepository>,
+        sqlite,
+        householdId: HOUSEHOLD_ID,
+        settings: defaultSettings(),
+        clock,
+      }),
+    ).not.toThrow();
+
+    // Previous-day start time is in the past => nothing scheduled, but no crash.
+    const reminders = sqlite
+      .prepare("SELECT * FROM reminders WHERE type = 'start_cooking'")
+      .all();
+    expect(reminders).toHaveLength(0);
+  });
+
+  it("shifts the start-cooking reminder to the previous day when the previous day is still in the future", () => {
+    // Same 10h recipe, but breakfast is on Tuesday 2026-02-24. The rolled-over
+    // start (Monday 2026-02-23 21:00 ET) is still in the future relative to the
+    // clock (Monday 01:00 ET), so a reminder IS scheduled at that earlier time.
+    createKnowledgeItem(sqlite, {
+      id: 51,
+      title: "Overnight Braise Two",
+      content: "Ingredients:\n- beef\n\nSteps:\n1. Braise for ten hours",
+      totalTimeMinutes: 600,
+    });
+    createMealPlan(sqlite, {
+      weekStartDate: "2026-02-23",
+      dayOfWeek: 1, // Tuesday 2026-02-24
+      mealType: "breakfast",
+      recipeName: "Overnight Braise Two",
+      knowledgeItemId: 51,
+    });
+
+    const reminderRepo = createReminderRepository(sqlite, clock);
+    const planRepo = createMockPlanRepo(sqlite);
+
+    generateReminders({
+      reminderRepository: reminderRepo,
+      planRepository: planRepo as ReturnType<typeof import("../../src/planning/repository.js").createPlanRepository>,
+      sqlite,
+      householdId: HOUSEHOLD_ID,
+      settings: defaultSettings(),
+      clock,
+    });
+
+    const reminders = sqlite
+      .prepare("SELECT * FROM reminders WHERE type = 'start_cooking'")
+      .all() as Array<{ due_at: number; context_json: string }>;
+
+    expect(reminders).toHaveLength(1);
+
+    // 07:00 ET breakfast - 600 min = 21:00 ET on the PREVIOUS day (2026-02-23).
+    // 21:00 EST = 02:00 UTC on 2026-02-24.
+    const dueAt = new Date(reminders[0].due_at * 1000);
+    expect(dueAt.getUTCFullYear()).toBe(2026);
+    expect(dueAt.getUTCMonth()).toBe(1); // February (0-indexed)
+    expect(dueAt.getUTCDate()).toBe(24);
+    expect(dueAt.getUTCHours()).toBe(2);
+    expect(dueAt.getUTCMinutes()).toBe(0);
+
+    // The context date remains the meal's date, not the shifted reminder date.
+    const context = JSON.parse(reminders[0].context_json);
+    expect(context.date).toBe("2026-02-24");
+  });
+
+  it("does not shift the reminder for a normal recipe that fits before the meal (regression)", () => {
+    // 30-min recipe for a 07:00 breakfast on Tuesday => 06:30 ET SAME day, no shift.
+    createKnowledgeItem(sqlite, {
+      id: 52,
+      title: "Quick Scramble",
+      content: "Prep Time: 10 minutes\nCook Time: 20 minutes\n\nSteps:\n1. Scramble",
+    });
+    createMealPlan(sqlite, {
+      weekStartDate: "2026-02-23",
+      dayOfWeek: 1, // Tuesday 2026-02-24
+      mealType: "breakfast",
+      recipeName: "Quick Scramble",
+      knowledgeItemId: 52,
+    });
+
+    const reminderRepo = createReminderRepository(sqlite, clock);
+    const planRepo = createMockPlanRepo(sqlite);
+
+    generateReminders({
+      reminderRepository: reminderRepo,
+      planRepository: planRepo as ReturnType<typeof import("../../src/planning/repository.js").createPlanRepository>,
+      sqlite,
+      householdId: HOUSEHOLD_ID,
+      settings: defaultSettings(),
+      clock,
+    });
+
+    const reminders = sqlite
+      .prepare("SELECT * FROM reminders WHERE type = 'start_cooking'")
+      .all() as Array<{ due_at: number; context_json: string }>;
+
+    expect(reminders).toHaveLength(1);
+
+    // 07:00 ET - 30 min = 06:30 ET on 2026-02-24 => 11:30 UTC, same day.
+    const dueAt = new Date(reminders[0].due_at * 1000);
+    expect(dueAt.getUTCDate()).toBe(24);
+    expect(dueAt.getUTCHours()).toBe(11);
+    expect(dueAt.getUTCMinutes()).toBe(30);
+
+    const context = JSON.parse(reminders[0].context_json);
+    expect(context.date).toBe("2026-02-24");
+  });
 });
 
 // ---------------------------------------------------------------------------

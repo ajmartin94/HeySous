@@ -13,6 +13,7 @@ import type { BotContext } from "../context.js";
 import { getMemoriesByHousehold } from "../../memory/repository.js";
 import type { Memory, MemoryCategory } from "../../memory/schema.js";
 import { sendFormattedMessage } from "../../telegram/sender.js";
+import { escapeHtml } from "../../telegram/formatter.js";
 
 /** Category display order and labels. */
 const categoryConfig: Array<{ key: MemoryCategory; label: string }> = [
@@ -53,7 +54,7 @@ function buildMemoryMessage(groups: Map<MemoryCategory, Memory[]>): string {
   for (const { key, label } of categoryConfig) {
     const items = groups.get(key);
     if (items && items.length > 0) {
-      const lines = items.map((m) => `- ${m.content}`);
+      const lines = items.map((m) => `- ${escapeHtml(m.content)}`);
       sections.push(`\n<b>${label}</b>\n${lines.join("\n")}`);
     }
   }

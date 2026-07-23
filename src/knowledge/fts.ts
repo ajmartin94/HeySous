@@ -123,67 +123,181 @@ export function escapeForFts5(query: string): string {
 }
 
 /**
+ * Extract normalized search tokens from a raw query.
+ *
+ * Splits on any non-alphanumeric boundary (so "Grandma's" -> ["grandma", "s"])
+ * and drops FTS5 operator keywords and single-character noise tokens. The result
+ * feeds prefix-matched FTS5 queries, so callers should append `*` per token.
+ */
+export function extractSearchTerms(query: string): string[] {
+  return query
+    .toLowerCase()
+    .replace(/\b(and|or|not|near)\b/g, " ")
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter((t) => t.length >= 2);
+}
+
+interface FtsRow {
+  id: number;
+  title: string;
+  summary: string;
+  last_accessed_at: number;
+  relevance: number;
+}
+
+/**
+ * Search mode:
+ *  - "strict": single exact-term AND match (highest precision). Used by
+ *    duplicate detection and other callers that must only match near-identical
+ *    items. This is the historical searchFts behavior.
+ *  - "wide": progressively widened recall (prefix + OR + LIKE fallback). Used
+ *    by the user-facing search_knowledge tool, where a few keywords should be
+ *    enough and near-misses should surface.
+ */
+export type SearchMode = "strict" | "wide";
+
+/**
  * Search knowledge items using FTS5 full-text search with BM25 ranking.
  * Returns lightweight search results (pass 1 of two-pass retrieval).
  * Filters by householdId for per-household knowledge isolation.
+ *
+ * Defaults to "strict" mode (exact-term AND) so precision-sensitive callers
+ * such as duplicate detection keep their historical behavior. The user-facing
+ * retrieval service opts into "wide" mode for higher recall.
+ *
+ * Wide-mode recall strategy (progressively wider until the result set fills up):
+ *   1. Strict AND of prefix-matched terms -- highest precision.
+ *   2. OR of prefix-matched terms -- casts a wider net; BM25 (title-weighted)
+ *      naturally ranks documents matching more terms, and title matches, first.
+ *      This lets "miso glazed fish" surface "Miso Glazed Salmon" / "...Tilapia".
+ *   3. LIKE fallback over title / summary / content / tags -- catches tag-only
+ *      matches (tags are not in the FTS index) and any FTS parse failures.
+ *
+ * Results from earlier (more precise) stages rank ahead of later ones; within a
+ * stage, ordering follows BM25 relevance. Union is de-duplicated by id.
  */
 export function searchFts(
   sqlite: BetterSqlite3.Database,
   query: string,
   householdId: string,
-  limit: number = 10
+  limit: number = 10,
+  mode: SearchMode = "strict"
 ): SearchResult[] {
-  const escaped = escapeForFts5(query);
-  if (!escaped) return [];
+  const tagStmt = sqlite.prepare(
+    `SELECT tag FROM knowledge_tags WHERE knowledge_item_id = ?`
+  );
+  const withTags = (row: FtsRow): SearchResult => ({
+    id: row.id,
+    title: row.title,
+    summary: row.summary,
+    relevance: Math.abs(row.relevance),
+    tags: (tagStmt.all(row.id) as Array<{ tag: string }>).map((t) => t.tag),
+    lastAccessedAt: new Date(row.last_accessed_at * 1000),
+  });
 
-  try {
-    // BM25 weights: title 10x, summary 5x, content 1x
-    const rows = sqlite
-      .prepare(
-        `
-      SELECT
-        ki.id,
-        ki.title,
-        ki.summary,
-        ki.last_accessed_at,
-        bm25(knowledge_fts, 10.0, 5.0, 1.0) AS relevance
-      FROM knowledge_fts
-      JOIN knowledge_items ki ON ki.id = knowledge_fts.rowid
-      WHERE knowledge_fts MATCH ?
-        AND ki.household_id = ?
-      ORDER BY relevance ASC
-      LIMIT ?
-    `
-      )
-      .all(escaped, householdId, limit) as Array<{
-      id: number;
-      title: string;
-      summary: string;
-      last_accessed_at: number;
-      relevance: number;
-    }>;
+  if (mode === "strict") {
+    // Historical behavior: exact-term AND match, BM25-ranked, with a LIKE
+    // fallback only when FTS5 fails to parse the query.
+    const escaped = escapeForFts5(query);
+    if (!escaped) return [];
+    try {
+      const rows = sqlite
+        .prepare(
+          `
+        SELECT
+          ki.id,
+          ki.title,
+          ki.summary,
+          ki.last_accessed_at,
+          bm25(knowledge_fts, 10.0, 5.0, 1.0) AS relevance
+        FROM knowledge_fts
+        JOIN knowledge_items ki ON ki.id = knowledge_fts.rowid
+        WHERE knowledge_fts MATCH ?
+          AND ki.household_id = ?
+        ORDER BY relevance ASC
+        LIMIT ?
+      `
+        )
+        .all(escaped, householdId, limit) as FtsRow[];
+      return rows.map(withTags);
+    } catch {
+      const likePattern = `%${query.replace(/%/g, "\\%")}%`;
+      const rows = sqlite
+        .prepare(
+          `
+        SELECT ki.id, ki.title, ki.summary, ki.last_accessed_at
+        FROM knowledge_items ki
+        WHERE ki.household_id = ?
+          AND (ki.title LIKE ? ESCAPE '\\' OR ki.summary LIKE ? ESCAPE '\\')
+        ORDER BY ki.last_accessed_at DESC
+        LIMIT ?
+      `
+        )
+        .all(householdId, likePattern, likePattern, limit) as Array<
+        Omit<FtsRow, "relevance">
+      >;
+      return rows.map((row) => withTags({ ...row, relevance: 0 }));
+    }
+  }
 
-    // Fetch tags for each result
-    const tagStmt = sqlite.prepare(
-      `SELECT tag FROM knowledge_tags WHERE knowledge_item_id = ?`
-    );
+  // --- Wide mode: multi-stage widened recall ---
+  const terms = extractSearchTerms(query);
+  if (terms.length === 0) return [];
 
-    return rows.map((row) => {
-      const tags = (
-        tagStmt.all(row.id) as Array<{ tag: string }>
-      ).map((t) => t.tag);
-      return {
-        id: row.id,
-        title: row.title,
-        summary: row.summary,
-        relevance: Math.abs(row.relevance),
-        tags,
-        lastAccessedAt: new Date(row.last_accessed_at * 1000),
-      };
-    });
-  } catch {
-    // Fallback to LIKE query if FTS5 parse error (pitfall 1)
-    const likePattern = `%${query.replace(/%/g, "\\%")}%`;
+  // Accumulate across stages, de-duplicating by id and preserving first-seen
+  // order (earlier stages are more precise, so they win the ranking).
+  const collected = new Map<number, SearchResult>();
+
+  const runFtsMatch = (matchExpr: string) => {
+    try {
+      // BM25 weights: title 10x, summary 5x, content 1x
+      const rows = sqlite
+        .prepare(
+          `
+        SELECT
+          ki.id,
+          ki.title,
+          ki.summary,
+          ki.last_accessed_at,
+          bm25(knowledge_fts, 10.0, 5.0, 1.0) AS relevance
+        FROM knowledge_fts
+        JOIN knowledge_items ki ON ki.id = knowledge_fts.rowid
+        WHERE knowledge_fts MATCH ?
+          AND ki.household_id = ?
+        ORDER BY relevance ASC
+        LIMIT ?
+      `
+        )
+        .all(matchExpr, householdId, limit) as FtsRow[];
+      for (const row of rows) {
+        if (!collected.has(row.id)) collected.set(row.id, withTags(row));
+      }
+    } catch {
+      // FTS parse error -- skip this stage; the LIKE fallback still runs.
+    }
+  };
+
+  // Stage 1: strict AND of prefix terms (highest precision).
+  runFtsMatch(terms.map((t) => `${t}*`).join(" AND "));
+
+  // Stage 2: OR of prefix terms (wider net) if we still have room.
+  if (collected.size < limit && terms.length > 1) {
+    runFtsMatch(terms.map((t) => `${t}*`).join(" OR "));
+  }
+
+  // Stage 3: LIKE fallback over title/summary/content/tags (catches tag-only
+  // matches and anything FTS missed). Runs when the FTS stages came up short.
+  if (collected.size < limit) {
+    const clauses = terms
+      .map(() => `(ki.title LIKE ? ESCAPE '\\' OR ki.summary LIKE ? ESCAPE '\\' OR ki.content LIKE ? ESCAPE '\\' OR EXISTS (SELECT 1 FROM knowledge_tags kt WHERE kt.knowledge_item_id = ki.id AND kt.tag LIKE ? ESCAPE '\\'))`)
+      .join(" OR ");
+    const params: (string | number)[] = [householdId];
+    for (const term of terms) {
+      const like = `%${term.replace(/[%_\\]/g, "\\$&")}%`;
+      params.push(like, like, like, like);
+    }
+    params.push(limit);
+
     const rows = sqlite
       .prepare(
         `
@@ -194,36 +308,20 @@ export function searchFts(
         ki.last_accessed_at
       FROM knowledge_items ki
       WHERE ki.household_id = ?
-        AND (ki.title LIKE ? ESCAPE '\\' OR ki.summary LIKE ? ESCAPE '\\')
+        AND (${clauses})
       ORDER BY ki.last_accessed_at DESC
       LIMIT ?
     `
       )
-      .all(householdId, likePattern, likePattern, limit) as Array<{
-      id: number;
-      title: string;
-      summary: string;
-      last_accessed_at: number;
-    }>;
-
-    const tagStmt = sqlite.prepare(
-      `SELECT tag FROM knowledge_tags WHERE knowledge_item_id = ?`
-    );
-
-    return rows.map((row) => {
-      const tags = (
-        tagStmt.all(row.id) as Array<{ tag: string }>
-      ).map((t) => t.tag);
-      return {
-        id: row.id,
-        title: row.title,
-        summary: row.summary,
-        relevance: 0,
-        tags,
-        lastAccessedAt: new Date(row.last_accessed_at * 1000),
-      };
-    });
+      .all(...params) as Array<Omit<FtsRow, "relevance">>;
+    for (const row of rows) {
+      if (!collected.has(row.id)) {
+        collected.set(row.id, withTags({ ...row, relevance: 0 }));
+      }
+    }
   }
+
+  return Array.from(collected.values()).slice(0, limit);
 }
 
 /**

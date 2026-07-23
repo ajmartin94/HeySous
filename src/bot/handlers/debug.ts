@@ -17,6 +17,7 @@ import type { createRetrievalService } from "../../knowledge/retrieval.js";
 import type { createReminderRepository } from "../../reminders/repository.js";
 import type { TestClock } from "../../clock.js";
 import type { Clock } from "../../clock.js";
+import { escapeHtml } from "../../telegram/formatter.js";
 
 interface DebugHandlerDeps {
   retrievalService: ReturnType<typeof createRetrievalService>;
@@ -284,7 +285,7 @@ export function createDebugHandler(deps: DebugHandlerDeps): Composer<BotContext>
         // Convert from user's local timezone to UTC
         const parsed = localDatetimeToUtc(dateStr, tz);
         if (isNaN(parsed.getTime())) {
-          await ctx.reply(`Invalid date: "${dateStr}". Use format like 2026-02-09T19:00:00`);
+          await ctx.reply(`Invalid date: "${escapeHtml(dateStr)}". Use format like 2026-02-09T19:00:00`);
           return;
         }
         clock.set(parsed);
@@ -300,7 +301,7 @@ export function createDebugHandler(deps: DebugHandlerDeps): Composer<BotContext>
         const durStr = timeArgs.slice(8).trim();
         const ms = parseDuration(durStr);
         if (ms === null) {
-          await ctx.reply(`Invalid duration: "${durStr}". Use format like 10m, 1h, or 30s.`);
+          await ctx.reply(`Invalid duration: "${escapeHtml(durStr)}". Use format like 10m, 1h, or 30s.`);
           return;
         }
         clock.advance(ms);

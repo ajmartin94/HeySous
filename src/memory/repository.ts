@@ -24,15 +24,67 @@ function mapMemory(row: MemoryRow): Memory {
 }
 
 /**
+ * Normalize content for exact-duplicate comparison: trim, lowercase, and
+ * collapse any run of whitespace (spaces, tabs, newlines) to a single space.
+ * Used so that saves differing only in case or incidental whitespace are
+ * still recognized as the same fact.
+ */
+function normalizeContent(content: string): string {
+  return content.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+/**
+ * Find an existing memory in the household whose content is identical to
+ * `content` once normalized (case/whitespace-insensitive). This is a plain
+ * JS comparison over the household's rows -- it does NOT go through FTS5,
+ * so it can never be defeated by FTS5 query-syntax edge cases (punctuation,
+ * reserved characters, term-count-dependent BM25 scaling, etc). Household
+ * memory counts are small (bounded ~200 by product design), so the full
+ * per-household scan is cheap.
+ */
+export function findExactMemoryMatch(
+  sqlite: BetterSqlite3.Database,
+  householdId: string,
+  content: string,
+): Memory | null {
+  const target = normalizeContent(content);
+  if (!target) return null;
+
+  const rows = sqlite
+    .prepare(`SELECT * FROM memories WHERE household_id = ?`)
+    .all(householdId) as MemoryRow[];
+
+  const match = rows.find((row) => normalizeContent(row.content) === target);
+  return match ? mapMemory(match) : null;
+}
+
+/**
  * Insert a new memory (atomic fact) for a household.
  * Returns the created memory with its ID.
+ *
+ * Guards against exact duplicates (case/whitespace-insensitive) as a hard
+ * safety net: if a memory with identical normalized content already exists
+ * for this household, no new row is inserted -- the existing row is
+ * returned instead (with `duplicate: true`). This check is independent of
+ * the FTS5-based fuzzy dedup performed upstream (see src/ai/tool-handler.ts)
+ * and cannot be bypassed by FTS5 query-syntax issues.
  */
 export function saveMemory(
   sqlite: BetterSqlite3.Database,
   householdId: string,
   content: string,
   category: MemoryCategory = "general",
-): { id: number; content: string; category: MemoryCategory } {
+): { id: number; content: string; category: MemoryCategory; duplicate?: boolean } {
+  const existing = findExactMemoryMatch(sqlite, householdId, content);
+  if (existing) {
+    return {
+      id: existing.id,
+      content: existing.content,
+      category: existing.category,
+      duplicate: true,
+    };
+  }
+
   const result = sqlite
     .prepare(
       `INSERT INTO memories (household_id, content, category)

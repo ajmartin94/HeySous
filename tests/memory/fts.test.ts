@@ -199,5 +199,55 @@ describe("Memory FTS5", () => {
       expect(results.length).toBeGreaterThan(0);
       expect(results[0].content).toContain("Dinner");
     });
+
+    it("identical long, multi-sentence content still produces rank < 5.0 (term-count-normalized BM25)", () => {
+      // Regression test for a prod dedup leak: a paragraph-length memory
+      // (many OR'd query terms) was scoring an exact duplicate as rank
+      // ~68, well above the 5.0 "strong match" threshold, because raw
+      // bm25() magnitude for an OR query sums per matching term and grows
+      // with query length. Normalizing by term count keeps the scale
+      // comparable regardless of content length.
+      const content =
+        "Hosting a family with two boys (ages 4 and 8) from Thursday morning June 4 through Saturday morning June 7, 2026. Account for them in meals during that window: Thursday dinner, Friday breakfast, Friday lunch, Friday dinner, Saturday breakfast.";
+      insertMemory(HOUSEHOLD_ID, content, "household");
+
+      const results = searchMemoryFts(sqlite, HOUSEHOLD_ID, content);
+      expect(results.length).toBeGreaterThan(0);
+      expect(results[0].content).toBe(content);
+      expect(results[0].rank).toBeLessThan(5.0);
+    });
+
+    it("identical long content still ranks best even alongside topically-similar noise memories", () => {
+      // Household with several memories that share generic meal-planning
+      // vocabulary (Friday, breakfast, dinner, guests, family...) so the
+      // true duplicate has to compete for the top-N slots.
+      insertMemory(
+        HOUSEHOLD_ID,
+        "Four adult guests staying/eating with the family Friday May 15 through Sunday May 17, 2026. Only 2 of the 4 guests arrive Friday morning, so Friday breakfast serves 4 adults.",
+        "household",
+      );
+      insertMemory(HOUSEHOLD_ID, "Household composition: Family of four.", "household");
+      insertMemory(HOUSEHOLD_ID, "Never replace the grocery list, always add to it.", "logistics");
+
+      const content =
+        "Hosting a family with two boys (ages 4 and 8) from Thursday morning June 4 through Saturday morning June 7, 2026. Account for them in meals during that window: Thursday dinner, Friday breakfast, Friday lunch, Friday dinner, Saturday breakfast.";
+      insertMemory(HOUSEHOLD_ID, content, "household");
+
+      const results = searchMemoryFts(sqlite, HOUSEHOLD_ID, content, 5);
+      expect(results[0].content).toBe(content);
+      expect(results[0].rank).toBeLessThan(5.0);
+    });
+
+    it("handles content full of FTS5-hostile punctuation (parens, digits, quotes, apostrophes) without crashing and matches itself", () => {
+      const content =
+        "Total headcount: 4 adults, 4 kids (Bekah's two plus guests' two). \"Quoted\" note -- see plan.";
+      insertMemory(HOUSEHOLD_ID, content, "household");
+
+      expect(() => searchMemoryFts(sqlite, HOUSEHOLD_ID, content)).not.toThrow();
+      const results = searchMemoryFts(sqlite, HOUSEHOLD_ID, content);
+      expect(results.length).toBeGreaterThan(0);
+      expect(results[0].content).toBe(content);
+      expect(results[0].rank).toBeLessThan(5.0);
+    });
   });
 });

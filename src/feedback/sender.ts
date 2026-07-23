@@ -5,6 +5,8 @@ import type { FeedbackCheckin } from "./types.js";
 import { buildFeedbackKeyboard } from "./buttons.js";
 import { getHouseholdMembers } from "../users/repository.js";
 import { getCheckinMessageSingle, getCheckinMessageMultiple, getCheckinMessageGeneric } from "../bot/messages.js";
+import { sendWithHtmlFallback } from "../reminders/sender.js";
+import { escapeHtml } from "../telegram/formatter.js";
 
 /**
  * Minimal interface for bot API -- keeps sender decoupled from grammY types.
@@ -38,10 +40,13 @@ function buildCheckinMessage(
   if (meals.length === 0) {
     return getCheckinMessageGeneric();
   }
+  // Recipe names are interpolated into <b>...</b> in the message builders, so
+  // escape any HTML special chars (a "<" or "&" in a recipe name) to keep the
+  // HTML parse mode valid.
   if (meals.length === 1) {
-    return getCheckinMessageSingle(meals[0].recipeName);
+    return getCheckinMessageSingle(escapeHtml(meals[0].recipeName));
   }
-  return getCheckinMessageMultiple(meals.map((m) => m.recipeName));
+  return getCheckinMessageMultiple(meals.map((m) => escapeHtml(m.recipeName)));
 }
 
 /**
@@ -93,10 +98,14 @@ export function createFeedbackSender(deps: FeedbackSenderDeps) {
         let sent = false;
         for (const member of members) {
           try {
-            await bot.api.sendMessage(member.telegramId, text, {
-              parse_mode: "HTML",
-              reply_markup: keyboard,
-            });
+            await sendWithHtmlFallback(
+              bot.api,
+              member.telegramId,
+              text,
+              { reply_markup: keyboard },
+              logger,
+              { reminderId: reminder.id, telegramId: member.telegramId },
+            );
             sent = true;
           } catch (error: unknown) {
             const err = error as { error_code?: number };

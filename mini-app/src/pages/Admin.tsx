@@ -6,6 +6,8 @@ import { useAdminData } from '../hooks/useAdminData';
 import { BarChart } from '../components/admin/BarChart';
 import { SkeletonCard } from '../components/SkeletonCard';
 import type { TimeRange, ActivityEvent } from '../hooks/useAdminData';
+import { useCanGoBack } from '../hooks/useCanGoBack.js';
+import { goBack } from '../utils/backNavigation.js';
 
 // -- Utility: format relative time --
 
@@ -212,6 +214,7 @@ function describeEvent(event: ActivityEvent): string {
 
 export function Admin() {
   const navigate = useNavigate();
+  const canGoBack = useCanGoBack();
   const {
     activity,
     stats,
@@ -226,14 +229,15 @@ export function Admin() {
     refresh,
   } = useAdminData();
 
-  // BackButton: navigate back to hub
+  // BackButton: navigate back, falling back to the Hub if there is no
+  // in-app history to pop to (e.g. cold start / deep-link entry).
   useEffect(() => {
     if (!backButton.onClick.isAvailable()) return;
-    const off = backButton.onClick(() => navigate(-1));
+    const off = backButton.onClick(() => goBack(navigate, canGoBack));
     return () => {
       off();
     };
-  }, [navigate]);
+  }, [navigate, canGoBack]);
 
   const isLoading = stats.loading || costs.loading || activity.loading || feedback.loading;
 

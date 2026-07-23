@@ -15,8 +15,11 @@ export const KNOWLEDGE_TOOLS: Anthropic.Tool[] = [
     name: "search_knowledge",
     description:
       "Search the user's knowledge base (recipes, preferences, cooking notes, dietary info). " +
-      "Returns brief summaries with IDs. Search multiple times with different queries if needed. " +
-      "Use specific keywords for best results.",
+      "Returns brief summaries with IDs, ranked by relevance. " +
+      "Use a few distinctive keywords rather than full sentences -- two or three words work best. " +
+      "Search matches partial words and related titles, so a broad term (e.g. 'salmon') surfaces near-misses. " +
+      "If a search returns nothing, retry with fewer, broader keywords before concluding the item does not exist -- " +
+      "drop adjectives/cuisines/methods and keep the core noun. Never assume a recipe is missing after one failed search.",
     input_schema: {
       type: "object" as const,
       properties: {

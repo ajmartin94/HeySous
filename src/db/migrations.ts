@@ -63,13 +63,24 @@ export const migrations: Migration[] = [
           PRIMARY KEY (notification_id, user_id)
         )
       `);
-      // Migrate: mark all users in already-delivered households as delivered
-      sqlite.exec(`
-        INSERT INTO notification_deliveries_new (notification_id, user_id, delivered_at)
-        SELECT nd.notification_id, u.telegram_id, nd.delivered_at
-        FROM notification_deliveries nd
-        JOIN users u ON u.household_id = nd.household_id
-      `);
+      // On a fresh install, runMigrations() runs before initializeUsers()
+      // (see src/db/index.ts), so the users table doesn't exist yet. There's
+      // nothing to backfill in that case -- a brand-new database has no
+      // notification_deliveries rows either -- so skip the join entirely
+      // rather than fail. Existing databases (which already have a users
+      // table) are unaffected and still get the backfill.
+      const usersTableExists = sqlite
+        .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
+        .get();
+      if (usersTableExists) {
+        // Migrate: mark all users in already-delivered households as delivered
+        sqlite.exec(`
+          INSERT INTO notification_deliveries_new (notification_id, user_id, delivered_at)
+          SELECT nd.notification_id, u.telegram_id, nd.delivered_at
+          FROM notification_deliveries nd
+          JOIN users u ON u.household_id = nd.household_id
+        `);
+      }
       sqlite.exec("DROP TABLE notification_deliveries");
       sqlite.exec(
         "ALTER TABLE notification_deliveries_new RENAME TO notification_deliveries",
@@ -284,6 +295,15 @@ export const migrations: Migration[] = [
     version: 10,
     name: "migrate-preferences-to-memories",
     up: (sqlite) => {
+      // On fresh installs, runMigrations() runs before initializeFts() (see
+      // src/db/index.ts), so knowledge_items doesn't exist yet. There's
+      // nothing to migrate in that case -- a brand-new database has no
+      // preference-tagged knowledge_items either -- so skip.
+      const knowledgeItemsExists = sqlite
+        .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='knowledge_items'")
+        .get();
+      if (!knowledgeItemsExists) return;
+
       // Query all preference-tagged knowledge_items
       const rows = sqlite
         .prepare(

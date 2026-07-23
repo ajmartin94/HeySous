@@ -256,6 +256,24 @@ export function createGroceryRepository(sqlite: BetterSqlite3.Database) {
     },
 
     /**
+     * Check whether an item belongs to a list owned by the given household.
+     * Used to authorize mutations (e.g. toggle) before touching an item id
+     * supplied by the client, so one household can't act on another's items.
+     */
+    itemBelongsToHousehold(itemId: number, householdId: string): boolean {
+      const row = sqlite
+        .prepare(
+          `SELECT gl.household_id AS household_id
+           FROM grocery_list_items gli
+           JOIN grocery_lists gl ON gl.id = gli.list_id
+           WHERE gli.id = ?`,
+        )
+        .get(itemId) as { household_id: string } | undefined;
+
+      return row !== undefined && row.household_id === householdId;
+    },
+
+    /**
      * Mark the active grocery list for a chat as completed.
      * Returns true if a list was found and completed, false otherwise.
      */

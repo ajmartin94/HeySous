@@ -64,6 +64,26 @@ export function createFeedbackRepository(sqlite: BetterSqlite3.Database) {
     },
 
     /**
+     * Mark a pending check-in as sent (delivered to the user).
+     *
+     * Called by the poller after the feedback sender successfully delivers the
+     * check-in message. Only transitions rows still in 'pending' so it never
+     * clobbers a 'responded'/'expired' terminal state or re-sends. This is the
+     * transition that was previously missing entirely -- without it, check-ins
+     * stayed 'pending' forever and expireOldCheckins (which only touched 'sent'
+     * rows) never fired.
+     */
+    markCheckinSent(id: number): void {
+      sqlite
+        .prepare(
+          `UPDATE feedback_checkins
+           SET status = 'sent'
+           WHERE id = ? AND status = 'pending'`,
+        )
+        .run(id);
+    },
+
+    /**
      * Look up a check-in by its associated reminder ID.
      * Returns null if not found.
      */
@@ -110,15 +130,37 @@ export function createFeedbackRepository(sqlite: BetterSqlite3.Database) {
     },
 
     /**
-     * Mark stale sent check-ins as expired (24+ hours old).
-     * Prevents old check-ins from lingering as "awaiting response" forever.
+     * Mark stale check-ins as expired so they stop accumulating forever.
+     *
+     * Two classes of stale rows are swept (both 24+ hours old):
+     *  1. 'sent' check-ins the user never answered -- they were delivered but no
+     *     response came in, so stop treating them as "awaiting response".
+     *  2. 'pending' check-ins with no still-pending reminder backing them --
+     *     either the reminder was deleted (orphaned) or already fired/failed, so
+     *     the check-in will never be delivered. This drains the backlog of
+     *     undelivered pending rows (the ones that previously piled up because the
+     *     pending->sent transition was missing) while leaving genuinely future
+     *     check-ins (whose reminder is still 'pending') untouched.
+     *
+     * 'responded' and already-'expired' rows are terminal and never touched.
      */
     expireOldCheckins(): void {
       sqlite
         .prepare(
           `UPDATE feedback_checkins
            SET status = 'expired'
-           WHERE status = 'sent' AND created_at < (unixepoch() - 86400)`,
+           WHERE created_at < (unixepoch() - 86400)
+             AND (
+               status = 'sent'
+               OR (
+                 status = 'pending'
+                 AND NOT EXISTS (
+                   SELECT 1 FROM reminders r
+                   WHERE r.id = feedback_checkins.reminder_id
+                     AND r.status = 'pending'
+                 )
+               )
+             )`,
         )
         .run();
     },

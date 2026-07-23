@@ -2,6 +2,32 @@
 
 Technical changelog for HeySous. For user-facing release notes, see [RELEASE_NOTES.md](./RELEASE_NOTES.md).
 
+## v1.7.0
+
+Feedback-driven bug-fix release: every prod-reported issue from `/feedback` and implicit feedback, plus findings from a full codebase audit.
+
+### Added
+- Multi-stage "wide" recipe search: prefix AND → prefix OR → LIKE fallback across title/summary/content/tags, unioned with precise stages ranked first; dedup/feedback callers keep strict mode
+- `save_meal_plan` no-op detection: identical resubmissions return a corrective warning to the model instead of silent success; tool inputs always logged
+- System prompt: bare weekday names resolve to the next future occurrence; log_meal vs save_meal_plan responsibilities clarified; search persistence guidance
+- Best-effort user-facing error reply in `bot.catch` (was silent)
+- Mini App API test suite: HMAC auth middleware, admin gating, household scoping, per-route happy paths (38 tests)
+- Reminder poller/sender, feedback pipeline, date-utils, and memory dedup test coverage (~120 new tests)
+
+### Fixed
+- Feedback check-ins stuck in `pending` forever: the `pending→sent` transition never existed, and reminder regeneration deleted `feedback_checkin` reminders, orphaning and duplicating tracking rows on every plan edit; stale orphans now expire on startup
+- "Invalid time value" during `save_meal_plan`: start-cooking reminders with prep+cook longer than the meal's time-of-day produced negative times; they now roll over midnight to the previous day, and reminder regeneration failures no longer fail a successful save
+- Timezone-dependent date math: date-only strings now parsed deterministically in UTC; malformed dates rejected with clear errors; `formatDateRange` same-month formatting implemented
+- Memory dedup leak: BM25 rank normalized by term count (long duplicates never hit the threshold) plus an exact-match insert guard
+- Mini App BackButton no-op on cold start/deep-link entry: falls back to Hub when there is no in-app history
+- Cross-household IDOR: `POST /api/grocery/toggle` now verifies item ownership (404 otherwise)
+- Fresh-install crash: migrations 3 and 10 no-op when their source tables don't exist yet; migration test pollution that masked this fixed
+- Unescaped HTML interpolation across bot handlers (`/plan`, welcome, memory, preferences, feedback, reminder fallbacks) breaking messages on names like "Chicken & Rice"
+- Reminder poller double-dispatch on overlapping ticks (in-flight guard); reminder/check-in sends now fall back to plain text on Telegram entity-parse errors
+
+### Removed
+- GSD workflow references from CLAUDE.md and the release skill (feature-branch workflow now)
+
 ## v1.6.2
 
 ### Added

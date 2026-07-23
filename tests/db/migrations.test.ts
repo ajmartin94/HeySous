@@ -17,6 +17,20 @@ vi.mock("../../src/config.js", () => ({
   },
 }));
 
+// Snapshot of the real, production migrations array, captured at module load
+// time before any test mutates the shared `migrations` array in place. Tests
+// below that need a clean slate splice fake entries in via beforeEach and
+// MUST restore this snapshot via afterEach -- otherwise the mutation leaks
+// into later tests/describes in this file (e.g. the fresh-install
+// integration test below), silently replacing the real migrations with a
+// couple of fake ones and masking any bug in the real migration list.
+const REAL_MIGRATIONS = [...migrations];
+
+function restoreRealMigrations() {
+  migrations.length = 0;
+  migrations.push(...REAL_MIGRATIONS);
+}
+
 describe("runMigrations", () => {
   let db: InstanceType<typeof Database>;
 
@@ -29,6 +43,7 @@ describe("runMigrations", () => {
 
   afterEach(() => {
     db.close();
+    restoreRealMigrations();
   });
 
   it("runs pending migrations and updates user_version", () => {
@@ -219,6 +234,7 @@ describe("migration 001 fresh-install guard (real migration)", () => {
 
   afterEach(() => {
     freshDb.close();
+    restoreRealMigrations();
   });
 
   it("real migration 001 does not throw on a fresh DB with no knowledge_items table", () => {

@@ -106,15 +106,16 @@ describe("grocery routes -- household scoping", () => {
     expect(body.items).toHaveLength(1);
   });
 
-  // BUG (documented, not fixed -- out of scope per test task instructions):
-  // POST /api/grocery/toggle (src/mini-app/routes/grocery.ts toggleItem) takes
-  // `itemId` from the request body and calls repo.toggleItem(itemId) with NO
+  // Regression test for a fixed IDOR: POST /api/grocery/toggle
+  // (src/mini-app/routes/grocery.ts toggleItem) used to take `itemId` from
+  // the request body and call repo.toggleItem(itemId) with NO
   // household-ownership check at all -- unlike getList/addItem/completeList,
-  // which all scope through res.locals.householdId. Any authenticated user
-  // (from ANY household) can toggle any grocery item in the whole database
-  // by guessing/enumerating numeric item ids. This test documents that
-  // current (insecure) behavior.
-  it("BUG: POST /api/grocery/toggle lets household B toggle household A's item", async () => {
+  // which all scope through res.locals.householdId. That let any
+  // authenticated user (from ANY household) toggle any grocery item in the
+  // whole database by guessing/enumerating numeric item ids. The handler now
+  // verifies the item belongs to the caller's household via
+  // repo.itemBelongsToHousehold before toggling.
+  it("POST /api/grocery/toggle rejects household B toggling household A's item", async () => {
     const itemId = await addItemAsA("Household A's secret ingredient");
 
     const initDataB = buildInitData(TEST_BOT_TOKEN, testUser(Number(USER_B_ID)));
@@ -124,15 +125,13 @@ describe("grocery routes -- household scoping", () => {
       body: JSON.stringify({ itemId }),
     });
 
-    // Current behavior: succeeds cross-household. If this is ever fixed to
-    // scope by household, this assertion should change to expect a 403/404.
-    expect(toggleRes.status).toBe(200);
-    const toggleBody = await toggleRes.json();
-    expect(toggleBody).toEqual({ itemId, checked: true });
+    // Fixed behavior: cross-household toggle is rejected and the item is
+    // left untouched.
+    expect(toggleRes.status).toBe(404);
 
     const row = sqlite
       .prepare("SELECT checked FROM grocery_list_items WHERE id = ?")
       .get(itemId) as { checked: number };
-    expect(row.checked).toBe(1);
+    expect(row.checked).toBe(0);
   });
 });

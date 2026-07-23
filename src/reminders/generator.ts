@@ -326,13 +326,42 @@ export function generateReminders(deps: {
         const mealTime = getMealTypeTime(settings, meal.mealType);
         const [mealHours, mealMinutes] = mealTime.split(":").map(Number);
         const mealTotalMin = mealHours * 60 + mealMinutes;
-        const startMin = mealTotalMin - offsetMinutes;
+
+        // When the recipe's prep+cook time is longer than the meal's
+        // minutes-from-midnight (e.g. a slow overnight recipe for a 07:00
+        // breakfast), the naive start time goes negative and would produce an
+        // invalid time string like "-1:00" -> Invalid Date -> Intl throws.
+        // Roll the negative minutes over midnight onto the previous day(s) so
+        // the "start cooking" reminder fires at the genuinely-correct earlier
+        // clock time. The existing `dueAt > now` guard below drops it if that
+        // shifted time is already in the past (nothing pointless is delivered).
+        let startMin = mealTotalMin - offsetMinutes;
+        let reminderDate = currentDate;
+        while (startMin < 0) {
+          startMin += 1440; // minutes in a day
+          reminderDate = addDays(reminderDate, -1);
+        }
+
+        if (reminderDate !== currentDate) {
+          logger.info(
+            {
+              householdId,
+              recipeName: meal.recipeName,
+              mealType: meal.mealType,
+              mealDate: currentDate,
+              reminderDate,
+              offsetMinutes,
+            },
+            "Start-cooking reminder shifted to a previous day (recipe time exceeds meal time-of-day)",
+          );
+        }
+
         const startHours = Math.floor(startMin / 60);
         const startMins = startMin % 60;
         const reminderTime = `${String(startHours).padStart(2, "0")}:${String(startMins).padStart(2, "0")}`;
 
         const dueAt = localTimeToUtc(
-          currentDate,
+          reminderDate,
           reminderTime,
           settings.timezone,
         );

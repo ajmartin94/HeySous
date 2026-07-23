@@ -120,7 +120,7 @@ LOG_LEVEL=info
 NODE_ENV=production
 
 ANTHROPIC_API_KEY=your_api_key
-ANTHROPIC_MODEL=claude-haiku-4-5-20251001
+ANTHROPIC_MODEL=claude-sonnet-5
 ADMIN_USER_IDS=your_telegram_numeric_id
 MINI_APP_URL=https://hey-sous.com/app
 ```

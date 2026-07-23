@@ -2,6 +2,19 @@
 
 Technical changelog for HeySous. For user-facing release notes, see [RELEASE_NOTES.md](./RELEASE_NOTES.md).
 
+## v1.6.2
+
+### Added
+- GitHub Actions CI workflow: typecheck, tests, and full build on every PR and push to main
+- GitHub Actions deploy workflow: `v*` tag push builds in CI, rsyncs artifacts to the droplet over SSH, installs runtime deps, restarts PM2, and verifies `/health`
+- Server-side deploy script (`scripts/server-deploy.sh`) invoked by the deploy workflow
+
+### Changed
+- Deploys no longer build on the droplet; the server runs production dependencies only (`npm ci --omit=dev`)
+- Production model upgraded from Claude Sonnet 4.6 to Claude Sonnet 5 (`ANTHROPIC_MODEL` env change; adaptive thinking now on by default)
+- Release process step 10 rewritten for automated tag-triggered deploys
+- `docs/DEPLOYMENT.md` updated with one-time GitHub Actions setup; manual deploy kept as fallback
+
 ## v1.6.1
 
 ### Fixed

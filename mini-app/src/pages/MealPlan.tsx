@@ -8,6 +8,8 @@ import { DayRow } from '../components/meal-plan/DayRow.js';
 import { RecipeDetail } from '../components/recipes/RecipeDetail.js';
 import { SkeletonCard } from '../components/SkeletonCard.js';
 import { getTodayIndex, isPastDay } from '../utils/dateUtils.js';
+import { useCanGoBack } from '../hooks/useCanGoBack.js';
+import { goBack } from '../utils/backNavigation.js';
 import '../components/meal-plan/meal-plan.css';
 
 export function MealPlan() {
@@ -25,6 +27,7 @@ export function MealPlan() {
   } = useMealPlan();
 
   const navigate = useNavigate();
+  const canGoBack = useCanGoBack();
   const scrollPositionRef = useRef(0);
   const todayRef = useRef<HTMLDivElement>(null);
   const [hasAutoScrolled, setHasAutoScrolled] = useState(false);
@@ -42,7 +45,9 @@ export function MealPlan() {
     });
   }, []);
 
-  // BackButton handler: close detail if open, otherwise navigate back
+  // BackButton handler: close detail if open, otherwise navigate back.
+  // Falls back to the Hub when there's no in-app history to pop to (e.g. a
+  // deep link that opened straight into this section).
   useEffect(() => {
     if (!backButton.onClick.isAvailable()) return;
 
@@ -50,14 +55,14 @@ export function MealPlan() {
       if (selectedRecipeId !== null) {
         handleCloseDetail();
       } else {
-        navigate(-1);
+        goBack(navigate, canGoBack);
       }
     });
 
     return () => {
       off();
     };
-  }, [selectedRecipeId, navigate]);
+  }, [selectedRecipeId, navigate, canGoBack]);
 
   // Auto-scroll to today on initial load
   useEffect(() => {

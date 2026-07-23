@@ -4,8 +4,10 @@ import { backButton } from '@tma.js/sdk-react';
 
 /**
  * Manages BackButton visibility only (show/hide based on route).
- * Pages register their own onClick handlers for custom back behavior.
- * Pages without custom handlers should register navigate(-1) themselves.
+ * Pages register their own onClick handlers for custom back behavior --
+ * use `goBack()` from `utils/backNavigation.ts` (with `useCanGoBack()`) so
+ * the button never strands the user when there's no in-app history to pop
+ * (e.g. cold start / deep-link entry straight into a section).
  */
 export function useBackButton() {
   const location = useLocation();

@@ -4,6 +4,8 @@ import { backButton } from '@tma.js/sdk-react';
 import { useTheme } from '../theme/ThemeContext.js';
 import type { Theme, FontSize } from '../theme/tokens.js';
 import { apiFetch } from '../api.js';
+import { useCanGoBack } from '../hooks/useCanGoBack.js';
+import { goBack } from '../utils/backNavigation.js';
 
 // --- Types ---
 
@@ -77,6 +79,7 @@ const tabs: { key: SettingsTab; label: string }[] = [
 
 export function Settings() {
   const navigate = useNavigate();
+  const canGoBack = useCanGoBack();
   const { theme, setTheme, fontSize, setFontSize } = useTheme();
 
   // Tab state
@@ -93,12 +96,13 @@ export function Settings() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isMountedRef = useRef(true);
 
-  // BackButton: navigate back to hub
+  // BackButton: navigate back, falling back to the Hub if there is no
+  // in-app history to pop to (e.g. cold start / deep-link entry).
   useEffect(() => {
     if (!backButton.onClick.isAvailable()) return;
-    const off = backButton.onClick(() => navigate(-1));
+    const off = backButton.onClick(() => goBack(navigate, canGoBack));
     return () => { off(); };
-  }, [navigate]);
+  }, [navigate, canGoBack]);
 
   // Cleanup on unmount
   useEffect(() => {

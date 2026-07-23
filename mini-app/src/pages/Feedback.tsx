@@ -2,22 +2,26 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { backButton } from '@tma.js/sdk-react';
 import { apiFetch } from '../api';
+import { useCanGoBack } from '../hooks/useCanGoBack.js';
+import { goBack } from '../utils/backNavigation.js';
 
 export function Feedback() {
   const navigate = useNavigate();
+  const canGoBack = useCanGoBack();
   const [text, setText] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
-  // BackButton: navigate back to hub
+  // BackButton: navigate back, falling back to the Hub if there is no
+  // in-app history to pop to (e.g. cold start / deep-link entry).
   useEffect(() => {
     if (!backButton.onClick.isAvailable()) return;
-    const off = backButton.onClick(() => navigate(-1));
+    const off = backButton.onClick(() => goBack(navigate, canGoBack));
     return () => {
       off();
     };
-  }, [navigate]);
+  }, [navigate, canGoBack]);
 
   async function handleSubmit() {
     if (!text.trim() || submitting) return;

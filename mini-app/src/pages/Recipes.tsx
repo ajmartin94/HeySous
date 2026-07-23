@@ -9,6 +9,8 @@ import { SearchHeader } from '../components/recipes/SearchHeader.js';
 import { TagChipBar } from '../components/recipes/TagChipBar.js';
 import { RecipeEmptyState } from '../components/recipes/RecipeEmptyState.js';
 import { SkeletonCard } from '../components/SkeletonCard.js';
+import { useCanGoBack } from '../hooks/useCanGoBack.js';
+import { goBack } from '../utils/backNavigation.js';
 import '../components/recipes/recipes.css';
 
 export function Recipes() {
@@ -37,11 +39,14 @@ export function Recipes() {
   } = useRecipes(initialRecipeId);
 
   const navigate = useNavigate();
+  const canGoBack = useCanGoBack();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const scrollPositionRef = useRef(0);
 
-  // BackButton handler: close detail if open, otherwise navigate back
+  // BackButton handler: close detail if open, otherwise navigate back.
+  // Falls back to the Hub when there's no in-app history to pop to (e.g. a
+  // deep link that opened straight into this recipe's detail view).
   useEffect(() => {
     if (!backButton.onClick.isAvailable()) return;
 
@@ -49,14 +54,14 @@ export function Recipes() {
       if (selectedRecipeId !== null) {
         handleCloseDetail();
       } else {
-        navigate(-1);
+        goBack(navigate, canGoBack);
       }
     });
 
     return () => {
       off();
     };
-  }, [selectedRecipeId, navigate]);
+  }, [selectedRecipeId, navigate, canGoBack]);
 
   function handleOpenDetail(id: number) {
     scrollPositionRef.current = window.scrollY;

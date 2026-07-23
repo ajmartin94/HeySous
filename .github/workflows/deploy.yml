@@ -1,0 +1,76 @@
+name: Deploy
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  HEALTH_URL: https://hey-sous.com/health
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: "**/package-lock.json"
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          cd mini-app && npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Build server + Mini App
+        run: npm run build:all
+
+      - name: Set up SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts
+          cat >> ~/.ssh/config <<EOF
+          Host deploy-target
+            HostName ${{ secrets.DEPLOY_HOST }}
+            User ${{ secrets.DEPLOY_USER }}
+            IdentityFile ~/.ssh/deploy_key
+          EOF
+
+      - name: Sync build artifacts
+        run: |
+          rsync -az --delete dist/ deploy-target:~/heysous/dist/
+          rsync -az --delete mini-app/dist/ deploy-target:~/heysous/mini-app/dist/
+          rsync -az package.json package-lock.json deploy-target:~/heysous/
+          rsync -az scripts/server-deploy.sh deploy-target:~/heysous/scripts/
+
+      - name: Install runtime deps and restart
+        run: ssh deploy-target "bash ~/heysous/scripts/server-deploy.sh"
+
+      - name: Health check
+        run: |
+          for i in $(seq 1 10); do
+            sleep 5
+            if curl -fsS --max-time 10 "$HEALTH_URL" | grep -q ok; then
+              echo "Health check passed."
+              exit 0
+            fi
+            echo "Attempt $i failed, retrying..."
+          done
+          echo "Health check failed after 10 attempts." >&2
+          exit 1

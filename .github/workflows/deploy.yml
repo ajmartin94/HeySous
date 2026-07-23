@@ -35,6 +35,9 @@ jobs:
 
       - name: Test
         run: npm test
+        env:
+          BOT_TOKEN: ci-dummy-token
+          ANTHROPIC_API_KEY: ci-dummy-key
 
       - name: Build server + Mini App
         run: npm run build:all

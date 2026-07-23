@@ -103,6 +103,34 @@ function validationError(msg: string): string {
 }
 
 /**
+ * Build a sorted list of canonical signatures for a set of meal-plan entries.
+ * Two plans are equivalent iff their signature lists are identical. Used for
+ * no-op save detection (Sonnet occasionally re-submits the plan verbatim from
+ * context instead of applying the requested modifications).
+ */
+function planEntrySignatures(
+  entries: Array<{
+    day: number;
+    mealType?: string | null;
+    recipeName: string;
+    knowledgeItemId?: number | null;
+  }>,
+): string[] {
+  return entries
+    .map(
+      (e) =>
+        `${e.day}|${e.mealType ?? "dinner"}|${e.recipeName}|${e.knowledgeItemId ?? ""}`,
+    )
+    .sort();
+}
+
+/** Return true if two sorted signature lists are element-for-element equal. */
+function signatureListsEqual(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  return a.every((sig, i) => sig === b[i]);
+}
+
+/**
  * Validate that a recipe has the required fields: title, ingredients, instructions.
  * Only applies to knowledge items tagged with "recipe".
  * Returns a descriptive error message listing missing fields, or null if valid.
@@ -650,116 +678,189 @@ export function createToolHandler(deps: {
             knowledge_item_id?: number;
           }>;
 
-          // Server-side auto-linking: validate provided IDs and auto-link unlinked entries
-          const autoLinked: Array<{ recipe_name: string; knowledge_item_id: number; match_title: string }> = [];
-          const correctedIds: Array<{ recipe_name: string; provided_id: number; corrected_id: number; match_title: string }> = [];
+          // Always log save_meal_plan inputs at info level for debuggability,
+          // regardless of the global LOG_TOOL_INPUTS setting. Plan saves are
+          // high-value operations where "the model sent the wrong data" bugs
+          // are otherwise very hard to diagnose from logs alone.
+          logger.info(
+            { householdId, tool: "save_meal_plan", weekStartDate, entries: rawEntries },
+            "save_meal_plan tool input",
+          );
 
-          const entries: PlanEntry[] = rawEntries.map((e) => {
-            let knowledgeItemId = e.knowledge_item_id;
+          try {
+            // Server-side auto-linking: validate provided IDs and auto-link unlinked entries
+            const autoLinked: Array<{ recipe_name: string; knowledge_item_id: number; match_title: string }> = [];
+            const correctedIds: Array<{ recipe_name: string; provided_id: number; corrected_id: number; match_title: string }> = [];
 
-            if (sqlite) {
-              // Phase 1: Validate provided knowledge_item_id
-              if (knowledgeItemId) {
-                try {
-                  const exists = sqlite.prepare(
-                    "SELECT id FROM knowledge_items WHERE id = ? AND household_id = ?"
-                  ).get(knowledgeItemId, householdId) as { id: number } | undefined;
-                  if (!exists) {
-                    // ID is invalid (wrong household or doesn't exist) -- clear it so auto-link can try
-                    const invalidId = knowledgeItemId;
-                    knowledgeItemId = undefined;
-                    logger.warn({ householdId, recipeName: e.recipe_name, invalidId }, "Invalid knowledge_item_id in save_meal_plan, will attempt auto-link");
-                    // We'll track this in correctedIds below if FTS finds a match
+            const entries: PlanEntry[] = rawEntries.map((e) => {
+              let knowledgeItemId = e.knowledge_item_id;
+
+              if (sqlite) {
+                // Phase 1: Validate provided knowledge_item_id
+                if (knowledgeItemId) {
+                  try {
+                    const exists = sqlite.prepare(
+                      "SELECT id FROM knowledge_items WHERE id = ? AND household_id = ?"
+                    ).get(knowledgeItemId, householdId) as { id: number } | undefined;
+                    if (!exists) {
+                      // ID is invalid (wrong household or doesn't exist) -- clear it so auto-link can try
+                      const invalidId = knowledgeItemId;
+                      knowledgeItemId = undefined;
+                      logger.warn({ householdId, recipeName: e.recipe_name, invalidId }, "Invalid knowledge_item_id in save_meal_plan, will attempt auto-link");
+                      // We'll track this in correctedIds below if FTS finds a match
+                    }
+                  } catch {
+                    // Validation failure is non-blocking
                   }
-                } catch {
-                  // Validation failure is non-blocking
+                }
+
+                // Phase 2: Auto-link entries without a (valid) knowledge_item_id
+                if (!knowledgeItemId) {
+                  try {
+                    const ftsResults = searchFts(sqlite, e.recipe_name, householdId, 1);
+                    if (ftsResults.length > 0) {
+                      const topResult = ftsResults[0];
+                      // Match if title is an exact case-insensitive match OR relevance score is very strong
+                      if (topResult.title.toLowerCase() === e.recipe_name.toLowerCase() || topResult.relevance < 5) {
+                        knowledgeItemId = topResult.id;
+                        if (e.knowledge_item_id) {
+                          correctedIds.push({
+                            recipe_name: e.recipe_name,
+                            provided_id: e.knowledge_item_id,
+                            corrected_id: topResult.id,
+                            match_title: topResult.title,
+                          });
+                        } else {
+                          autoLinked.push({
+                            recipe_name: e.recipe_name,
+                            knowledge_item_id: topResult.id,
+                            match_title: topResult.title,
+                          });
+                        }
+                      }
+                    }
+                  } catch {
+                    // FTS search failure is non-blocking
+                  }
                 }
               }
 
-              // Phase 2: Auto-link entries without a (valid) knowledge_item_id
-              if (!knowledgeItemId) {
-                try {
-                  const ftsResults = searchFts(sqlite, e.recipe_name, householdId, 1);
-                  if (ftsResults.length > 0) {
-                    const topResult = ftsResults[0];
-                    // Match if title is an exact case-insensitive match OR relevance score is very strong
-                    if (topResult.title.toLowerCase() === e.recipe_name.toLowerCase() || topResult.relevance < 5) {
-                      knowledgeItemId = topResult.id;
-                      if (e.knowledge_item_id) {
-                        correctedIds.push({
-                          recipe_name: e.recipe_name,
-                          provided_id: e.knowledge_item_id,
-                          corrected_id: topResult.id,
-                          match_title: topResult.title,
-                        });
-                      } else {
-                        autoLinked.push({
-                          recipe_name: e.recipe_name,
-                          knowledge_item_id: topResult.id,
-                          match_title: topResult.title,
-                        });
-                      }
-                    }
-                  }
-                } catch {
-                  // FTS search failure is non-blocking
-                }
+              return {
+                day: e.day,
+                recipeName: e.recipe_name,
+                mealType: (e.meal_type as MealType) ?? "dinner",
+                knowledgeItemId,
+              };
+            });
+
+            if (autoLinked.length > 0 || correctedIds.length > 0) {
+              logger.info({ householdId, autoLinked, correctedIds }, "Server-side recipe auto-linking applied");
+            }
+
+            // Check for existing plan (for no-op detection + optimistic locking).
+            const existingPlan = planRepository.getPlan(householdId, weekStartDate);
+
+            // No-op detection: if the submitted entries are byte-for-byte
+            // equivalent to the currently-saved plan, the model almost certainly
+            // echoed the plan from context instead of applying the requested
+            // change. Warn instead of reporting a silent success so the model
+            // re-examines its work.
+            if (existingPlan) {
+              const existingSigs = planEntrySignatures(
+                existingPlan.entries.map((e) => ({
+                  day: e.dayOfWeek,
+                  mealType: e.mealType,
+                  recipeName: e.recipeName,
+                  knowledgeItemId: e.knowledgeItemId,
+                })),
+              );
+              const submittedSigs = planEntrySignatures(entries);
+              if (signatureListsEqual(existingSigs, submittedSigs)) {
+                logger.info(
+                  { householdId, weekStartDate },
+                  "save_meal_plan no-op: submitted entries identical to existing plan",
+                );
+                return JSON.stringify({
+                  warning:
+                    "The submitted plan is identical to the existing saved plan for this week -- no changes were applied. If the user asked you to modify the plan (swap a day, move a meal, replace what was planned with what they actually ate), you re-sent the original entries without applying the change. Re-examine the requested modification, update the affected day/meal entries, and call save_meal_plan again with the corrected entries.",
+                  is_error: true,
+                  no_op: true,
+                  plan: {
+                    weekStartDate,
+                    entries: existingPlan.entries.map((e) => ({
+                      day: e.dayOfWeek,
+                      dayName: DAY_NAMES[e.dayOfWeek] ?? `Day ${e.dayOfWeek}`,
+                      mealType: e.mealType,
+                      recipeName: e.recipeName,
+                      knowledgeItemId: e.knowledgeItemId,
+                    })),
+                    version: existingPlan.version,
+                  },
+                });
               }
             }
 
-            return {
-              day: e.day,
-              recipeName: e.recipe_name,
-              mealType: (e.meal_type as MealType) ?? "dinner",
-              knowledgeItemId,
+            const plan = planRepository.savePlan(householdId, weekStartDate, entries, {
+              expectedVersion: existingPlan?.version,
+              updatedBy: householdId,
+            });
+
+            if (!plan) {
+              return JSON.stringify({
+                error: "The meal plan for this week was just updated by someone else. Please check the current plan (use get_meal_plan) and try again.",
+                is_error: true,
+                conflict: true,
+              });
+            }
+
+            // Regenerate reminders after plan change to avoid stale reminder
+            // context. The plan is already persisted at this point, so a failure
+            // here must NOT fail the save -- log it and continue. (Reminder
+            // regeneration can throw, e.g. "Invalid time value" when a recipe's
+            // prep+cook time pushes a start-cooking reminder before midnight.)
+            if (generateRemindersFn) {
+              try {
+                generateRemindersFn(householdId);
+              } catch (reminderError) {
+                logger.error(
+                  { err: reminderError, householdId, weekStartDate },
+                  "Reminder regeneration failed after save_meal_plan; plan was saved successfully",
+                );
+              }
+            }
+
+            const response: Record<string, unknown> = {
+              message: `Saved plan for week of ${weekStartDate}`,
+              plan: {
+                id: plan.id,
+                weekStartDate: plan.weekStartDate,
+                entries: plan.entries.map((e) => ({
+                  day: e.dayOfWeek,
+                  dayName: DAY_NAMES[e.dayOfWeek] ?? `Day ${e.dayOfWeek}`,
+                  mealType: e.mealType,
+                  recipeName: e.recipeName,
+                  knowledgeItemId: e.knowledgeItemId,
+                })),
+                version: plan.version,
+              },
             };
-          });
 
-          if (autoLinked.length > 0 || correctedIds.length > 0) {
-            logger.info({ householdId, autoLinked, correctedIds }, "Server-side recipe auto-linking applied");
-          }
+            if (autoLinked.length > 0) {
+              response.auto_linked = autoLinked;
+            }
 
-          // Check for existing plan to get version for optimistic locking
-          const existingPlan = planRepository.getPlan(householdId, weekStartDate);
-          const plan = planRepository.savePlan(householdId, weekStartDate, entries, {
-            expectedVersion: existingPlan?.version,
-            updatedBy: householdId,
-          });
-
-          if (!plan) {
+            return JSON.stringify(response);
+          } catch (error) {
+            const msg = error instanceof Error ? error.message : String(error);
+            logger.error(
+              { err: error, householdId, weekStartDate, entries: rawEntries },
+              "save_meal_plan failed",
+            );
             return JSON.stringify({
-              error: "The meal plan for this week was just updated by someone else. Please check the current plan (use get_meal_plan) and try again.",
+              error: `Could not save the meal plan (${msg}). Double-check that week_start_date is a Monday in YYYY-MM-DD format and that every entry has a valid day (0=Monday through 6=Sunday) and recipe_name, then try again.`,
               is_error: true,
-              conflict: true,
             });
           }
-
-          // Regenerate reminders after plan change to avoid stale reminder context
-          if (generateRemindersFn) {
-            generateRemindersFn(householdId);
-          }
-
-          const response: Record<string, unknown> = {
-            message: `Saved plan for week of ${weekStartDate}`,
-            plan: {
-              id: plan.id,
-              weekStartDate: plan.weekStartDate,
-              entries: plan.entries.map((e) => ({
-                day: e.dayOfWeek,
-                dayName: DAY_NAMES[e.dayOfWeek] ?? `Day ${e.dayOfWeek}`,
-                mealType: e.mealType,
-                recipeName: e.recipeName,
-                knowledgeItemId: e.knowledgeItemId,
-              })),
-              version: plan.version,
-            },
-          };
-
-          if (autoLinked.length > 0) {
-            response.auto_linked = autoLinked;
-          }
-
-          return JSON.stringify(response);
         }
 
         case "get_meal_plan": {

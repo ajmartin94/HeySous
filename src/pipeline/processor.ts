@@ -350,10 +350,13 @@ export function createProcessor(deps: ProcessorDeps) {
       // g7. Build date context for system prompt
       let dateContext = "";
       if (todayStr) {
-        const todayDate = new Date(todayStr + "T00:00:00");
+        // Parse the household-timezone date deterministically as UTC so the
+        // weekday/month labels never depend on the server's local timezone.
+        const [ty, tm, td] = todayStr.split("-").map(Number);
+        const todayDate = new Date(Date.UTC(ty, tm - 1, td));
         const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
         const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-        dateContext = `<current_date>\nToday is ${dayNames[todayDate.getDay()]}, ${monthNames[todayDate.getMonth()]} ${todayDate.getDate()}, ${todayDate.getFullYear()} (${todayStr}).\n</current_date>`;
+        dateContext = `<current_date>\nToday is ${dayNames[todayDate.getUTCDay()]}, ${monthNames[todayDate.getUTCMonth()]} ${todayDate.getUTCDate()}, ${todayDate.getUTCFullYear()} (${todayStr}).\n</current_date>`;
       }
 
       // h. Load user memories for system prompt injection

@@ -24,6 +24,21 @@ describe("buildSystemPrompt", () => {
     const prompt = buildSystemPrompt();
     expect(prompt).not.toContain("<current_date>");
   });
+
+  it("includes the bare-weekday next-future-occurrence rule", () => {
+    expect(prompt).toContain("WEEKDAY RULE");
+    expect(prompt).toContain("NEXT future occurrence");
+    // Must explicitly forbid resolving to a past date and asking which one.
+    expect(prompt).toContain("Never resolve it to a past date");
+    expect(prompt).toContain('never ask the user "which Tuesday?"');
+  });
+
+  it("clarifies log_meal vs save_meal_plan and requires plan updates for reported changes", () => {
+    expect(prompt).toContain("log_meal VS save_meal_plan");
+    expect(prompt).toContain("log_meal does NOT touch the meal plan");
+    expect(prompt).toContain("MUST be updated via save_meal_plan");
+    expect(prompt).toContain("Calling log_meal is NOT a substitute for updating the plan");
+  });
 });
 
 describe("buildDynamicContext sanitization", () => {

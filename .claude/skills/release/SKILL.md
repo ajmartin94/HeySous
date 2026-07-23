@@ -151,13 +151,59 @@ Confirm the tag was pushed successfully.
 
 ## Step 10: Deploy
 
-Remind the user to deploy. On startup, `seedNotifications()` will insert the new release notes and users will see them on next interaction.
+Deploys are automated: pushing the `vX.Y` tag (step 9) triggers `.github/workflows/deploy.yml`, which builds in CI, syncs artifacts to the droplet, restarts PM2, and health-checks `https://hey-sous.com/health`. See `docs/DEPLOYMENT.md` for the pipeline details.
 
-Present a final summary:
+### 10a. Environment variable check (before tagging, ideally)
+
+Check if the release introduced new environment variables. Read `src/config.ts` and compare against the current `.env.example`. Present any new variables that need to be added on the server.
+
+Current known variables (update this list when new ones are added):
+```
+BOT_TOKEN, BOT_MODE, PORT, WEBHOOK_URL, DB_FILE_NAME, LOG_LEVEL, NODE_ENV,
+ANTHROPIC_API_KEY, ANTHROPIC_MODEL, ADMIN_USER_IDS, MINI_APP_URL,
+LOG_TOOL_INPUTS, DAILY_TOKEN_BUDGET, SESSION_TIMEZONE
+```
+
+If new variables exist, tell the user to SSH in and add them **before** the tag push (config validates at startup, so a missing variable fails the deploy's health check):
+```bash
+ssh prod
+nano ~/heysous/.env
+# Add new variables, then exit
+```
+
+### 10b. Watch the deploy
+
+After the tag push, follow the workflow:
+
+```bash
+gh run watch
+```
+
+If the workflow fails, read the failed step's logs (`gh run view --log-failed`) and diagnose before retrying. The workflow can be re-run from the Actions tab or with `gh run rerun` — no new tag needed (or trigger manually via `workflow_dispatch`).
+
+### 10c. Smoke test
+
+Once the workflow is green, present this short checklist:
+
+```
+1. Send a message to the bot on Telegram
+   - Verify response streams correctly
+   - If release notes were added: verify they auto-deliver on first message
+
+2. Check webhook health
+   curl https://api.telegram.org/bot<TOKEN>/getWebhookInfo
+   - pending_update_count should be 0
+   - last_error_date should not be recent
+```
+
+### 10d. Release summary
+
+After the user confirms deployment, present:
 - Version released
-- Features shipped
+- Features shipped / bugs fixed
 - Todos folded into next milestone (if any)
-- Release notes version key
-- CLAUDE.md changes made
+- Release notes version key (if applicable)
+- CLAUDE.md changes made (if any)
+- New env variables added (if any)
 
 Suggest next steps: `/gsd:new-milestone` to start the next cycle.

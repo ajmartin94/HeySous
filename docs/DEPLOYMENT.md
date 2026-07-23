@@ -120,7 +120,7 @@ LOG_LEVEL=info
 NODE_ENV=production
 
 ANTHROPIC_API_KEY=your_api_key
-ANTHROPIC_MODEL=claude-haiku-4-5-20251001
+ANTHROPIC_MODEL=claude-sonnet-5
 ADMIN_USER_IDS=your_telegram_numeric_id
 MINI_APP_URL=https://hey-sous.com/app
 ```
@@ -223,13 +223,50 @@ sudo certbot renew --dry-run
 4. **Webhook:** `curl https://api.telegram.org/bot<TOKEN>/getWebhookInfo` should show `url` set and `pending_update_count: 0`
 5. **Logs:** `pm2 logs heysous` should show clean startup
 
+## 11. Automated Deploys (GitHub Actions)
+
+Deploys are automated via `.github/workflows/deploy.yml`. Pushing a `v*` tag (or manually triggering the workflow from the Actions tab) builds the server and Mini App in CI, rsyncs the artifacts to the droplet, installs runtime dependencies, restarts PM2, and verifies `https://hey-sous.com/health`.
+
+One-time setup:
+
+1. **Generate a deploy key** on your local machine:
+
+   ```bash
+   ssh-keygen -t ed25519 -f ~/.ssh/heysous_deploy -N "" -C "github-actions-deploy"
+   ```
+
+2. **Authorize it on the droplet:**
+
+   ```bash
+   ssh-copy-id -i ~/.ssh/heysous_deploy.pub heysous@YOUR_DROPLET_IP
+   ```
+
+3. **Add GitHub repository secrets** (Settings > Secrets and variables > Actions):
+   - `DEPLOY_HOST` — the droplet IP or hostname
+   - `DEPLOY_USER` — `heysous`
+   - `DEPLOY_SSH_KEY` — contents of `~/.ssh/heysous_deploy` (the private key)
+
+The workflow expects the app at `~/heysous` on the droplet with `.env` and `data/` already in place (from the initial setup above). CI builds the artifacts, so the droplet no longer builds anything — `git pull` on the server is no longer part of deploys.
+
+New environment variables still require a manual step: SSH in, add them to `~/heysous/.env`, then re-run the deploy workflow (config validation makes the health check fail loudly if a variable is missing).
+
 ## Maintenance
 
 ### Deploying Updates
 
+Push a version tag and the deploy workflow does the rest:
+
+```bash
+git tag v1.X && git push origin v1.X
+gh run watch   # optional: follow the deploy
+```
+
+Manual fallback (if Actions is unavailable):
+
 ```bash
 cd ~/heysous
 git pull
+npm ci && cd mini-app && npm ci && cd ..
 npm run build:all
 pm2 restart heysous
 ```

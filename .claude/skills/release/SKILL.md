@@ -11,7 +11,7 @@ The release process has three phases: **preparation** (steps 1-5, done on the mi
 
 ## Step 1: Verify milestone completion
 
-Check that the GSD milestone is complete:
+Check that the milestone is complete:
 
 ```bash
 # Check for incomplete plans
@@ -21,9 +21,7 @@ ls .planning/phases/*/*.md 2>/dev/null | grep PLAN | while read plan; do
 done
 ```
 
-If incomplete plans exist, tell the user and suggest `/gsd:execute-phase` for the relevant phase. Do not proceed until all plans have summaries.
-
-If the user hasn't run `/gsd:complete-milestone` yet, suggest it now. This archives the milestone and prepares the branch for merge.
+If incomplete plans exist, tell the user which phases are unfinished. Do not proceed until all plans have summaries.
 
 ## Step 2: Review pending todos
 
@@ -44,7 +42,7 @@ Present todos in a numbered list so the user can batch their decisions (e.g., "c
 
 Read `src/notifications/release-notes.ts` to see the existing format and version numbers.
 
-Determine the new version number from the milestone branch name (e.g., `gsd/v1.6-...` → `"1.6.0"`).
+Determine the new version number from the branch name if it matches `feature/vX.Y-*` (e.g., `feature/v1.7-feedback-fixes` → `"1.7.0"`). Otherwise, ask the user for the version number.
 
 Gather what was built by reading the milestone's phase summaries:
 ```bash
@@ -206,4 +204,4 @@ After the user confirms deployment, present:
 - CLAUDE.md changes made (if any)
 - New env variables added (if any)
 
-Suggest next steps: `/gsd:new-milestone` to start the next cycle.
+Suggest next steps: start a new feature branch for the next cycle of work.

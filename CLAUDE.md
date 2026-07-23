@@ -56,7 +56,7 @@ Subsystem-specific patterns (adding commands, tools, routes, tables) are documen
 
 ### TDD Policy
 
-Default to TDD for any task involving business logic, data transformations, validation, algorithms, or state machines. Use `tdd="true"` with a `<behavior>` block in GSD plans, or `type: tdd` for dedicated TDD plans. Only skip TDD for configuration, UI styling, glue code, migrations, and documentation.
+Default to TDD for any task involving business logic, data transformations, validation, algorithms, or state machines. Only skip TDD for configuration, UI styling, glue code, migrations, and documentation.
 
 ## Releasing
 
@@ -64,7 +64,7 @@ Release process is managed by the `/release` skill. See `.claude/skills/release/
 
 ## Git
 
-Branching is managed by the GSD workflow (`.claude/get-shit-done/`). Feature work happens on milestone branches (e.g. `gsd/v1.2-onboarding-and-feedback`). Never commit directly to `main` -- all changes reach `main` via pull request only.
+Feature work happens on feature branches (e.g. `feature/v1.7-feedback-fixes`). Never commit directly to `main` -- all changes reach `main` via pull request only.
 
 ## Environment
 

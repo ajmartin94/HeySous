@@ -83,7 +83,7 @@ Message your bot on Telegram -- `/start` triggers the onboarding flow.
 | `WEBHOOK_URL` | Webhook only | -- | Public HTTPS URL for webhook mode |
 | `MINI_APP_URL` | No | -- | Public URL for Mini App (e.g. `https://your-domain.com/app`) |
 | `DB_FILE_NAME` | No | `data/heysous.db` | SQLite database file path |
-| `ANTHROPIC_MODEL` | No | `claude-haiku-4-5-20251001` | Claude model ID |
+| `ANTHROPIC_MODEL` | No | `claude-sonnet-4-6` | Claude model ID |
 | `LOG_LEVEL` | No | `info` | Pino log level |
 | `NODE_ENV` | No | `development` | Set to `production` for prod |
 
@@ -109,16 +109,23 @@ src/
   ai/             Claude client, system prompt, tool definitions
   bot/            grammY bot setup, command handlers, middleware
   pipeline/       Message queue + processor (Claude call orchestration)
-  knowledge/      Recipe/preference storage, FTS5 search
+  knowledge/      Recipe storage, FTS5 search
+  memory/         Atomic fact memory (FTS5 dedup)
   planning/       Meal plan generation and storage
   grocery/        Grocery list management
   reminders/      Reminder scheduling and delivery
   feedback/       Meal feedback check-ins
+  app-feedback/   App-level feedback collection
+  notifications/  Release notes delivery
+  deep-links/     Mini App deep-link builder
   onboarding/     First-run conversational flow
   invites/        Invite-gated access system
   users/          User/household management
   mini-app/       Express API routes for Mini App
-  db/             Drizzle schema, database init
+  telegram/       Message splitting/formatting helpers
+  conversation/   Conversation history context
+  mcp/            Read-only debug MCP server (ssh to prod)
+  db/             Drizzle schema, database init, migrations
 
 mini-app/src/
   pages/          Hub, GroceryList, Recipes, MealPlan, Feedback, Help

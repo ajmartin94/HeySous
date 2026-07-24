@@ -5,3 +5,7 @@ data/
 *.db
 *.db-wal
 *.db-shm
+
+# GSD workspace (retired) -- local planning scratch stays untracked
+.planning/
+.temp/

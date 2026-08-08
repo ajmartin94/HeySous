@@ -40,6 +40,20 @@ export function getTimeoutMessage(): string {
   ]);
 }
 
+/**
+ * Shown when the model hit its output ceiling before writing any reply --
+ * the turn produced tool activity but no words, so without this the user
+ * is left staring at status lines and silence.
+ */
+export function getTruncatedResponseMessage(): string {
+  return pickRandom([
+    "I ran out of room working through that one. Mind asking again, maybe a bit at a time?",
+    "That got away from me before I could answer -- try asking again, or break it into smaller pieces?",
+    "I hit my limit mid-thought there. Want to try that again?",
+    "Whew, that was a big one -- I ran out of room before answering. Can you ask again?",
+  ]);
+}
+
 export function getMessageTooLongResponse(): string {
   return pickRandom([
     "Whoa, that's a novel! I can handle messages up to about 4,000 characters -- mind breaking it up a bit?",

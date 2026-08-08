@@ -248,14 +248,10 @@ export function Admin() {
     ).entries(),
   ).map(([id, name]) => ({ id, name }));
 
-  // Compute budget line for cost chart
-  let budgetDollars: number | undefined;
-  if (costs.data) {
-    const totalTokens = costs.data.byModel.reduce((sum, m) => sum + m.tokens, 0);
-    if (totalTokens > 0 && costs.data.dailyBudgetTokens > 0) {
-      budgetDollars = (costs.data.dailyBudgetTokens / totalTokens) * costs.data.totalCost;
-    }
-  }
+  // Budget line for the cost chart. The budget is denominated in dollars, so
+  // this is a direct read -- it used to be extrapolated from a token budget
+  // via the observed cost-per-token, which drifted with the cache-hit mix.
+  const budgetDollars = costs.data?.dailyBudgetUsd;
 
   // Error state
   if (stats.error && costs.error && activity.error && feedback.error) {

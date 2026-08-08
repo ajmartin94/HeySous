@@ -25,7 +25,7 @@ export interface StatsData {
 
 export interface CostsData {
   totalCost: number;
-  dailyBudgetTokens: number;
+  dailyBudgetUsd: number;
   byModel: Array<{ model: string; cost: number; tokens: number }>;
   byUser: Array<{ userId: string; userName: string; cost: number }>;
   daily: Array<{ day: string; cost: number }>;

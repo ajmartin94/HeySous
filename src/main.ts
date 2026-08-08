@@ -13,7 +13,7 @@
 
 import type BetterSqlite3 from "better-sqlite3";
 import { Api } from "grammy";
-import { config } from "./config.js";
+import { config, AI } from "./config.js";
 import { createBot } from "./bot/index.js";
 import { createServer } from "./server.js";
 import { createDatabase } from "./db/index.js";
@@ -84,10 +84,10 @@ async function main(): Promise<void> {
   // Initialize Claude client (with logger for structured retry logging)
   const claudeClient = createClaudeClient(
     config.anthropicApiKey,
-    config.anthropicModel,
+    AI.model,
     logger,
   );
-  logger.info({ model: config.anthropicModel }, "Claude client initialized");
+  logger.info({ model: AI.model }, "Claude client initialized");
 
   // Initialize message queue with default 1500ms debounce
   const queue = createMessageQueue();

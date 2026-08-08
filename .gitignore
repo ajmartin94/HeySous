@@ -9,3 +9,6 @@ data/
 # GSD workspace (retired) -- local planning scratch stays untracked
 .planning/
 .temp/
+
+# TypeScript incremental build info
+*.tsbuildinfo

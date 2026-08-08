@@ -174,6 +174,34 @@ function validateRecipeCompleteness(
  *
  * Factory pattern matches codebase conventions (createDatabase, createClaudeClient).
  */
+/**
+ * Normalize a recipe title for comparison: lowercase, "&" spelled out,
+ * punctuation dropped, whitespace collapsed. Lets "Miso-Glazed Salmon" match
+ * "Miso Glazed Salmon" without letting unrelated dishes match each other.
+ */
+function normalizeRecipeTitle(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
+/**
+ * Whether a plan entry's recipe name refers to the same dish as a stored
+ * recipe title.
+ *
+ * Deliberately strict. This gates auto-linking a meal plan entry to a recipe,
+ * and FTS returns a top hit for any common word, so a relevance score cannot
+ * be trusted to make this call -- see the call site in save_meal_plan.
+ */
+export function isRecipeTitleMatch(recipeName: string, storedTitle: string): boolean {
+  const a = normalizeRecipeTitle(recipeName);
+  const b = normalizeRecipeTitle(storedTitle);
+  return a.length > 0 && a === b;
+}
+
 export function createToolHandler(deps: {
   retrievalService: ReturnType<typeof createRetrievalService>;
   knowledgeRepository: ReturnType<typeof createKnowledgeRepository>;
@@ -720,8 +748,13 @@ export function createToolHandler(deps: {
                     const ftsResults = searchFts(sqlite, e.recipe_name, householdId, 1);
                     if (ftsResults.length > 0) {
                       const topResult = ftsResults[0];
-                      // Match if title is an exact case-insensitive match OR relevance score is very strong
-                      if (topResult.title.toLowerCase() === e.recipe_name.toLowerCase() || topResult.relevance < 5) {
+                      // Link only when the titles genuinely match. FTS always
+                      // returns SOMETHING for a common word, so ranking alone
+                      // cannot decide this -- a plan entry called "Bread" once
+                      // linked to a sweet potato soup that merely mentioned it.
+                      // An unlinked entry is harmless; a wrongly linked one
+                      // corrupts the plan.
+                      if (isRecipeTitleMatch(e.recipe_name, topResult.title)) {
                         knowledgeItemId = topResult.id;
                         if (e.knowledge_item_id) {
                           correctedIds.push({

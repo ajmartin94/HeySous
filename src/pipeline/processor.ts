@@ -35,6 +35,7 @@ import type { Clock } from "../clock.js";
 import { getTodayInTimezone } from "../clock.js";
 import { autoMarkCookedMeals, getCookingHistory } from "../planning/history.js";
 import { buildPlanContext } from "../planning/context.js";
+import { buildDateContext } from "../planning/date-utils.js";
 import { buildGroceryContext } from "../grocery/context.js";
 import { buildReminderContext } from "../reminders/context.js";
 import { buildFeedbackContext } from "../feedback/context.js";
@@ -45,6 +46,7 @@ import { getMemoriesByHousehold } from "../memory/repository.js";
 import { checkPendingNotification } from "../notifications/update-notifier.js";
 import { config } from "../config.js";
 import { buildStaticPrompt, buildDynamicContext } from "../ai/system-prompt.js";
+import { buildCurrentTurnContent, withHistoryCacheBreakpoint } from "../ai/prompt-cache.js";
 import { sanitizeAndLog } from "../ai/sanitize.js";
 import type { SystemPromptInput, StreamCallbacks } from "../ai/claude-client.js";
 import { extractOnboardingMarker, getNextOnboardingState } from "../onboarding/state.js";
@@ -53,10 +55,10 @@ import { updateOnboardingState } from "../users/repository.js";
 import type { User } from "../users/types.js";
 import type { DrizzleDatabase } from "../db/index.js";
 import type { Logger } from "pino";
-import { getErrorMessage, getMessageTooLongResponse, getThinkingLongerMessage, getResilienceFailureMessage, getDailyLimitMessage } from "../bot/messages.js";
+import { getErrorMessage, getMessageTooLongResponse, getThinkingLongerMessage, getResilienceFailureMessage, getDailyLimitMessage, getTruncatedResponseMessage } from "../bot/messages.js";
 import { createTelegramStreamSender } from "../telegram/stream-sender.js";
 import { getToolStatusLabel } from "../ai/tool-status.js";
-import { checkDailyTokenBudget } from "../pipeline/token-budget-guard.js";
+import { checkDailyCostBudget } from "../pipeline/token-budget-guard.js";
 import { buildDeepLinksFromToolCalls, buildDeepLinkKeyboard } from "../deep-links/builder.js";
 import type { DeepLinkTarget } from "../deep-links/builder.js";
 
@@ -206,10 +208,10 @@ export function createProcessor(deps: ProcessorDeps) {
         return; // Discard -- do not save to conversation history or process
       }
 
-      // b2. Check daily token budget before processing
-      const budgetCheck = checkDailyTokenBudget(deps.sqlite, householdId, config.dailyTokenBudget, config.sessionTimezone);
+      // b2. Check daily spend budget before processing
+      const budgetCheck = checkDailyCostBudget(deps.sqlite, householdId, config.dailyCostBudgetUsd, config.sessionTimezone);
       if (!budgetCheck.allowed) {
-        log.info({ chatId, householdId, tokensUsed: budgetCheck.tokensUsed, budget: budgetCheck.budgetTokens }, "Daily token budget exhausted");
+        log.info({ chatId, householdId, costUsedUsd: budgetCheck.costUsed, budgetUsd: budgetCheck.budgetUsd }, "Daily cost budget exhausted");
         try { await ctx.reply(getDailyLimitMessage()); } catch { /* best-effort */ }
         return;
       }
@@ -296,10 +298,10 @@ export function createProcessor(deps: ProcessorDeps) {
         userContent = userText;
       }
 
-      const fullMessages: Anthropic.MessageParam[] = [
-        ...priorMessages,
-        { role: "user" as const, content: userContent },
-      ];
+      // NOTE: fullMessages is assembled further down (step i), once the
+      // per-request context exists -- that context rides on the current user
+      // turn rather than in the system prompt, so the conversation prefix ahead
+      // of it stays byte-stable and cacheable. See src/ai/prompt-cache.ts.
 
       // g. Resolve user timezone for date calculations
       let userTimezone = "America/New_York"; // fallback
@@ -347,17 +349,10 @@ export function createProcessor(deps: ProcessorDeps) {
       // g6. Load feedback context for system prompt injection
       const feedbackContext = buildFeedbackContext(deps.sqlite, householdId, deps.clock);
 
-      // g7. Build date context for system prompt
-      let dateContext = "";
-      if (todayStr) {
-        // Parse the household-timezone date deterministically as UTC so the
-        // weekday/month labels never depend on the server's local timezone.
-        const [ty, tm, td] = todayStr.split("-").map(Number);
-        const todayDate = new Date(Date.UTC(ty, tm - 1, td));
-        const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-        const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-        dateContext = `<current_date>\nToday is ${dayNames[todayDate.getUTCDay()]}, ${monthNames[todayDate.getUTCMonth()]} ${todayDate.getUTCDate()}, ${todayDate.getUTCFullYear()} (${todayStr}).\n</current_date>`;
-      }
+      // g7. Build date context for system prompt. Enumerates this week and
+      // next week so week references never depend on the model doing its own
+      // calendar arithmetic (see buildDateContext).
+      const dateContext = todayStr ? buildDateContext(todayStr) : "";
 
       // h. Load user memories for system prompt injection
       const memories = getMemoriesByHousehold(deps.sqlite, householdId);
@@ -400,8 +395,22 @@ export function createProcessor(deps: ProcessorDeps) {
         dateContext,
       });
 
+      // i. Assemble the request messages, ordered by volatility so the cache
+      //    prefix stays stable:
+      //      [history ... ✦cache breakpoint 2] [<session_context> + user message]
+      //    History is replayed from stored plain text, so everything up to the
+      //    breakpoint is byte-identical turn over turn. The context block is
+      //    deliberately NOT part of that prefix.
+      const fullMessages: Anthropic.MessageParam[] = [
+        ...withHistoryCacheBreakpoint(priorMessages),
+        {
+          role: "user" as const,
+          content: buildCurrentTurnContent(dynamicContext, userContent),
+        },
+      ];
+
       // i0. Estimate total token count and check for context overflow
-      const estimatedSystemTokens = estimateTokens(staticPrompt) + estimateTokens(dynamicContext);
+      const estimatedSystemTokens = estimateTokens(staticPrompt);
       const estimatedMsgTokens = estimateMessageTokens(fullMessages);
       const estimatedTotalTokens = estimatedSystemTokens + estimatedMsgTokens;
 
@@ -423,7 +432,7 @@ export function createProcessor(deps: ProcessorDeps) {
         // Remove oldest messages from fullMessages until under threshold
         // Always keep at least the current user message (last element)
         while (fullMessages.length > 1) {
-          const currentEstimate = estimateTokens(staticPrompt) + estimateTokens(dynamicContext) + estimateMessageTokens(fullMessages);
+          const currentEstimate = estimateTokens(staticPrompt) + estimateMessageTokens(fullMessages);
           if (currentEstimate <= CONTEXT_WINDOW_TOKENS * CONTEXT_TRIM_THRESHOLD) {
             break;
           }
@@ -434,7 +443,7 @@ export function createProcessor(deps: ProcessorDeps) {
 
         // If still over after removing all history, log and proceed anyway
         // (the API will handle it, or the request is genuinely too large)
-        const finalEstimate = estimateTokens(staticPrompt) + estimateTokens(dynamicContext) + estimateMessageTokens(fullMessages);
+        const finalEstimate = estimateTokens(staticPrompt) + estimateMessageTokens(fullMessages);
         if (finalEstimate > CONTEXT_WINDOW_TOKENS * CONTEXT_TRIM_THRESHOLD) {
           log.warn(
             {
@@ -448,13 +457,20 @@ export function createProcessor(deps: ProcessorDeps) {
         }
       }
 
-      // i1. Inject truncation notice into dynamic context if history was trimmed
-      let finalDynamicContext = dynamicContext;
+      // i1. If history was trimmed, say so inside the same context block on the
+      //     current turn. Rebuilt from userContent so the block stays the sole
+      //     home for per-request state -- the trim loop only ever shifts from
+      //     the front, so the last entry is always the current user turn.
       if (contextTrimmed) {
         const trimNotice = `\n<conversation_note>\nEarlier messages in this conversation have been omitted to fit the context window. Continue the conversation naturally based on what's visible. Do not mention this to the user.\n</conversation_note>`;
-        finalDynamicContext = dynamicContext + trimNotice;
+        fullMessages[fullMessages.length - 1] = {
+          role: "user" as const,
+          content: buildCurrentTurnContent(dynamicContext + trimNotice, userContent),
+        };
       }
-      const systemPrompt: SystemPromptInput = { static: staticPrompt, dynamic: finalDynamicContext };
+
+      // The system parameter is stable content only -- cache breakpoint 1.
+      const systemPrompt: SystemPromptInput = staticPrompt;
 
       // i2. Log context trimming metadata
       if (contextTrimmed) {
@@ -651,6 +667,30 @@ export function createProcessor(deps: ProcessorDeps) {
       }
 
       const requestDurationMs = Date.now() - startTime;
+
+      // j2. A truncated turn can end with no text at all -- the output budget
+      // went to thinking or a half-written tool call. The accumulated text is
+      // still non-empty (tool status lines), so nothing downstream notices and
+      // the user is left with status lines and silence. Say something instead.
+      if (response.truncated && !response.text.trim()) {
+        log.error(
+          {
+            chatId,
+            userId,
+            householdId,
+            stopReason: response.stopReason,
+            outputTokens: response.usage.outputTokens,
+            trackedToolCalls: trackedToolCalls.length,
+          },
+          "Response truncated at max_tokens with no text -- raise AI.maxTokens in config.ts",
+        );
+        const note = getTruncatedResponseMessage();
+        if (streamingActive) {
+          streamSender.appendText(note);
+        } else {
+          try { await ctx.reply(note); } catch { /* best-effort */ }
+        }
+      }
 
       // k. Extract onboarding marker (if any) BEFORE finalizing
       // For streaming: use accumulated text (includes all turns + tool status hints)

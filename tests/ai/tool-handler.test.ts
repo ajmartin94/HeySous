@@ -12,7 +12,7 @@ vi.mock("../../src/logger.js", () => ({
   },
 }));
 
-import { createToolHandler } from "../../src/ai/tool-handler.js";
+import { createToolHandler, isRecipeTitleMatch } from "../../src/ai/tool-handler.js";
 import type { PlanEntry, SavedPlan } from "../../src/planning/repository.js";
 import { createTestClock } from "../../src/clock.js";
 import { initializeFts } from "../../src/knowledge/fts.js";
@@ -885,5 +885,43 @@ describe("save_meal_plan auto-linking", () => {
     // Only Fish Tacos should be in auto_linked
     expect(result.auto_linked).toHaveLength(1);
     expect(result.auto_linked[0].recipe_name).toBe("Fish Tacos");
+  });
+});
+
+describe("isRecipeTitleMatch", () => {
+  /**
+   * A plan entry named "Bread" was auto-linked to recipe #107, "Creamy Sweet
+   * Potato Ginger Soup with Whey", because the old guard accepted the top FTS
+   * hit whenever its BM25 magnitude was BELOW 5 -- i.e. exactly when the match
+   * was weak. A real match scores ~10; that bogus one scored 4.15.
+   */
+  it("rejects an unrelated title regardless of search ranking", () => {
+    expect(isRecipeTitleMatch("Bread", "Creamy Sweet Potato Ginger Soup with Whey")).toBe(false);
+    expect(isRecipeTitleMatch("Roasted Okra", "Cajun Sausage & Rice Skillet")).toBe(false);
+  });
+
+  it("matches identical titles", () => {
+    expect(isRecipeTitleMatch("Roasted Okra", "Roasted Okra")).toBe(true);
+  });
+
+  it("ignores case, surrounding whitespace, and internal spacing", () => {
+    expect(isRecipeTitleMatch("roasted okra", "Roasted Okra")).toBe(true);
+    expect(isRecipeTitleMatch("  Roasted Okra  ", "Roasted Okra")).toBe(true);
+    expect(isRecipeTitleMatch("Roasted   Okra", "Roasted Okra")).toBe(true);
+  });
+
+  it("ignores punctuation differences that do not change the dish", () => {
+    expect(isRecipeTitleMatch("Miso-Glazed Salmon", "Miso Glazed Salmon")).toBe(true);
+    expect(isRecipeTitleMatch("Cajun Sausage & Rice Skillet", "Cajun Sausage and Rice Skillet")).toBe(true);
+  });
+
+  it("does not treat a substring as a match", () => {
+    expect(isRecipeTitleMatch("Salmon", "Miso Glazed Salmon")).toBe(false);
+    expect(isRecipeTitleMatch("Bread", "Banana Bread")).toBe(false);
+  });
+
+  it("handles empty or whitespace-only names without matching", () => {
+    expect(isRecipeTitleMatch("", "Roasted Okra")).toBe(false);
+    expect(isRecipeTitleMatch("   ", "")).toBe(false);
   });
 });

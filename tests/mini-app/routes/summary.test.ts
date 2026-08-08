@@ -12,7 +12,7 @@ vi.mock("../../../src/config.js", () => ({
     adminUserIds: [],
     adminUserId: "",
     sessionTimezone: "America/New_York",
-    dailyTokenBudget: 500000,
+    dailyCostBudgetUsd: 5,
     isDev: false,
     logLevel: "silent",
     miniAppUrl: "",

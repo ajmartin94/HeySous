@@ -11,12 +11,11 @@ interface Config {
   logLevel: string;
   isDev: boolean;
   anthropicApiKey: string;
-  anthropicModel: string;
   adminUserIds: string[];
   adminUserId: string;
   miniAppUrl: string;
   logToolInputs: boolean;
-  dailyTokenBudget: number;
+  dailyCostBudgetUsd: number;
   sessionTimezone: string;
 }
 
@@ -48,6 +47,36 @@ if (!anthropicApiKey) {
   );
 }
 
+/**
+ * Sous's model settings.
+ *
+ * Deliberately NOT environment variables. These three move together -- which
+ * `effort` values are legal depends on the model, and `maxTokens` has to suit
+ * whether that model thinks by default -- so splitting them across .env invites
+ * a mismatch that only shows up in production. Changing the model is a code
+ * change: reviewed, version-controlled, and visible in git history.
+ *
+ * A bare .env edit is how the Haiku 4.5 -> Sonnet 5 switch silently turned
+ * thinking on and started truncating replies, with nothing in the repo to show
+ * what had changed.
+ *
+ * - model:     Sonnet 5 and later think by default when no `thinking` param is
+ *              sent. Check that before switching.
+ * - maxTokens: Covers thinking AND reply text together, so a tight ceiling gets
+ *              spent on reasoning and truncates the answer. This is a cap, not
+ *              a target -- raising it does not raise typical spend.
+ * - effort:    Optional. Leave undefined unless the model supports it; the
+ *              parameter errors on Haiku 4.5 and Sonnet 4.5.
+ *
+ * After changing `model`, add a MODEL_PRICING entry for it in src/ai/types.ts
+ * or cost tracking silently falls back to the most expensive rates.
+ */
+export const AI = {
+  model: "claude-sonnet-5",
+  maxTokens: 16_000,
+  effort: undefined as "low" | "medium" | "high" | "max" | undefined,
+} as const;
+
 export const config: Config = {
   botToken,
   botMode,
@@ -57,12 +86,12 @@ export const config: Config = {
   logLevel: process.env.LOG_LEVEL ?? "info",
   isDev: process.env.NODE_ENV !== "production",
   anthropicApiKey,
-  anthropicModel: process.env.ANTHROPIC_MODEL ?? "claude-sonnet-4-6",
-  // Available models: claude-haiku-4-5-20251001, claude-sonnet-4-6, claude-opus-4-6
   adminUserIds: (process.env.ADMIN_USER_IDS ?? "").split(",").filter(Boolean),
   adminUserId: (process.env.ADMIN_USER_IDS ?? "").split(",").filter(Boolean)[0] ?? "",
   miniAppUrl: process.env.MINI_APP_URL ?? "",
   logToolInputs: process.env.LOG_TOOL_INPUTS === "true",
-  dailyTokenBudget: Number(process.env.DAILY_TOKEN_BUDGET) || 500_000,
+  // Per-household daily spend ceiling in USD. Stays an env var because it is a
+  // genuine per-environment operational dial (dev vs prod), unlike the model.
+  dailyCostBudgetUsd: Number(process.env.DAILY_COST_BUDGET_USD) || 5,
   sessionTimezone: process.env.SESSION_TIMEZONE ?? "America/New_York",
 };

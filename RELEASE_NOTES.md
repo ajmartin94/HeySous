@@ -2,6 +2,18 @@
 
 User-facing release notes as shown by Sous in Telegram. For technical changes, see [CHANGELOG.md](./CHANGELOG.md).
 
+## v1.7.1
+
+Turns out I'd been quietly dropping the ball in a few places. Here's what's fixed:
+
+- **No more silent treatment** -- Sometimes I'd think so hard about a tricky ask that I ran out of room before answering, and you'd just get nothing back. Worst on the big ones, like building a whole grocery list. That's fixed.
+- **I do what I say now** -- If I tell you a meal's on the plan or a recipe is saved, it's genuinely saved. No more cheerfully confirming something I never actually did.
+- **"Next week" means next week** -- Ask for something next Tuesday and it lands on next Tuesday, not the one after.
+- **Recipes link up properly** -- When a meal on your plan matches something in your recipe book, I'll connect the right one -- and stop attaching a random recipe that just happens to share a word.
+- **Quicker on my feet** -- I re-read a lot less of our conversation every time you message, so replies come back faster.
+
+Keep the feedback coming -- this whole release came from it. Just type /feedback anytime.
+
 ## v1.7.0
 
 This one's all about fixing the things you told me about. Here's what's better:

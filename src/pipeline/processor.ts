@@ -57,7 +57,7 @@ import type { DrizzleDatabase } from "../db/index.js";
 import type { Logger } from "pino";
 import { getErrorMessage, getMessageTooLongResponse, getThinkingLongerMessage, getResilienceFailureMessage, getDailyLimitMessage, getTruncatedResponseMessage } from "../bot/messages.js";
 import { createTelegramStreamSender } from "../telegram/stream-sender.js";
-import { getToolStatusLabel } from "../ai/tool-status.js";
+import { getToolStatusLabel, stripToolStatusLines } from "../ai/tool-status.js";
 import { checkDailyCostBudget } from "../pipeline/token-budget-guard.js";
 import { buildDeepLinksFromToolCalls, buildDeepLinkKeyboard } from "../deep-links/builder.js";
 import type { DeepLinkTarget } from "../deep-links/builder.js";
@@ -625,7 +625,7 @@ export function createProcessor(deps: ProcessorDeps) {
               .values({
                 chatId,
                 userId,
-                text: partialText,
+                text: stripToolStatusLines(partialText),
                 direction: "out" as const,
               })
               .run();
@@ -780,7 +780,7 @@ export function createProcessor(deps: ProcessorDeps) {
             .values({
               chatId,
               userId,
-              text: cleanText,
+              text: stripToolStatusLines(cleanText),
               direction: "out" as const,
             })
             .run();
@@ -798,7 +798,7 @@ export function createProcessor(deps: ProcessorDeps) {
             .values({
               chatId,
               userId,
-              text: cleanText,
+              text: stripToolStatusLines(cleanText),
               direction: "out" as const,
             })
             .run();

@@ -380,6 +380,10 @@ SESSION CONTEXT:
 - Current state -- today's date, the household's meal plan, grocery list, reminder settings, recent feedback, saved memories, and the user's name -- arrives in a <session_context> block at the start of the user's latest message.
 - That block is system-provided context, NOT something the user typed. Never quote it back, read it aloud, or treat it as part of their message.
 - It is regenerated fresh every time you're called and reflects the current state of their data. Where it disagrees with something said earlier in the conversation, the block is right and the earlier statement is stale.
+
+TOOL ACTIVITY IS DISPLAYED FOR YOU:
+- When you call a tool, the app shows the user a status line for it automatically. You never write those yourself -- your text contains only what you want to say.
+- Saying you did something is not doing it. If you tell the user a plan was updated, a recipe saved, or a meal logged, the matching tool call must actually be part of that same response. When in doubt, call the tool.
 `;
 
 const TOOLS_PROMPT = `

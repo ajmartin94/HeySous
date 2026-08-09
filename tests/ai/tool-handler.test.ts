@@ -12,7 +12,7 @@ vi.mock("../../src/logger.js", () => ({
   },
 }));
 
-import { createToolHandler, isRecipeTitleMatch } from "../../src/ai/tool-handler.js";
+import { createToolHandler, recipeTitleMatchKind } from "../../src/ai/tool-handler.js";
 import type { PlanEntry, SavedPlan } from "../../src/planning/repository.js";
 import { createTestClock } from "../../src/clock.js";
 import { initializeFts } from "../../src/knowledge/fts.js";
@@ -888,40 +888,60 @@ describe("save_meal_plan auto-linking", () => {
   });
 });
 
-describe("isRecipeTitleMatch", () => {
+describe("recipeTitleMatchKind", () => {
   /**
    * A plan entry named "Bread" was auto-linked to recipe #107, "Creamy Sweet
    * Potato Ginger Soup with Whey", because the old guard accepted the top FTS
    * hit whenever its BM25 magnitude was BELOW 5 -- i.e. exactly when the match
-   * was weak. A real match scores ~10; that bogus one scored 4.15.
+   * was weak. FTS returns a hit for any common word, so ranking alone cannot
+   * decide this; the titles have to actually correspond.
    */
-  it("rejects an unrelated title regardless of search ranking", () => {
-    expect(isRecipeTitleMatch("Bread", "Creamy Sweet Potato Ginger Soup with Whey")).toBe(false);
-    expect(isRecipeTitleMatch("Roasted Okra", "Cajun Sausage & Rice Skillet")).toBe(false);
+  it("rejects a title that shares no words with the request", () => {
+    expect(recipeTitleMatchKind("Bread", "Creamy Sweet Potato Ginger Soup with Whey")).toBe("none");
+    expect(recipeTitleMatchKind("Roasted Okra", "Cajun Sausage & Rice Skillet")).toBe("none");
   });
 
-  it("matches identical titles", () => {
-    expect(isRecipeTitleMatch("Roasted Okra", "Roasted Okra")).toBe(true);
+  it("reports an exact match", () => {
+    expect(recipeTitleMatchKind("Roasted Okra", "Roasted Okra")).toBe("exact");
   });
 
-  it("ignores case, surrounding whitespace, and internal spacing", () => {
-    expect(isRecipeTitleMatch("roasted okra", "Roasted Okra")).toBe(true);
-    expect(isRecipeTitleMatch("  Roasted Okra  ", "Roasted Okra")).toBe(true);
-    expect(isRecipeTitleMatch("Roasted   Okra", "Roasted Okra")).toBe(true);
+  it("treats case, spacing and punctuation as exact", () => {
+    expect(recipeTitleMatchKind("  roasted   okra ", "Roasted Okra")).toBe("exact");
+    expect(recipeTitleMatchKind("Miso-Glazed Salmon", "Miso Glazed Salmon")).toBe("exact");
+    expect(recipeTitleMatchKind("Cajun Sausage & Rice Skillet", "Cajun Sausage and Rice Skillet")).toBe("exact");
   });
 
-  it("ignores punctuation differences that do not change the dish", () => {
-    expect(isRecipeTitleMatch("Miso-Glazed Salmon", "Miso Glazed Salmon")).toBe(true);
-    expect(isRecipeTitleMatch("Cajun Sausage & Rice Skillet", "Cajun Sausage and Rice Skillet")).toBe(true);
+  /**
+   * Users name plan entries loosely -- "brownies" for "Classic Fudgy
+   * Brownies". The stored title is a more specific instance of what they
+   * asked for, so it is a real match; the caller resolves ambiguity by
+   * refusing to link when several recipes qualify.
+   */
+  it("reports a partial match when the request's words are all in the title", () => {
+    expect(recipeTitleMatchKind("brownies", "Classic Fudgy Brownies")).toBe("partial");
+    expect(recipeTitleMatchKind("Salmon", "Miso Glazed Salmon")).toBe("partial");
   });
 
-  it("does not treat a substring as a match", () => {
-    expect(isRecipeTitleMatch("Salmon", "Miso Glazed Salmon")).toBe(false);
-    expect(isRecipeTitleMatch("Bread", "Banana Bread")).toBe(false);
+  it("reports a partial match when the request is the more specific one", () => {
+    expect(recipeTitleMatchKind("Classic Fudgy Brownies with Walnuts", "Classic Fudgy Brownies")).toBe("partial");
   });
 
-  it("handles empty or whitespace-only names without matching", () => {
-    expect(isRecipeTitleMatch("", "Roasted Okra")).toBe(false);
-    expect(isRecipeTitleMatch("   ", "")).toBe(false);
+  /**
+   * Containment alone would let one generic word claim an elaborate recipe.
+   * The extra words have to read as modifiers, not a different dish.
+   */
+  it("rejects a generic word against a far more elaborate title", () => {
+    expect(
+      recipeTitleMatchKind("salad", "Herby Sun Dried Tomato Salad with Chickpeas and Lemon Vinaigrette"),
+    ).toBe("none");
+  });
+
+  it("does not match on a word that merely appears inside another word", () => {
+    expect(recipeTitleMatchKind("Ham", "Hamburger Soup")).toBe("none");
+  });
+
+  it("returns none for blank input", () => {
+    expect(recipeTitleMatchKind("", "Roasted Okra")).toBe("none");
+    expect(recipeTitleMatchKind("   ", "")).toBe("none");
   });
 });

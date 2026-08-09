@@ -21,10 +21,51 @@ const PINO_LEVEL_NAMES: Record<number, string> = {
   60: "fatal",
 };
 
+/**
+ * Parse a single log line into a Pino entry, tolerating a leading prefix.
+ *
+ * Production runs under pm2 with `log_date_format` set (docs/DEPLOYMENT.md),
+ * which prepends a formatted timestamp to every stdout line:
+ *
+ *   2026-07-25 00:58:03: {"level":50,"time":...,"msg":"..."}
+ *
+ * A strict JSON.parse rejects those, which silently dropped every prod log
+ * line and made query_logs always report "No matching log entries found".
+ * We retry from the first `{` so any prefix format works.
+ *
+ * @returns The parsed entry, or null if the line is not a JSON object.
+ */
+export function parseLogLine(line: string): Record<string, unknown> | null {
+  const trimmed = line.trim();
+  if (!trimmed) return null;
+
+  const direct = parseJsonObject(trimmed);
+  if (direct) return direct;
+
+  // Retry past a leading prefix. Index 0 is already covered by `direct`.
+  const braceIndex = trimmed.indexOf("{");
+  if (braceIndex <= 0) return null;
+
+  return parseJsonObject(trimmed.slice(braceIndex));
+}
+
+/** Parse `text` as JSON, accepting only plain objects. */
+function parseJsonObject(text: string): Record<string, unknown> | null {
+  try {
+    const parsed: unknown = JSON.parse(text);
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+      return null;
+    }
+    return parsed as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
 export function registerLogTools(server: McpServer): void {
   server.tool(
     "query_logs",
-    "Search and filter Pino JSON log files by level, time range, and content. Returns matching log entries as formatted JSON.",
+    "Search and filter Pino JSON log files by level, time range, and content. Returns the MOST RECENT matching entries (up to `limit`) as formatted JSON, oldest-first.",
     {
       log_file: z
         .string()
@@ -53,7 +94,9 @@ export function registerLogTools(server: McpServer): void {
         .number()
         .optional()
         .default(100)
-        .describe("Maximum number of log lines to return (default: 100)"),
+        .describe(
+          "Maximum number of entries to return (default: 100). The newest matches are kept."
+        ),
     },
     async (args) => {
       const { log_file, level, search, since, until, limit } = args;
@@ -85,18 +128,8 @@ export function registerLogTools(server: McpServer): void {
       });
 
       for await (const line of rl) {
-        if (matches.length >= maxLines) break;
-
-        const trimmed = line.trim();
-        if (!trimmed) continue;
-
-        let entry: Record<string, unknown>;
-        try {
-          entry = JSON.parse(trimmed);
-        } catch {
-          // Skip non-JSON lines
-          continue;
-        }
+        const entry = parseLogLine(line);
+        if (entry === null) continue;
 
         // Filter by level
         if (levelFilter !== undefined && entry.level !== levelFilter) {
@@ -113,8 +146,9 @@ export function registerLogTools(server: McpServer): void {
           continue;
         }
 
-        // Filter by search pattern
-        if (searchRegex && !searchRegex.test(trimmed)) {
+        // Filter by search pattern (against the entry itself, so a pm2
+        // timestamp prefix can never satisfy or defeat the match)
+        if (searchRegex && !searchRegex.test(JSON.stringify(entry))) {
           continue;
         }
 
@@ -123,7 +157,11 @@ export function registerLogTools(server: McpServer): void {
           entry.levelName = PINO_LEVEL_NAMES[entry.level];
         }
 
+        // Keep a sliding window of the newest `maxLines` matches. The prod log
+        // spans months without rotation, so taking the first N from the top
+        // returns stale startup entries rather than what just happened.
         matches.push(entry);
+        if (matches.length > maxLines) matches.shift();
       }
 
       return {

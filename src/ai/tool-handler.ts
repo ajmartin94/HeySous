@@ -174,6 +174,65 @@ function validateRecipeCompleteness(
  *
  * Factory pattern matches codebase conventions (createDatabase, createClaudeClient).
  */
+/**
+ * Normalize a recipe title for comparison: lowercase, "&" spelled out,
+ * punctuation dropped, whitespace collapsed. Lets "Miso-Glazed Salmon" match
+ * "Miso Glazed Salmon" without letting unrelated dishes match each other.
+ */
+function normalizeRecipeTitle(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
+/** How closely a plan entry's recipe name corresponds to a stored title. */
+export type RecipeTitleMatch = "exact" | "partial" | "none";
+
+/**
+ * Compare a plan entry's recipe name against a stored recipe title.
+ *
+ * This gates auto-linking a plan entry to a recipe. FTS returns a top hit for
+ * any common word -- "Bread" once matched a sweet potato soup that merely
+ * mentioned bread -- so a relevance score cannot make this call; the titles
+ * have to actually correspond.
+ *
+ * - "exact"   -- same dish once case, spacing and punctuation are normalized
+ * - "partial" -- one title's words are wholly contained in the other's, so
+ *                one is a more specific instance of the other ("brownies" ->
+ *                "Classic Fudgy Brownies"). Real, but potentially ambiguous:
+ *                the caller must refuse to link when several recipes qualify.
+ * - "none"    -- unrelated
+ *
+ * Comparison is whole-word, so "Ham" does not match "Hamburger Soup".
+ */
+export function recipeTitleMatchKind(
+  recipeName: string,
+  storedTitle: string,
+): RecipeTitleMatch {
+  const a = normalizeRecipeTitle(recipeName);
+  const b = normalizeRecipeTitle(storedTitle);
+  if (!a || !b) return "none";
+  if (a === b) return "exact";
+
+  const aWords = new Set(a.split(" "));
+  const bWords = new Set(b.split(" "));
+  const [smaller, larger] = aWords.size <= bWords.size ? [aWords, bWords] : [bWords, aWords];
+  if (![...smaller].every((word) => larger.has(word))) return "none";
+
+  // Containment alone lets one generic word claim an elaborate recipe --
+  // "salad" would swallow "Herby Sun Dried Tomato Salad with Chickpeas and
+  // Lemon Vinaigrette". Require the two names to be close in specificity, so
+  // the extra words read as modifiers ("Classic Fudgy Brownies") rather than
+  // a different dish that happens to share a word.
+  return larger.size - smaller.size <= MAX_TITLE_WORD_GAP ? "partial" : "none";
+}
+
+/** Extra words a stored title may carry over the requested name and still match. */
+const MAX_TITLE_WORD_GAP = 2;
+
 export function createToolHandler(deps: {
   retrievalService: ReturnType<typeof createRetrievalService>;
   knowledgeRepository: ReturnType<typeof createKnowledgeRepository>;
@@ -714,14 +773,34 @@ export function createToolHandler(deps: {
                   }
                 }
 
-                // Phase 2: Auto-link entries without a (valid) knowledge_item_id
+                // Phase 2: Auto-link entries without a (valid) knowledge_item_id.
+                // Sous is meant to pass knowledge_item_id itself; this is the
+                // fallback for when it doesn't.
                 if (!knowledgeItemId) {
                   try {
-                    const ftsResults = searchFts(sqlite, e.recipe_name, householdId, 1);
-                    if (ftsResults.length > 0) {
-                      const topResult = ftsResults[0];
-                      // Match if title is an exact case-insensitive match OR relevance score is very strong
-                      if (topResult.title.toLowerCase() === e.recipe_name.toLowerCase() || topResult.relevance < 5) {
+                    // Pull several candidates so a loose name ("brownies") can
+                    // reach its recipe ("Classic Fudgy Brownies") while still
+                    // letting us detect ambiguity.
+                    const ftsResults = searchFts(sqlite, e.recipe_name, householdId, 5);
+                    const exact = ftsResults.filter(
+                      (r) => recipeTitleMatchKind(e.recipe_name, r.title) === "exact",
+                    );
+                    const partial = ftsResults.filter(
+                      (r) => recipeTitleMatchKind(e.recipe_name, r.title) === "partial",
+                    );
+                    // Prefer an exact title; fall back to partials only when
+                    // exactly one qualifies. Linking the wrong recipe corrupts
+                    // the plan, while leaving an entry unlinked is harmless.
+                    const candidates = exact.length > 0 ? exact : partial;
+                    if (candidates.length > 1) {
+                      logger.info(
+                        { householdId, recipeName: e.recipe_name, candidates: candidates.map((c) => c.title) },
+                        "Ambiguous recipe name in save_meal_plan, leaving entry unlinked",
+                      );
+                    }
+                    if (candidates.length === 1) {
+                      const topResult = candidates[0];
+                      {
                         knowledgeItemId = topResult.id;
                         if (e.knowledge_item_id) {
                           correctedIds.push({

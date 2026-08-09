@@ -411,7 +411,7 @@ export function createAdminRoutes(sqlite: BetterSqlite3.Database) {
 
       res.json({
         totalCost: totalCostRow.cost,
-        dailyBudgetTokens: config.dailyTokenBudget,
+        dailyBudgetUsd: config.dailyCostBudgetUsd,
         byModel: byModel.map((m) => ({
           model: m.model,
           cost: m.cost,

@@ -1,9 +1,15 @@
 /**
- * Daily Token Budget Guard
+ * Daily Cost Budget Guard
  *
- * Checks whether a household has exceeded its daily token budget.
- * Queries the token_usage table for today's total consumption,
- * using a midnight boundary in the configured timezone.
+ * Checks whether a household has exceeded its daily spend, using a midnight
+ * boundary in the configured timezone.
+ *
+ * Budgets are in dollars, not tokens. Summing input + output + cache_creation +
+ * cache_read treats token classes that differ ~20x in price as equivalent, so
+ * the same token ceiling authorised anywhere from $0.80 to $40 per household
+ * per day depending on cache mix -- and heavily-cached conversations, the cheap
+ * case, exhausted it fastest. Spend is also model-independent, so this survives
+ * a model switch without retuning.
  *
  * Uses raw SQLite prepared statement (same pattern as preferences.ts, fts.ts).
  */
@@ -12,8 +18,10 @@ import type BetterSqlite3 from "better-sqlite3";
 
 export interface BudgetCheckResult {
   allowed: boolean;
-  tokensUsed: number;
-  budgetTokens: number;
+  /** Dollars spent by this household since midnight in the given timezone. */
+  costUsed: number;
+  /** The daily ceiling in dollars. */
+  budgetUsd: number;
 }
 
 /**
@@ -71,18 +79,22 @@ function getMidnightEpochSeconds(timezone: string): number {
 }
 
 /**
- * Check whether a household is within its daily token budget.
+ * Check whether a household is within its daily spend budget.
+ *
+ * Accuracy depends on MODEL_PRICING carrying an entry for the model in use --
+ * an unpriced model falls back to the most expensive rates, which over-reports
+ * (and so blocks early) rather than letting spend run unmeasured.
  *
  * @param sqlite - Raw better-sqlite3 database instance
  * @param householdId - Household ID for per-household isolation
- * @param budgetTokens - Maximum tokens allowed per day
+ * @param budgetUsd - Maximum dollars allowed per day
  * @param timezone - IANA timezone for midnight boundary calculation
- * @returns BudgetCheckResult with allowed flag and usage details
+ * @returns BudgetCheckResult with allowed flag and spend details
  */
-export function checkDailyTokenBudget(
+export function checkDailyCostBudget(
   sqlite: BetterSqlite3.Database,
   householdId: string,
-  budgetTokens: number,
+  budgetUsd: number,
   timezone: string,
 ): BudgetCheckResult {
   const midnightEpoch = getMidnightEpochSeconds(timezone);
@@ -90,21 +102,19 @@ export function checkDailyTokenBudget(
   const row = sqlite
     .prepare(
       `
-      SELECT COALESCE(SUM(
-        input_tokens + output_tokens + cache_creation_tokens + cache_read_tokens
-      ), 0) AS total_tokens
+      SELECT COALESCE(SUM(estimated_cost), 0) AS total_cost
       FROM token_usage
       WHERE household_id = ?
         AND created_at >= ?
       `,
     )
-    .get(householdId, midnightEpoch) as { total_tokens: number } | undefined;
+    .get(householdId, midnightEpoch) as { total_cost: number } | undefined;
 
-  const tokensUsed = row?.total_tokens ?? 0;
+  const costUsed = row?.total_cost ?? 0;
 
   return {
-    allowed: tokensUsed < budgetTokens,
-    tokensUsed,
-    budgetTokens,
+    allowed: costUsed < budgetUsd,
+    costUsed,
+    budgetUsd,
   };
 }

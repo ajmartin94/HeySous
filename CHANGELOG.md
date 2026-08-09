@@ -2,6 +2,47 @@
 
 Technical changelog for HeySous. For user-facing release notes, see [RELEASE_NOTES.md](./RELEASE_NOTES.md).
 
+## v1.7.1
+
+Bug-fix release. Most of it traces back to v1.6.2 switching `ANTHROPIC_MODEL` from `claude-haiku-4-5` to `claude-sonnet-5`: Sonnet 5 thinks by default when no `thinking` param is sent, and thinking shares the `max_tokens` budget. Two prod `/feedback` reports ("Sous can't make a grocery list", "Sous is unresponsive") were the same defect.
+
+### Added
+- `src/ai/prompt-cache.ts`: cache breakpoint placement by volatility -- system, end-of-history, and a rolling in-loop marker over tool results
+- `buildDateContext()`: enumerates every date in this week and next, so week references are a lookup rather than model arithmetic
+- `stripToolStatusLines()`: removes rendered status chrome before persisting an assistant message
+- `recipeTitleMatchKind()`: exact / partial / none title comparison for plan-entry auto-linking
+- `ClaudeResponse.truncated` plus a user-facing message when a turn is cut off with no text
+- `checkDailyCostBudget()`: per-household daily spend guard (`DAILY_COST_BUDGET_USD`)
+- `MODEL_PRICING` entries for `claude-sonnet-5` and `claude-opus-5`
+- ~90 tests across 6 new files (prompt-cache, claude-client, tool-status, token-budget-guard, query-logs, date-utils)
+
+### Changed
+- Model, `max_tokens` and `effort` moved out of `.env` into an `AI` block in `config.ts` -- they move together, and splitting them across env vars is how the v1.6.2 switch shipped invisibly
+- `max_tokens` 2048 -> 16000, covering thinking and reply text together
+- Daily budget guards `estimated_cost` rather than summed tokens; input/output/cache classes differ ~20x in price, so a token ceiling authorised anywhere from $0.80 to $40 per household per day
+- Per-request context (date, plan, grocery, memories, reminders, feedback) moved from the `system` parameter into a `<session_context>` block on the current user turn; `system` is now a single cached block
+- `MODEL_PRICING._fallback` from Haiku (cheapest) to Opus-tier (most expensive) -- an unpriced model must over-report, never hide spend
+- `query_logs` `limit` keeps the newest matches; `search` matches the parsed entry rather than the raw line
+- Admin dashboard reads `dailyBudgetUsd` directly instead of extrapolating a dollar figure from a token budget
+- `zod` declared explicitly (was a hoisted transitive; prod installs with `npm ci --omit=dev`)
+
+### Fixed
+- Empty replies: the whole 2048-token budget went to reasoning, so turns ended with `stop_reason: max_tokens`, no text, no tool call, and the loop returned `""` with no error. Three consecutive turns on 2026-07-29 each burned exactly 2048 output tokens over ~17s and saved no message row
+- The forced-final call after iteration exhaustion dropped `tools` while the messages still carried tool_use/tool_result blocks -- a guaranteed 400, so the safety net could only ever throw. Now keeps `tools` with `tool_choice: none`
+- "Next week" resolved a week late ("That's next week" on Fri Jul 24 -> "Tuesday, August 4th")
+- Plan entries auto-linked to unrelated recipes: the guard accepted the top FTS hit when BM25 magnitude was *below* 5, i.e. exactly when the match was weak. Measured: bogus match 4.15 (accepted), real match 10.65 (rejected)
+- Sous typed `<i>Updating your meal plan...</i>` as text instead of calling the tool. Status chrome was persisted to the messages table and replayed as history, teaching the pattern; brownies and a photographed recipe were both confirmed to the user and never saved
+- `query_logs` returned nothing from prod in every query: pm2's `log_date_format` prefixes each line before the Pino JSON, and the strict `JSON.parse` skipped all of them
+- `claude-sonnet-5` was unpriced from 2026-07-23, so every cost row used the Haiku fallback and understated spend ~2x
+- Cache prefix was never reusable past the system prompt: `cache_read_tokens` was always an exact multiple of 21,858. Uncached input is now ~66% lower, and a 3-iteration turn costs ~1,200 uncached input where it previously ran 26,215
+
+### Removed
+- `ANTHROPIC_MODEL`, `ANTHROPIC_MAX_TOKENS`, `ANTHROPIC_EFFORT`, `DAILY_TOKEN_BUDGET` environment handling
+- Two-block static/dynamic `SystemPromptInput`
+
+### Deploy
+- `DAILY_COST_BUDGET_USD` must be set in prod `.env` (default 5 if absent); `ANTHROPIC_MODEL` and `DAILY_TOKEN_BUDGET` are inert and can be deleted
+
 ## v1.7.0
 
 Feedback-driven bug-fix release: every prod-reported issue from `/feedback` and implicit feedback, plus findings from a full codebase audit.

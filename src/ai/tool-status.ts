@@ -52,3 +52,43 @@ const FALLBACK_LABEL = "Working on it...";
 export function getToolStatusLabel(toolName: string): string {
   return TOOL_STATUS_LABELS[toolName] ?? FALLBACK_LABEL;
 }
+
+/** Escape a literal string for use inside a RegExp. */
+function escapeRegex(literal: string): string {
+  return literal.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * Matches a rendered status decoration -- `<i>Searching recipes...</i>` -- for
+ * any known label, together with the blank line the stream sender puts in
+ * front of it. Anchored to the exact label set so genuine italics in recipe
+ * cards ("<i>american | dinner | 25 min</i>") are never touched.
+ */
+const STATUS_LINE_PATTERN = new RegExp(
+  `\\n*<i>(?:${[...Object.values(TOOL_STATUS_LABELS), FALLBACK_LABEL]
+    .map(escapeRegex)
+    .join("|")})<\\/i>`,
+  "g",
+);
+
+/**
+ * Remove tool-status decorations from an assistant message.
+ *
+ * These are UI chrome: the stream sender renders them live so the user can see
+ * work happening. They must NOT be persisted, because stored messages are
+ * replayed as conversation history -- and Sous, seeing turn after turn that
+ * looked like "<i>Updating your meal plan...</i>" followed by a confirmation,
+ * learned to type the decoration instead of calling the tool. Brownies were
+ * confirmed to the user and never saved; a photographed recipe likewise.
+ *
+ * Display keeps the decorations; only what we write to the messages table is
+ * stripped, so history teaches prose rather than chrome.
+ */
+export function stripToolStatusLines(text: string): string {
+  if (!text) return "";
+  return text
+    .replace(STATUS_LINE_PATTERN, "")
+    // Collapse the gap left where a status line sat mid-message.
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}

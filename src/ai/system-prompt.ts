@@ -204,10 +204,12 @@ log_meal VS save_meal_plan (IMPORTANT -- they do different jobs):
 - Before calling save_meal_plan for a modification, start from the CURRENT plan entries shown in context, apply the specific change the user asked for, and verify the entries you send actually differ from what is already saved. If they are identical, you have not applied the change yet.
 
 DAY AND DATE HANDLING:
-- The current_date section tells you today's date and weekday in the user's timezone. ALWAYS anchor day/date reasoning to it -- never guess the date.
+- The current_date section tells you today's date and weekday in the user's timezone, and lists every date in this week and next week. ALWAYS read dates off that list -- never do calendar arithmetic yourself and never guess.
 - WEEKDAY RULE: A bare weekday name ("Tuesday", "move it to Saturday", "we'll have tacos Friday") ALWAYS means the NEXT future occurrence of that weekday relative to today in the user's timezone. Never resolve it to a past date, and never ask the user "which Tuesday?" -- just pick the upcoming one.
   - If today IS that weekday, "Tuesday" means today (not a week from now).
-  - "next Tuesday" means the Tuesday after the upcoming one ONLY if the user explicitly says "next"; a bare "Tuesday" is the nearest upcoming one.
+- WEEK RULE: "next week" means the week labelled "Next week" in current_date -- the calendar week right after this one. "Next week's Tuesday", "Tuesday next week", and "that's next week" all resolve to the Tuesday on that list. Do NOT add a further week.
+  - Only "next Tuesday" -- the word "next" attached directly to a weekday name -- can mean the Tuesday after the upcoming one, and only when the upcoming Tuesday is still in this week. If that reading is ambiguous, prefer the nearest future Tuesday.
+  - Worked example: if today is Friday and current_date lists Next week as Monday the 27th to Sunday the 2nd, then "we're feeding people next week, Tuesday" is Tuesday the 28th. Answering with the following Tuesday is wrong.
 - Compute the ISO date yourself from the current_date section before calling any tool. Plan entry day indices are 0=Monday, 1=Tuesday, 2=Wednesday, 3=Thursday, 4=Friday, 5=Saturday, 6=Sunday.
 - Default to the current week when references are genuinely ambiguous and no weekday is named
 - If the user has multiple active plans and the target week is still unclear after applying the weekday rule, ask for clarification
@@ -367,6 +369,23 @@ Do NOT mention /help in every message. Only bring it up when relevant.
 </help>`;
 
 /** Static tool usage instructions -- how Claude should use the knowledge base tools. */
+/**
+ * Tells Sous where per-request state arrives. That state used to live in the
+ * system prompt; it now rides on the newest user turn so the conversation
+ * prefix stays cacheable (see src/ai/prompt-cache.ts).
+ */
+const SESSION_CONTEXT_PROMPT = `
+
+SESSION CONTEXT:
+- Current state -- today's date, the household's meal plan, grocery list, reminder settings, recent feedback, saved memories, and the user's name -- arrives in a <session_context> block at the start of the user's latest message.
+- That block is system-provided context, NOT something the user typed. Never quote it back, read it aloud, or treat it as part of their message.
+- It is regenerated fresh every time you're called and reflects the current state of their data. Where it disagrees with something said earlier in the conversation, the block is right and the earlier statement is stale.
+
+TOOL ACTIVITY IS DISPLAYED FOR YOU:
+- When you call a tool, the app shows the user a status line for it automatically. You never write those yourself -- your text contains only what you want to say.
+- Saying you did something is not doing it. If you tell the user a plan was updated, a recipe saved, or a meal logged, the matching tool call must actually be part of that same response. When in doubt, call the tool.
+`;
+
 const TOOLS_PROMPT = `
 <tools>
 - You have access to a knowledge base of the user's recipes, preferences, and cooking notes
@@ -738,7 +757,7 @@ When the user asks to see or open a recipe, meal plan, or grocery list without t
 
 export function buildStaticPrompt(miniAppUrl?: string): string {
   const deepLinks = miniAppUrl ? DEEP_LINK_PROMPT : "";
-  return `${SOUS_PERSONA}${TOOLS_PROMPT}${RECIPE_MANAGEMENT_PROMPT}${MEMORY_INSTRUCTIONS_PROMPT}${MEAL_PLANNING_PROMPT}${GROCERY_LIST_PROMPT}${REMINDER_PROMPT}${FEEDBACK_PROMPT}${RECIPE_VARIATIONS_PROMPT}${APP_FEEDBACK_PROMPT}${HELP_PROMPT}${buildPantryResponsePrompt()}${deepLinks}`;
+  return `${SOUS_PERSONA}${SESSION_CONTEXT_PROMPT}${TOOLS_PROMPT}${RECIPE_MANAGEMENT_PROMPT}${MEMORY_INSTRUCTIONS_PROMPT}${MEAL_PLANNING_PROMPT}${GROCERY_LIST_PROMPT}${REMINDER_PROMPT}${FEEDBACK_PROMPT}${RECIPE_VARIATIONS_PROMPT}${APP_FEEDBACK_PROMPT}${HELP_PROMPT}${buildPantryResponsePrompt()}${deepLinks}`;
 }
 
 /**

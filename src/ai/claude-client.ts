@@ -1,45 +1,34 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { APIError } from "@anthropic-ai/sdk";
 import type { Logger } from "pino";
+import { AI } from "../config.js";
+import { CACHE_CONTROL, moveLoopCacheBreakpoint } from "./prompt-cache.js";
 import { buildSystemPrompt } from "./system-prompt.js";
 import type { ClaudeResponse, TokenUsage } from "./types.js";
 import { MODEL_PRICING } from "./types.js";
 
 /**
- * System prompt input -- either a single string (backward compatible) or
- * a static/dynamic split for two-block prompt caching.
+ * The system prompt. Stable instruction content only.
  *
- * When an object is provided:
- * - static: Stable instruction content, cached via cache_control
- * - dynamic: Per-request context (preferences, plans, etc.), NOT cached
+ * Per-request state does NOT belong here: the system parameter renders ahead of
+ * every message, so anything volatile in it invalidates the whole conversation
+ * for caching. That content rides on the current user turn instead -- see
+ * prompt-cache.ts.
  */
-export type SystemPromptInput = string | { static: string; dynamic: string };
+export type SystemPromptInput = string;
 
 /**
- * Build Anthropic system content blocks from a SystemPromptInput.
+ * Build the system parameter as a single cached block.
  *
- * - String input: single block with cache_control (backward compatible)
- * - Object input: two blocks -- static with cache_control, dynamic without
+ * This is cache breakpoint 1 of 3. Because the content is stable, the entry is
+ * written once and read on every subsequent request.
  */
 function buildSystemBlocks(input: SystemPromptInput): Anthropic.TextBlockParam[] {
-  if (typeof input === "string") {
-    return [
-      {
-        type: "text" as const,
-        text: input,
-        cache_control: { type: "ephemeral" as const },
-      },
-    ];
-  }
   return [
     {
       type: "text" as const,
-      text: input.static,
-      cache_control: { type: "ephemeral" as const },
-    },
-    {
-      type: "text" as const,
-      text: input.dynamic,
+      text: input,
+      cache_control: CACHE_CONTROL,
     },
   ];
 }
@@ -93,6 +82,29 @@ export interface StreamCallbacks {
 
 /** Default max tool use iterations before forcing a text response. */
 const DEFAULT_MAX_ITERATIONS = 5;
+
+/**
+ * Per-call output ceiling, covering thinking and response text together.
+ * See the AI block in config.ts for why this needs generous headroom.
+ */
+const MAX_TOKENS = AI.maxTokens;
+
+/**
+ * Reasoning-effort hint, spread into each request only when configured --
+ * the parameter is rejected by models that do not support it.
+ */
+const EFFORT_PARAMS: { output_config?: { effort: "low" | "medium" | "high" | "max" } } =
+  AI.effort ? { output_config: { effort: AI.effort } } : {};
+
+/**
+ * Params for the final call made once the tool loop is exhausted.
+ *
+ * `tools` MUST stay on the request: the API rejects any request whose messages
+ * contain tool_use/tool_result blocks when no tools are defined, and by this
+ * point the loop has appended plenty of both. `tool_choice: none` is what
+ * actually forces a text-only answer.
+ */
+const FORCE_TEXT_PARAMS = { tool_choice: { type: "none" as const } };
 
 /** Default max retries for 429 rate-limit errors. */
 const DEFAULT_MAX_RETRIES = 3;
@@ -222,7 +234,8 @@ export function createClaudeClient(apiKey: string, model: string, clientLogger?:
       const response = await retryWithBackoff(
         () => client.messages.create({
           model,
-          max_tokens: 2048,
+          max_tokens: MAX_TOKENS,
+          ...EFFORT_PARAMS,
           system: systemBlocks,
           messages: [{ role: "user" as const, content: combinedUserText }],
         }),
@@ -295,6 +308,9 @@ export function createClaudeClient(apiKey: string, model: string, clientLogger?:
 
       // Mutable copy of messages for the loop
       const loopMessages: Anthropic.MessageParam[] = [...messages];
+      // Cache breakpoint 3 of 3: rolls forward onto each new batch of tool
+      // results so iteration N reads 1..N-1 instead of reprocessing them.
+      let loopCacheMark: Anthropic.ContentBlockParam | null = null;
       let finalModel = model;
       let finalStopReason = "unknown";
 
@@ -302,7 +318,8 @@ export function createClaudeClient(apiKey: string, model: string, clientLogger?:
         const response = await retryWithBackoff(
           () => client.messages.create({
             model,
-            max_tokens: 2048,
+            max_tokens: MAX_TOKENS,
+            ...EFFORT_PARAMS,
             system: systemBlock,
             messages: loopMessages,
             tools,
@@ -335,6 +352,7 @@ export function createClaudeClient(apiKey: string, model: string, clientLogger?:
             usage: totalUsage,
             model: finalModel,
             stopReason: finalStopReason,
+            truncated: finalStopReason === "max_tokens",
           };
         }
 
@@ -357,6 +375,7 @@ export function createClaudeClient(apiKey: string, model: string, clientLogger?:
             usage: totalUsage,
             model: finalModel,
             stopReason: finalStopReason,
+            truncated: finalStopReason === "max_tokens",
           };
         }
 
@@ -389,19 +408,25 @@ export function createClaudeClient(apiKey: string, model: string, clientLogger?:
           role: "assistant" as const,
           content: response.content,
         });
+        loopCacheMark = moveLoopCacheBreakpoint(loopCacheMark, toolResults);
         loopMessages.push({
           role: "user" as const,
           content: toolResults,
         });
       }
 
-      // Max iterations reached -- do one final call WITHOUT tools to force text response
+      // Max iterations reached -- force a text response. Tools stay declared
+      // (the messages carry tool_use/tool_result blocks) and tool_choice: none
+      // is what stops the model reaching for another one.
       const finalResponse = await retryWithBackoff(
         () => client.messages.create({
           model,
-          max_tokens: 2048,
+          max_tokens: MAX_TOKENS,
+          ...EFFORT_PARAMS,
           system: systemBlock,
           messages: loopMessages,
+          tools,
+          ...FORCE_TEXT_PARAMS,
         }),
         { maxRetries: DEFAULT_MAX_RETRIES, onRetry, logger: clientLogger },
       );
@@ -425,6 +450,7 @@ export function createClaudeClient(apiKey: string, model: string, clientLogger?:
         usage: totalUsage,
         model: finalResponse.model,
         stopReason: finalResponse.stop_reason ?? "unknown",
+        truncated: finalResponse.stop_reason === "max_tokens",
       };
     },
 
@@ -473,6 +499,9 @@ export function createClaudeClient(apiKey: string, model: string, clientLogger?:
 
       // Mutable copy of messages for the loop
       const loopMessages: Anthropic.MessageParam[] = [...messages];
+      // Cache breakpoint 3 of 3: rolls forward onto each new batch of tool
+      // results so iteration N reads 1..N-1 instead of reprocessing them.
+      let loopCacheMark: Anthropic.ContentBlockParam | null = null;
       let finalModel = model;
       let finalStopReason = "unknown";
 
@@ -482,7 +511,8 @@ export function createClaudeClient(apiKey: string, model: string, clientLogger?:
           async () => {
             const stream = client.messages.stream({
               model,
-              max_tokens: 2048,
+              max_tokens: MAX_TOKENS,
+              ...EFFORT_PARAMS,
               system: systemBlock,
               messages: loopMessages,
               tools,
@@ -524,6 +554,7 @@ export function createClaudeClient(apiKey: string, model: string, clientLogger?:
             usage: totalUsage,
             model: finalModel,
             stopReason: finalStopReason,
+            truncated: finalStopReason === "max_tokens",
           };
         }
 
@@ -546,6 +577,7 @@ export function createClaudeClient(apiKey: string, model: string, clientLogger?:
             usage: totalUsage,
             model: finalModel,
             stopReason: finalStopReason,
+            truncated: finalStopReason === "max_tokens",
           };
         }
 
@@ -580,20 +612,26 @@ export function createClaudeClient(apiKey: string, model: string, clientLogger?:
           role: "assistant" as const,
           content: response.content,
         });
+        loopCacheMark = moveLoopCacheBreakpoint(loopCacheMark, toolResults);
         loopMessages.push({
           role: "user" as const,
           content: toolResults,
         });
       }
 
-      // Max iterations reached -- do one final stream WITHOUT tools to force text response
+      // Max iterations reached -- force a text response. Tools stay declared
+      // (the messages carry tool_use/tool_result blocks) and tool_choice: none
+      // is what stops the model reaching for another one.
       const finalResponse = await retryWithBackoff(
         async () => {
           const stream = client.messages.stream({
             model,
-            max_tokens: 2048,
+            max_tokens: MAX_TOKENS,
+            ...EFFORT_PARAMS,
             system: systemBlock,
             messages: loopMessages,
+            tools,
+            ...FORCE_TEXT_PARAMS,
           });
 
           stream.on("text", (delta, snapshot) => {
@@ -624,6 +662,7 @@ export function createClaudeClient(apiKey: string, model: string, clientLogger?:
         usage: totalUsage,
         model: finalResponse.model,
         stopReason: finalResponse.stop_reason ?? "unknown",
+        truncated: finalResponse.stop_reason === "max_tokens",
       };
     },
   };

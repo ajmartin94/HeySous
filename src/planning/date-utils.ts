@@ -112,6 +112,61 @@ export function formatDateRange(weekStartDate: string): string {
   return `${startMonth} ${start.getUTCDate()} - ${endMonth} ${end.getUTCDate()}`;
 }
 
+const FULL_MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+] as const;
+
+/**
+ * Build the <current_date> block injected into the system prompt.
+ *
+ * Deliberately spells out every date in this week and next week. Sous
+ * previously got only today's date and had to derive week boundaries itself,
+ * which is how "next week" once resolved a full week late. Enumerating the
+ * days turns that reasoning into a lookup.
+ *
+ * Weeks run Monday to Sunday, matching plan entry day indices.
+ *
+ * @param todayStr - ISO "YYYY-MM-DD" for today in the household's timezone
+ * @returns The formatted <current_date> block
+ */
+export function buildDateContext(todayStr: string): string {
+  const today = parseIsoDateUtc(todayStr);
+  const todayLabel =
+    `${DAY_NAMES[(today.getUTCDay() + 6) % 7]}, ` +
+    `${FULL_MONTHS[today.getUTCMonth()]} ${today.getUTCDate()}, ` +
+    `${today.getUTCFullYear()} (${todayStr})`;
+
+  const thisMonday = getWeekStartDate(todayStr);
+  const nextMonday = addDays(thisMonday, 7);
+
+  const week = (label: string, monday: string): string => {
+    const days = DAY_NAMES.map(
+      (name, i) => `  ${name} ${addDays(monday, i)}`,
+    ).join("\n");
+    return `${label} (Monday ${monday} to Sunday ${addDays(monday, 6)}):\n${days}`;
+  };
+
+  return [
+    "<current_date>",
+    `Today is ${todayLabel}.`,
+    "",
+    week("This week", thisMonday),
+    week("Next week", nextMonday),
+    "</current_date>",
+  ].join("\n");
+}
+
 /**
  * Add N days to an ISO date string and return new ISO date string.
  * Arithmetic is done in UTC, so the result is immune to the server timezone.

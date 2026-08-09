@@ -2,6 +2,13 @@
 
 Technical changelog for HeySous. For user-facing release notes, see [RELEASE_NOTES.md](./RELEASE_NOTES.md).
 
+## v1.7.2
+
+### Changed
+- `CONVERSATION_TOKEN_BUDGET` 2000 -> 8000. 39% of inbound turns (148 of 379 since 2026-06-01) carried more same-day history than 2,000 allowed, and the busiest day accumulated ~11,600, so Sous was routinely dropping context mid-conversation. Affordable only now that v1.7.1 put history behind a cache breakpoint: previously re-sent uncached on every tool-loop iteration (~$0.084/turn at this size), now a cache read at roughly $0.0024/turn. A full request lands around 37k tokens, ~3.7% of Sonnet 5's window. The midnight session boundary still caps history at one day.
+
+No user-facing release note: v1.7.1's notes were still undelivered, and `checkPendingNotification` serves the oldest pending entry one per interaction, so adding one here would queue a second announcement behind it for a one-line tuning change.
+
 ## v1.7.1
 
 Bug-fix release. Most of it traces back to v1.6.2 switching `ANTHROPIC_MODEL` from `claude-haiku-4-5` to `claude-sonnet-5`: Sonnet 5 thinks by default when no `thinking` param is sent, and thinking shares the `max_tokens` budget. Two prod `/feedback` reports ("Sous can't make a grocery list", "Sous is unresponsive") were the same defect.

@@ -119,8 +119,26 @@ export function createInstrumentedToolHandler(
  */
 const MAX_MESSAGE_LENGTH = 4_000;
 
-/** Default conversation history token budget. */
-const CONVERSATION_TOKEN_BUDGET = 2000;
+/**
+ * Conversation history token budget.
+ *
+ * Sized against measured traffic: 39% of inbound turns (148 of 379 since
+ * 2026-06-01) carried more same-day history than the old 2,000 allowed, and the
+ * busiest day accumulated ~11,600. 8,000 covers the large majority.
+ *
+ * Affordable only since v1.7.1 put history behind a cache breakpoint. It used
+ * to be re-sent uncached on every tool-loop iteration (~$0.084/turn at this
+ * size); it is now a cache read at roughly $0.0024/turn. Do not raise this
+ * without confirming the history breakpoint is still landing -- watch
+ * cache_read_tokens grow across a conversation.
+ *
+ * Note this is measured with estimateTokens, which under-counts real
+ * tokenization by ~1.7x, so 8,000 here is nearer 13,600 actual tokens. A full
+ * request lands around 37k, ~3.7% of Sonnet 5's window.
+ *
+ * The midnight session boundary still caps history at one day regardless.
+ */
+const CONVERSATION_TOKEN_BUDGET = 8000;
 
 /** Anthropic context window size in tokens. Model-specific but 200k is the standard. */
 const CONTEXT_WINDOW_TOKENS = 200_000;
